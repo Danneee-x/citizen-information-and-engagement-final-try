@@ -1,12 +1,25 @@
-document.addEventListener("DOMContentLoaded", () => {
-    let trendsChart, demoChart, radarChart;
+/**
+ * Civentral Dashboard Analytics Module
+ * Renders dynamic Chart.js visualizations for the Citizen Information & Engagement Dashboard.
+ */
 
-    // Dynamic theme styling provider
+document.addEventListener('DOMContentLoaded', () => {
+    let trendsChart = null;
+    let demoChart = null;
+    let radarChart = null;
+
+    const dataPayload = window.dashboardAnalyticsData || {
+        demographics: [6, 1, 1, 1],
+        demographicsLabels: ['Youth (<30)', 'Working Class (30-59)', 'Senior Citizens (60+)', 'Solo Parents'],
+        radarLabels: ['Civil Registry & KYC', 'Public Grievance (311)', 'Barangay Certificates', 'Public Consultations', 'Community Broadcasts'],
+        radarData: [88, 76, 92, 68, 75]
+    };
+
     function getThemeColors() {
         const isDark = document.documentElement.classList.contains('dark');
         return {
-            gridColor: isDark ? '#1e293b' : '#F1F5F9',
-            ticksColor: isDark ? '#94A3B8' : '#64748B',
+            gridColor: isDark ? 'rgba(51, 65, 85, 0.4)' : 'rgba(241, 245, 249, 0.8)',
+            ticksColor: isDark ? '#94a3b8' : '#64748b',
             legendColor: isDark ? '#cbd5e1' : '#475569',
             radarGridColor: isDark ? '#334155' : '#E2E8F0',
             radarAngleColor: isDark ? '#1e293b' : '#F1F5F9',
@@ -22,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const colors = getThemeColors();
         
         const citizenGrad = trendsCtx.createLinearGradient(0, 0, 0, 300);
-        citizenGrad.addColorStop(0, 'rgba(30, 81, 123, 0.22)');
+        citizenGrad.addColorStop(0, 'rgba(30, 81, 123, 0.25)');
         citizenGrad.addColorStop(1, 'rgba(30, 81, 123, 0)');
 
         const appGrad = trendsCtx.createLinearGradient(0, 0, 0, 300);
@@ -32,11 +45,11 @@ document.addEventListener("DOMContentLoaded", () => {
         trendsChart = new Chart(trendsCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                labels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
                 datasets: [
                     {
-                        label: 'Citizens Registered',
-                        data: [12000, 19000, 24000, 31000, 42000, 56000],
+                        label: 'Citizens Verified',
+                        data: [1, 1, 2, 2, 2, 2],
                         borderColor: '#1E517B',
                         borderWidth: 3,
                         fill: true,
@@ -49,8 +62,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         pointHoverRadius: 6
                     },
                     {
-                        label: 'Applications Filed',
-                        data: [8000, 11000, 15000, 22000, 21000, 29000],
+                        label: 'Engagement Actions',
+                        data: [4, 6, 8, 11, 12, 14],
                         borderColor: '#F59E0B',
                         borderWidth: 3,
                         fill: true,
@@ -95,7 +108,8 @@ document.addEventListener("DOMContentLoaded", () => {
                                 size: 9,
                                 weight: '600'
                             },
-                            color: colors.ticksColor
+                            color: colors.ticksColor,
+                            stepSize: 2
                         }
                     }
                 }
@@ -109,17 +123,18 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!demoCanvas) return;
         const demoCtx = demoCanvas.getContext('2d');
         const colors = getThemeColors();
+
         demoChart = new Chart(demoCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Youth', 'Seniors', 'Working Class', 'Students'],
+                labels: dataPayload.demographicsLabels,
                 datasets: [{
-                    data: [35, 15, 30, 20],
+                    data: dataPayload.demographics,
                     backgroundColor: [
-                        '#1E517B', // youth
-                        '#F59E0B', // senior
+                        '#1E517B', // youth (navy)
                         '#0D9488', // working class (teal)
-                        '#7C3AED'  // student (purple)
+                        '#F59E0B', // senior (amber)
+                        '#7C3AED'  // solo parent (purple)
                     ],
                     borderWidth: 3,
                     borderColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff'
@@ -142,29 +157,30 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
                     }
                 },
-                cutout: '70%'
+                cutout: '68%'
             }
         });
     }
 
-    // 3. Radar Chart for Municipal Service Load
+    // 3. Radar Chart for Engagement by Module
     function renderRadarChart() {
         const radarCanvas = document.getElementById('workloadRadarChart');
         if (!radarCanvas) return;
         const radarCtx = radarCanvas.getContext('2d');
         const colors = getThemeColors();
+
         radarChart = new Chart(radarCtx, {
             type: 'radar',
             data: {
-                labels: ['Health Care', 'Social Welfare', 'Education', 'Permits', 'Public Assets'],
+                labels: dataPayload.radarLabels,
                 datasets: [
                     {
-                        label: 'Service Workload Ratio',
-                        data: [85, 70, 90, 60, 50],
-                        backgroundColor: 'rgba(124, 58, 237, 0.15)',
-                        borderColor: '#7C3AED',
+                        label: 'Module Engagement Index',
+                        data: dataPayload.radarData,
+                        backgroundColor: 'rgba(14, 165, 233, 0.18)',
+                        borderColor: '#0284c7',
                         borderWidth: 2,
-                        pointBackgroundColor: '#7C3AED',
+                        pointBackgroundColor: '#0284c7',
                         pointBorderColor: '#ffffff',
                         pointBorderWidth: 1.5,
                         pointRadius: 3
@@ -196,7 +212,9 @@ document.addEventListener("DOMContentLoaded", () => {
                                 weight: '700'
                             },
                             color: colors.ticksColor
-                        }
+                        },
+                        suggestedMin: 0,
+                        suggestedMax: 100
                     }
                 }
             }
@@ -208,42 +226,15 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDemoChart();
     renderRadarChart();
 
-    // Smooth Skeleton Loader Transition
-    function handleSkeletonTransition() {
-        const skeleton = document.getElementById('dashboardSkeleton');
-        const realContent = document.getElementById('dashboardRealContent');
-
-        if (!skeleton || !realContent) return;
-
-        // Show real content in DOM
-        realContent.classList.remove('hidden');
-
-        // Allow browser frame to calculate layout before fading
-        requestAnimationFrame(() => {
-            skeleton.classList.add('opacity-0', 'pointer-events-none');
-            realContent.classList.remove('opacity-0', 'translate-y-2');
-            realContent.classList.add('opacity-100', 'translate-y-0');
-
-            setTimeout(() => {
-                skeleton.classList.add('hidden');
-            }, 500);
-        });
-    }
-
-    // Trigger skeleton hide and real content reveal after a smooth loading window
-    setTimeout(handleSkeletonTransition, 600);
-
     // Listen for Theme Toggle to dynamically redraw charts
     const themeToggleBtn = document.getElementById('themeToggleBtn');
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', () => {
             setTimeout(() => {
-                // Destroy old instances
                 if (trendsChart) trendsChart.destroy();
                 if (demoChart) demoChart.destroy();
                 if (radarChart) radarChart.destroy();
 
-                // Re-render with new colors
                 renderTrendsChart();
                 renderDemoChart();
                 renderRadarChart();

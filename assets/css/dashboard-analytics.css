@@ -45,21 +45,3 @@ html.dark .glass-panel {
   70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 }
-
-/* Skeleton Loader Shimmer Animations */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton-loader {
-  background: linear-gradient(90deg, #cbd5e1 25%, #f1f5f9 37%, #cbd5e1 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
-}
-
-html.dark .skeleton-loader {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 37%, #1e293b 63%);
-  background-size: 400% 100%;
-  animation: shimmer 1.4s ease infinite;
-}

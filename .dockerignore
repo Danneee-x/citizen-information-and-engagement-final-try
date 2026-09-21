@@ -1,0 +1,5 @@
+.git
+.gitignore
+.env
+*.local_bak
+citizen-engagement-app/node_modules

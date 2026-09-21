@@ -88,7 +88,7 @@ try {
 
             $deptName = !empty($row['assigned_department']) ? $row['assigned_department'] : ($departments[$deptKey]['name'] ?? 'City Engineering & Public Works Office');
             $hasPhoto = !empty($row['photo_evidence_url']);
-            $isUrgent = ($row['priority'] === 'Urgent' || $row['priority'] === 'High');
+            $isUrgent = (!empty($row['priority']) && ($row['priority'] === 'Urgent' || $row['priority'] === 'High'));
 
             $liveAi[] = [
                 'id' => $row['ticket_number'],

@@ -90,8 +90,30 @@ CREATE TABLE IF NOT EXISTS `citizen_concerns` (
     INDEX idx_barangay (`barangay`),
     INDEX idx_created (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-");
-echo "[OK] Table `citizen_verification.citizen_concerns` verified.\n";
+// Auto-migrate missing columns for existing citizen_concerns table
+$neededConcernsCols = [
+    'priority' => "ALTER TABLE `citizen_concerns` ADD COLUMN `priority` ENUM('Urgent', 'High', 'Medium', 'Low') NOT NULL DEFAULT 'Medium'",
+    'assigned_department' => "ALTER TABLE `citizen_concerns` ADD COLUMN `assigned_department` VARCHAR(150) NULL",
+    'ai_detected_category' => "ALTER TABLE `citizen_concerns` ADD COLUMN `ai_detected_category` VARCHAR(100) NULL",
+    'ai_confidence_score' => "ALTER TABLE `citizen_concerns` ADD COLUMN `ai_confidence_score` VARCHAR(100) NULL",
+    'photo_evidence_url' => "ALTER TABLE `citizen_concerns` ADD COLUMN `photo_evidence_url` MEDIUMTEXT NULL",
+    'attachments' => "ALTER TABLE `citizen_concerns` ADD COLUMN `attachments` TEXT NULL",
+    'resolution_notes' => "ALTER TABLE `citizen_concerns` ADD COLUMN `resolution_notes` TEXT NULL",
+    'resolved_at' => "ALTER TABLE `citizen_concerns` ADD COLUMN `resolved_at` DATETIME NULL",
+    'sub_category' => "ALTER TABLE `citizen_concerns` ADD COLUMN `sub_category` VARCHAR(100) NULL",
+    'district' => "ALTER TABLE `citizen_concerns` ADD COLUMN `district` VARCHAR(50) NULL DEFAULT 'District 1'",
+    'gps_coordinates' => "ALTER TABLE `citizen_concerns` ADD COLUMN `gps_coordinates` VARCHAR(100) NULL",
+];
+foreach ($neededConcernsCols as $colName => $alterSql) {
+    try {
+        $chk = $pdo->query("SHOW COLUMNS FROM `citizen_concerns` LIKE '{$colName}'")->fetch();
+        if (!$chk) {
+            $pdo->exec($alterSql);
+            echo "[MIGRATED] Added column `citizen_concerns.{$colName}`.\n";
+        }
+    } catch (Throwable $e) {}
+}
+echo "[OK] Table `citizen_verification.citizen_concerns` verified & migrated.\n";
 
 // 3. Setup civentral_certificates tables
 $certPdo = getCertificateDbConnection();

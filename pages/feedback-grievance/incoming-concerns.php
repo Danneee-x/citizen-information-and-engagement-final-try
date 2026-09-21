@@ -9,6 +9,25 @@ include '../../includes/sidebar.php';
 // Database Connection & Live Grievance Data
 $pdo = getDbConnection();
 
+// Ensure required columns exist in citizen_concerns table (auto-migration)
+try {
+    $colCheck = $pdo->query("SHOW COLUMNS FROM `citizen_concerns` LIKE 'priority'")->fetch();
+    if (!$colCheck) {
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `priority` ENUM('Urgent', 'High', 'Medium', 'Low') NOT NULL DEFAULT 'Medium'");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `assigned_department` VARCHAR(150) NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ai_detected_category` VARCHAR(100) NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ai_confidence_score` VARCHAR(100) NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `photo_evidence_url` MEDIUMTEXT NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `attachments` TEXT NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `resolution_notes` TEXT NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `resolved_at` DATETIME NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `sub_category` VARCHAR(100) NULL");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `district` VARCHAR(50) NULL DEFAULT 'District 1'");
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `gps_coordinates` VARCHAR(100) NULL");
+    }
+} catch (Throwable $ignore) {
+}
+
 // Fetch summary metrics
 $totalTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns`")->fetchColumn();
 $newUnroutedTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `status` IN ('New', 'Under Review')")->fetchColumn();

@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS `citizen_concerns` (
     INDEX idx_barangay (`barangay`),
     INDEX idx_created (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+");
+
 // Auto-migrate missing columns for existing citizen_concerns table
 $neededConcernsCols = [
     'priority' => "ALTER TABLE `citizen_concerns` ADD COLUMN `priority` ENUM('Urgent', 'High', 'Medium', 'Low') NOT NULL DEFAULT 'Medium'",

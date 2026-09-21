@@ -48,8 +48,19 @@ $urgentTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE
 $anonymousTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `is_anonymous` = 1")->fetchColumn();
 $anonPct = $totalTickets > 0 ? round(($anonymousTickets / $totalTickets) * 100, 1) : 0;
 
+// Dynamic primary key detection (supports either concern_id or id)
+$pkCol = 'id';
+try {
+    $concernCols = $pdo->query("SHOW COLUMNS FROM `citizen_concerns`")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('concern_id', $concernCols)) {
+        $pkCol = 'concern_id';
+    } elseif (in_array('id', $concernCols)) {
+        $pkCol = 'id';
+    }
+} catch (Throwable $e) {}
+
 // Fetch all concerns from MySQL
-$stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC");
+$stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `{$pkCol}` DESC");
 $dbConcerns = $stmt->fetchAll();
 
 // Available Caloocan Departments for Routing
@@ -110,8 +121,8 @@ foreach ($dbConcerns as $row) {
     }
 
     $concerns[] = [
-        'id' => $row['ticket_number'],
-        'concern_id' => $row['concern_id'],
+        'id' => $row['ticket_number'] ?? $row['id'] ?? 1,
+        'concern_id' => $row['concern_id'] ?? $row['id'] ?? null,
         'title' => $row['title'],
         'full_text' => $row['description'],
         'category' => $row['category'],

@@ -9,23 +9,36 @@ include '../../includes/sidebar.php';
 // Database Connection & Live Grievance Data
 $pdo = getDbConnection();
 
-// Ensure required columns exist in citizen_concerns table (auto-migration)
-try {
-    $colCheck = $pdo->query("SHOW COLUMNS FROM `citizen_concerns` LIKE 'priority'")->fetch();
-    if (!$colCheck) {
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `priority` ENUM('Urgent', 'High', 'Medium', 'Low') NOT NULL DEFAULT 'Medium'");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `assigned_department` VARCHAR(150) NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ai_detected_category` VARCHAR(100) NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ai_confidence_score` VARCHAR(100) NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `photo_evidence_url` MEDIUMTEXT NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `attachments` TEXT NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `resolution_notes` TEXT NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `resolved_at` DATETIME NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `sub_category` VARCHAR(100) NULL");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `district` VARCHAR(50) NULL DEFAULT 'District 1'");
-        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `gps_coordinates` VARCHAR(100) NULL");
-    }
-} catch (Throwable $ignore) {
+// Ensure required columns exist in citizen_concerns table (thorough auto-migration)
+$requiredConcernCols = [
+    'citizen_user_id' => 'INT UNSIGNED NULL',
+    'citizen_name' => "VARCHAR(150) NOT NULL DEFAULT 'Anonymous Resident'",
+    'citizen_phone' => 'VARCHAR(50) NULL',
+    'citizen_email' => 'VARCHAR(150) NULL',
+    'is_anonymous' => 'TINYINT(1) NOT NULL DEFAULT 0',
+    'category' => 'VARCHAR(100) NOT NULL DEFAULT "General"',
+    'sub_category' => 'VARCHAR(100) NULL',
+    'location' => 'VARCHAR(255) NOT NULL DEFAULT ""',
+    'barangay' => 'VARCHAR(100) NOT NULL DEFAULT ""',
+    'district' => 'VARCHAR(50) NULL DEFAULT "District 1"',
+    'gps_coordinates' => 'VARCHAR(100) NULL',
+    'status' => "ENUM('New', 'Under Review', 'Routed', 'In Progress', 'Resolved', 'Closed') NOT NULL DEFAULT 'New'",
+    'priority' => "ENUM('Urgent', 'High', 'Medium', 'Low') NOT NULL DEFAULT 'Medium'",
+    'assigned_department' => 'VARCHAR(150) NULL',
+    'ai_detected_category' => 'VARCHAR(100) NULL',
+    'ai_confidence_score' => 'VARCHAR(100) NULL',
+    'photo_evidence_url' => 'MEDIUMTEXT NULL',
+    'attachments' => 'TEXT NULL',
+    'resolution_notes' => 'TEXT NULL',
+    'resolved_at' => 'DATETIME NULL'
+];
+foreach ($requiredConcernCols as $col => $def) {
+    try {
+        $chk = $pdo->query("SHOW COLUMNS FROM `citizen_concerns` LIKE '{$col}'")->fetch();
+        if (!$chk) {
+            $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `{$col}` {$def}");
+        }
+    } catch (Throwable $e) {}
 }
 
 // Fetch summary metrics

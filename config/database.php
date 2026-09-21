@@ -104,6 +104,7 @@ function getDbConnection(): PDO {
 
         try {
             $pdo = new PDO($dsn, $cand['user'], $cand['pass'], $options);
+            $pdo->exec("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
             return $pdo;
         } catch (PDOException $e) {
             $lastError = $e->getMessage();
@@ -114,6 +115,7 @@ function getDbConnection(): PDO {
                     $tmpPdo = new PDO($noDbDsn, $cand['user'], $cand['pass'], $options);
                     $tmpPdo->exec("CREATE DATABASE IF NOT EXISTS `{$db}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
                     $pdo = new PDO($dsn, $cand['user'], $cand['pass'], $options);
+                    $pdo->exec("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
                     return $pdo;
                 } catch (PDOException $e2) {
                     $lastError = $e2->getMessage();

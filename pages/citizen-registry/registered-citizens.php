@@ -129,16 +129,23 @@ try {
 }
 
     // Quick Statistics from live DB
-    $quickStatsStmt = $pdo->query("SELECT 
-        COUNT(*) as total_records,
-        SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
-        SUM(CASE WHEN verification_status = 'Approved' AND sex = 'Male' THEN 1 ELSE 0 END) as male_count,
-        SUM(CASE WHEN verification_status = 'Approved' AND sex = 'Female' THEN 1 ELSE 0 END) as female_count,
-        AVG(CASE WHEN verification_status = 'Approved' AND birth_date IS NOT NULL AND birth_date != '0000-00-00' THEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) ELSE NULL END) as avg_age,
-        COUNT(DISTINCT CASE WHEN verification_status = 'Approved' AND street_address IS NOT NULL AND street_address != '' THEN street_address ELSE NULL END) as households,
-        SUM(CASE WHEN is_duplicate = 1 THEN 1 ELSE 0 END) as duplicates
-        FROM citizen_verifications");
-    $dbQuickStats = $quickStatsStmt->fetch(PDO::FETCH_ASSOC);
+    $dbQuickStats = [];
+    try {
+        $quickStatsStmt = $pdo->query("SELECT 
+            COUNT(*) as total_records,
+            SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
+            SUM(CASE WHEN verification_status = 'Approved' AND sex = 'Male' THEN 1 ELSE 0 END) as male_count,
+            SUM(CASE WHEN verification_status = 'Approved' AND sex = 'Female' THEN 1 ELSE 0 END) as female_count,
+            AVG(CASE WHEN verification_status = 'Approved' AND birth_date IS NOT NULL AND birth_date > '1900-01-01' THEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) ELSE NULL END) as avg_age,
+            COUNT(DISTINCT CASE WHEN verification_status = 'Approved' AND street_address IS NOT NULL AND street_address != '' THEN street_address ELSE NULL END) as households,
+            SUM(CASE WHEN is_duplicate = 1 THEN 1 ELSE 0 END) as duplicates
+            FROM citizen_verifications");
+        if ($quickStatsStmt) {
+            $dbQuickStats = $quickStatsStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        }
+    } catch (Throwable $e) {
+        error_log("QuickStats query error: " . $e->getMessage());
+    }
 
     $avgAge = !empty($dbQuickStats['avg_age']) ? round((float)$dbQuickStats['avg_age'], 1) : 0;
     $avgAgeDisplay = $avgAge > 0 ? "{$avgAge} years" : "N/A";

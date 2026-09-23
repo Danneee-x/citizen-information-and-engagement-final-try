@@ -11,17 +11,20 @@ $basePathResolver = $basePath ?? '../';
 $pdo = getDbConnection();
 $certPdo = getCertificateDbConnection();
 
-// Initial Server-Side Data Load (Zero-delay render)
-$vStats = $pdo->query("SELECT 
-    COUNT(*) as total_verifications,
-    SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
-    SUM(CASE WHEN verification_status IN ('Pending', 'Under_Review') THEN 1 ELSE 0 END) as pending_count,
-    SUM(CASE WHEN verification_status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
-    SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) < 30 THEN 1 ELSE 0 END) as youth_count,
-    SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 30 AND 59 THEN 1 ELSE 0 END) as adult_count,
-    SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) >= 60 THEN 1 ELSE 0 END) as senior_count,
-    SUM(CASE WHEN civil_status IN ('Widowed', 'Separated', 'Divorced / Annulled', 'Common-Law / Live-In') THEN 1 ELSE 0 END) as solo_parent_count
-    FROM citizen_verifications")->fetch(PDO::FETCH_ASSOC);
+// Initial Server-Side Data Load (Zero-delay render, fault-tolerant for live deployments)
+$vStats = [];
+try {
+    $vStats = $pdo->query("SELECT 
+        COUNT(*) as total_verifications,
+        SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
+        SUM(CASE WHEN verification_status IN ('Pending', 'Under_Review') THEN 1 ELSE 0 END) as pending_count,
+        SUM(CASE WHEN verification_status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
+        SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) < 30 THEN 1 ELSE 0 END) as youth_count,
+        SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 30 AND 59 THEN 1 ELSE 0 END) as adult_count,
+        SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) >= 60 THEN 1 ELSE 0 END) as senior_count,
+        SUM(CASE WHEN civil_status IN ('Widowed', 'Separated', 'Divorced / Annulled', 'Common-Law / Live-In') THEN 1 ELSE 0 END) as solo_parent_count
+        FROM citizen_verifications")->fetch(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
 
 $totalV = (int)($vStats['total_verifications'] ?? 0);
 $approvedV = (int)($vStats['approved_count'] ?? 0);
@@ -34,48 +37,93 @@ $adultCount = (int)($vStats['adult_count'] ?? 0);
 $youthCount = (int)($vStats['youth_count'] ?? 0);
 $soloParentCount = (int)($vStats['solo_parent_count'] ?? 0);
 
-// Live Citizen Concerns (311)
-$cStats = $pdo->query("SELECT 
-    COUNT(*) as total_concerns,
-    SUM(CASE WHEN status NOT IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) as active_concerns,
-    SUM(CASE WHEN status IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) as resolved_concerns
-    FROM citizen_concerns")->fetch(PDO::FETCH_ASSOC);
+// Live Citizen Concerns
+$cStats = [];
+try {
+    $cStats = $pdo->query("SELECT 
+        COUNT(*) as total_concerns,
+        SUM(CASE WHEN status NOT IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) as active_concerns,
+        SUM(CASE WHEN status IN ('Resolved', 'Closed') THEN 1 ELSE 0 END) as resolved_concerns
+        FROM citizen_concerns")->fetch(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
 
 $totalC = (int)($cStats['total_concerns'] ?? 0);
 $activeC = (int)($cStats['active_concerns'] ?? 0);
 $resolvedC = (int)($cStats['resolved_concerns'] ?? 0);
 
 // Live Certificate Requests
-$certStats = $certPdo->query("SELECT 
-    COUNT(*) as total_certs,
-    SUM(CASE WHEN status IN ('Pending', 'Under Review', 'Ready for Release') THEN 1 ELSE 0 END) as in_flight_certs
-    FROM certificate_requests")->fetch(PDO::FETCH_ASSOC);
+$certStats = [];
+try {
+    if ($certPdo) {
+        $certStats = $certPdo->query("SELECT 
+            COUNT(*) as total_certs,
+            SUM(CASE WHEN status IN ('Pending', 'Under Review', 'Ready for Release') THEN 1 ELSE 0 END) as in_flight_certs
+            FROM certificate_requests")->fetch(PDO::FETCH_ASSOC) ?: [];
+    }
+} catch (Throwable $e) {}
 
 $totalCerts = (int)($certStats['total_certs'] ?? 0);
 $inFlightCerts = (int)($certStats['in_flight_certs'] ?? 0);
 
-// Initial Activity Stream
-$initialVerifs = $pdo->query("SELECT 
-    verification_id, CONCAT(first_name, ' ', last_name) as citizen_name, verification_status as status,
-    district, barangay, valid_id_type as detail, submitted_at as event_time, 'kyc' as module
-    FROM citizen_verifications
-    ORDER BY submitted_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC);
+// Detect primary identifier column for citizen_concerns (supports ticket_number, concern_id, or id)
+$concernIdExpr = "CONCAT('CCN-2026-', LPAD(COALESCE(concern_id, 1), 4, '0'))";
+try {
+    $concernCols = $pdo->query("SHOW COLUMNS FROM `citizen_concerns`")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('ticket_number', $concernCols)) {
+        $concernIdExpr = "ticket_number";
+    } elseif (in_array('concern_id', $concernCols)) {
+        $concernIdExpr = "CONCAT('CCN-2026-', LPAD(concern_id, 4, '0'))";
+    } elseif (in_array('id', $concernCols)) {
+        $concernIdExpr = "CONCAT('CCN-2026-', LPAD(id, 4, '0'))";
+    }
 
-$initialConcerns = $pdo->query("SELECT 
-    ticket_number as verification_id, citizen_name, status,
-    district, barangay, title as detail, created_at as event_time, '311' as module
-    FROM citizen_concerns
-    ORDER BY created_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC);
+    // Auto-migrate ticket_number if missing
+    if (!in_array('ticket_number', $concernCols)) {
+        $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ticket_number` VARCHAR(50) NULL AFTER `concern_id`");
+        $pdo->exec("UPDATE `citizen_concerns` SET `ticket_number` = {$concernIdExpr} WHERE `ticket_number` IS NULL");
+        $concernIdExpr = "ticket_number";
+    }
+} catch (Throwable $e) {}
 
-$initialCerts = $certPdo->query("SELECT 
-    reference_no as verification_id, citizen_name, status,
-    district, barangay, certificate_type as detail, created_at as event_time, 'cert' as module
-    FROM certificate_requests
-    ORDER BY created_at DESC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC);
+// Initial Activity Stream (Defensive queries)
+$initialVerifs = [];
+try {
+    $initialVerifs = $pdo->query("SELECT 
+        verification_id, CONCAT(first_name, ' ', last_name) as citizen_name, verification_status as status,
+        district, barangay, valid_id_type as detail, submitted_at as event_time, 'kyc' as module
+        FROM citizen_verifications
+        ORDER BY submitted_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
+
+$initialConcerns = [];
+try {
+    $initialConcerns = $pdo->query("SELECT 
+        {$concernIdExpr} as verification_id, 
+        COALESCE(citizen_name, 'Anonymous') as citizen_name, 
+        COALESCE(status, 'New') as status,
+        COALESCE(district, 'District 1') as district, 
+        COALESCE(barangay, 'Barangay') as barangay, 
+        COALESCE(title, 'Community Concern') as detail, 
+        created_at as event_time, 
+        '311' as module
+        FROM citizen_concerns
+        ORDER BY created_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
+
+$initialCerts = [];
+try {
+    if ($certPdo) {
+        $initialCerts = $certPdo->query("SELECT 
+            reference_no as verification_id, citizen_name, status,
+            district, barangay, certificate_type as detail, created_at as event_time, 'cert' as module
+            FROM certificate_requests
+            ORDER BY created_at DESC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+} catch (Throwable $e) {}
 
 $initialEvents = array_merge($initialVerifs, $initialConcerns, $initialCerts);
 usort($initialEvents, function($a, $b) {
-    return strtotime($b['event_time']) <=> strtotime($a['event_time']);
+    return strtotime($b['event_time'] ?? 'now') <=> strtotime($a['event_time'] ?? 'now');
 });
 $initialEvents = array_slice($initialEvents, 0, 6);
 

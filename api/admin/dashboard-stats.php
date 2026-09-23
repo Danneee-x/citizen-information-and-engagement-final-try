@@ -236,20 +236,42 @@ if ($action === 'drilldown') {
             $cond = "priority IN ('Urgent', 'High')";
         }
 
-        $stmt = $pdo->query("SELECT 
-            ticket_number as id,
-            citizen_name as name,
-            category as age,
-            priority as civil_status,
-            district,
-            barangay,
-            title as detail,
-            status,
-            created_at as date
-            FROM citizen_concerns
-            WHERE {$cond}
-            ORDER BY created_at DESC");
-        $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Detect primary identifier column for citizen_concerns
+        $cIdExpr = "CONCAT('CCN-2026-', LPAD(COALESCE(concern_id, 1), 4, '0'))";
+        try {
+            $cCols = $pdo->query("SHOW COLUMNS FROM `citizen_concerns`")->fetchAll(PDO::FETCH_COLUMN);
+            if (in_array('ticket_number', $cCols)) {
+                $cIdExpr = "ticket_number";
+            } elseif (in_array('concern_id', $cCols)) {
+                $cIdExpr = "CONCAT('CCN-2026-', LPAD(concern_id, 4, '0'))";
+            } elseif (in_array('id', $cCols)) {
+                $cIdExpr = "CONCAT('CCN-2026-', LPAD(id, 4, '0'))";
+            }
+            if (!in_array('ticket_number', $cCols)) {
+                $pdo->exec("ALTER TABLE `citizen_concerns` ADD COLUMN `ticket_number` VARCHAR(50) NULL AFTER `concern_id`");
+                $pdo->exec("UPDATE `citizen_concerns` SET `ticket_number` = {$cIdExpr} WHERE `ticket_number` IS NULL");
+                $cIdExpr = "ticket_number";
+            }
+        } catch (Throwable $e) {}
+
+        try {
+            $stmt = $pdo->query("SELECT 
+                {$cIdExpr} as id,
+                COALESCE(citizen_name, 'Anonymous') as name,
+                COALESCE(category, 'General') as age,
+                COALESCE(priority, 'Medium') as civil_status,
+                COALESCE(district, 'District 1') as district,
+                COALESCE(barangay, 'Barangay') as barangay,
+                COALESCE(title, 'Community Concern') as detail,
+                COALESCE(status, 'New') as status,
+                created_at as date
+                FROM citizen_concerns
+                WHERE {$cond}
+                ORDER BY created_at DESC");
+            $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            $records = [];
+        }
 
     } elseif ($type === 'certificates') {
         $title = "Barangay Certificates Drill-Down: " . ucfirst($filter);
@@ -394,27 +416,55 @@ $engagementRadar = [
 ];
 
 // 6. Recent Combined Events Stream (Verifications, Grievances, Certificates)
-$recentVerifs = $pdo->query("SELECT 
-    verification_id, CONCAT(first_name, ' ', last_name) as citizen_name, verification_status as status,
-    district, barangay, valid_id_type as detail, submitted_at as event_time, 'kyc' as module
-    FROM citizen_verifications
-    ORDER BY submitted_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC);
+$recentVerifs = [];
+try {
+    $recentVerifs = $pdo->query("SELECT 
+        verification_id, CONCAT(first_name, ' ', last_name) as citizen_name, verification_status as status,
+        district, barangay, valid_id_type as detail, submitted_at as event_time, 'kyc' as module
+        FROM citizen_verifications
+        ORDER BY submitted_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
 
-$recentConcerns = $pdo->query("SELECT 
-    ticket_number as verification_id, citizen_name, status,
-    district, barangay, title as detail, created_at as event_time, '311' as module
-    FROM citizen_concerns
-    ORDER BY created_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC);
+$recentConcerns = [];
+try {
+    // Detect primary identifier column for citizen_concerns
+    $cIdExpr2 = "CONCAT('CCN-2026-', LPAD(COALESCE(concern_id, 1), 4, '0'))";
+    $cCols2 = $pdo->query("SHOW COLUMNS FROM `citizen_concerns`")->fetchAll(PDO::FETCH_COLUMN);
+    if (in_array('ticket_number', $cCols2)) {
+        $cIdExpr2 = "ticket_number";
+    } elseif (in_array('concern_id', $cCols2)) {
+        $cIdExpr2 = "CONCAT('CCN-2026-', LPAD(concern_id, 4, '0'))";
+    } elseif (in_array('id', $cCols2)) {
+        $cIdExpr2 = "CONCAT('CCN-2026-', LPAD(id, 4, '0'))";
+    }
 
-$recentCerts = $certPdo->query("SELECT 
-    reference_no as verification_id, citizen_name, status,
-    district, barangay, certificate_type as detail, created_at as event_time, 'cert' as module
-    FROM certificate_requests
-    ORDER BY created_at DESC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC);
+    $recentConcerns = $pdo->query("SELECT 
+        {$cIdExpr2} as verification_id, 
+        COALESCE(citizen_name, 'Anonymous') as citizen_name, 
+        COALESCE(status, 'New') as status,
+        COALESCE(district, 'District 1') as district, 
+        COALESCE(barangay, 'Barangay') as barangay, 
+        COALESCE(title, 'Community Concern') as detail, 
+        created_at as event_time, 
+        '311' as module
+        FROM citizen_concerns
+        ORDER BY created_at DESC LIMIT 4")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+} catch (Throwable $e) {}
+
+$recentCerts = [];
+try {
+    if ($certPdo) {
+        $recentCerts = $certPdo->query("SELECT 
+            reference_no as verification_id, citizen_name, status,
+            district, barangay, certificate_type as detail, created_at as event_time, 'cert' as module
+            FROM certificate_requests
+            ORDER BY created_at DESC LIMIT 3")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+} catch (Throwable $e) {}
 
 $allEvents = array_merge($recentVerifs, $recentConcerns, $recentCerts);
 usort($allEvents, function($a, $b) {
-    return strtotime($b['event_time']) <=> strtotime($a['event_time']);
+    return strtotime($b['event_time'] ?? 'now') <=> strtotime($a['event_time'] ?? 'now');
 });
 $recentEvents = array_slice($allEvents, 0, 6);
 

@@ -4,44 +4,220 @@
   --accent-teal: #0D9488;
   --accent-purple: #7C3AED;
   --accent-amber: #D97706;
+  --accent-emerald: #10B981;
 }
+
+/* Glassmorphism Panels */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 html.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.85);
-  border-color: rgba(51, 65, 85, 0.6);
+  background: rgba(15, 23, 42, 0.88);
+  border-color: rgba(51, 65, 85, 0.7);
 }
+
+/* Interactive Card Glows & Lifts */
 .glow-card-navy:hover {
-  box-shadow: 0 12px 30px -10px rgba(30, 81, 123, 0.25);
-  border-color: rgba(30, 81, 123, 0.4);
+  box-shadow: 0 14px 32px -8px rgba(30, 81, 123, 0.22);
+  border-color: rgba(30, 81, 123, 0.45);
   transform: translateY(-2px);
 }
-.glow-card-teal:hover {
-  box-shadow: 0 12px 30px -10px rgba(13, 148, 136, 0.25);
-  border-color: rgba(13, 148, 136, 0.4);
+
+.glow-card-teal:hover, .glow-card-emerald:hover {
+  box-shadow: 0 14px 32px -8px rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.45);
   transform: translateY(-2px);
 }
+
 .glow-card-purple:hover {
-  box-shadow: 0 12px 30px -10px rgba(124, 58, 237, 0.25);
-  border-color: rgba(124, 58, 237, 0.4);
+  box-shadow: 0 14px 32px -8px rgba(124, 58, 237, 0.22);
+  border-color: rgba(124, 58, 237, 0.45);
   transform: translateY(-2px);
 }
+
 .glow-card-amber:hover {
-  box-shadow: 0 12px 30px -10px rgba(217, 119, 6, 0.25);
-  border-color: rgba(217, 119, 6, 0.4);
+  box-shadow: 0 14px 32px -8px rgba(217, 119, 6, 0.22);
+  border-color: rgba(217, 119, 6, 0.45);
   transform: translateY(-2px);
 }
-.pulse-glow-green {
-  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
-  animation: pulse-ring-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+.glow-card-cyan:hover {
+  box-shadow: 0 14px 32px -8px rgba(6, 182, 212, 0.22);
+  border-color: rgba(6, 182, 212, 0.45);
+  transform: translateY(-2px);
 }
-@keyframes pulse-ring-green {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
-  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+
+/* Real-Time Pulsing Beacon */
+.live-pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10B981;
+}
+
+.live-pulse-dot::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 2px solid #10B981;
+  animation: live-beacon 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes live-beacon {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Polling Sync Flash Animation */
+@keyframes syncFlash {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.sync-active {
+  animation: syncFlash 1s ease-in-out infinite;
+}
+
+/* Custom Scrollbars for Data Tables & Activity Stream */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.7);
+}
+
+/* Modal Animations */
+.modal-backdrop-blur {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes modalPop {
+  0% { opacity: 0; transform: scale(0.96) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.animate-modal-pop {
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Half-Gauge Radial Donut Layout */
+.gauge-chart-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+}
+
+.gauge-center-stat {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Multi-Segment Ribbon Bar */
+.demo-segment-bar {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+  background-color: rgba(226, 232, 240, 0.6);
+}
+
+html.dark .demo-segment-bar {
+  background-color: rgba(51, 65, 85, 0.5);
+}
+
+/* 2x2 Demographic Interactive Feature Cards */
+.demo-kpi-card {
+  position: relative;
+  border-radius: 1rem;
+  padding: 0.75rem;
+  background: rgba(248, 250, 252, 0.85);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+html.dark .demo-kpi-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(51, 65, 85, 0.7);
+}
+
+.demo-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(15, 83, 209, 0.15);
+  border-color: rgba(15, 83, 209, 0.4);
+}
+
+/* Chart Control Toggle Buttons */
+.chart-type-pill {
+  transition: all 0.15s ease;
+  font-weight: 800;
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.65rem;
+}
+
+.chart-type-pill.active {
+  background-color: #0f53d1;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px -1px rgba(15, 83, 209, 0.4);
+}
+
+/* Report Print Styling (@media print) */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+  }
+  header, #sidebar, .no-print, button, .filter-controls, .export-btn-group {
+    display: none !important;
+  }
+  main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .glass-panel {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+  }
+  .print-only-header {
+    display: block !important;
+  }
 }

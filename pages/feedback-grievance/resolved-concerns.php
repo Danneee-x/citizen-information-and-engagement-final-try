@@ -238,6 +238,46 @@ foreach ($dbResolved as $row) {
 
     </div>
 
+
+<!-- RESOLUTION DETAILS MODAL -->
+<div id="resolutionDetailsModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <h3 id="resModalCaseId" class="text-sm font-black text-slate-900">Case ID: TCK-0000</h3>
+            </div>
+            <button onclick="closeResolutionModal()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="space-y-3.5 text-xs">
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Subject / Concern</span>
+                <p id="resModalTitle" class="text-sm font-bold text-slate-800 mt-0.5">-</p>
+            </div>
+            <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Assigned Department</span>
+                <p><span id="resModalDept" class="inline-block mt-1 px-2.5 py-0.5 text-[11px] font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200">-</span></p>
+            </div>
+            <div class="p-4 bg-emerald-50/70 border border-emerald-100 rounded-xl space-y-1.5">
+                <div class="flex items-center gap-1.5 text-emerald-800 font-black text-xs">
+                    <i class="fa-solid fa-circle-check text-emerald-500"></i>
+                    <span>Official Resolution Action Taken</span>
+                </div>
+                <p id="resModalAction" class="text-xs text-slate-700 leading-relaxed font-medium">-</p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end border-t border-slate-100 pt-3">
+            <button onclick="closeResolutionModal()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 </main>
 
 <script>

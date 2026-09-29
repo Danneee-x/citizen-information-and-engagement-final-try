@@ -1,407 +1,434 @@
 <?php
 $basePath = '../../';
 require_once __DIR__ . '/../../src/bootstrap.php';
+require_once __DIR__ . '/consultation-db-helper.php';
+
+// Fetch all available surveys
+$allSurveys = ConsultationDB::getAllSurveys();
+
+// Determine selected survey
+$selectedSurveyId = isset($_GET['survey_id']) ? (int)$_GET['survey_id'] : (!empty($allSurveys) ? (int)$allSurveys[0]['id'] : null);
+$selectedSurvey = null;
+
+if ($selectedSurveyId) {
+    $selectedSurvey = ConsultationDB::getSurveyById($selectedSurveyId);
+}
+
+// Fetch responses for selected survey
+$responses = [];
+if ($selectedSurvey) {
+    $pdo = Database::getInstance()->getPdo();
+    $rStmt = $pdo->prepare("SELECT * FROM `survey_responses` WHERE survey_id = ? ORDER BY submitted_at DESC");
+    $rStmt->execute([$selectedSurvey['id']]);
+    $responses = $rStmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+$totalResponses = count($responses);
+
+// Calculate question-level stats dynamically
+$questionStats = [];
+if ($selectedSurvey && !empty($selectedSurvey['questions'])) {
+    foreach ($selectedSurvey['questions'] as $q) {
+        $qId = 'q_' . $q['id'];
+        $type = $q['question_type'];
+        $options = $q['options'] ?? [];
+
+        $stat = [
+            'question' => $q,
+            'type' => $type,
+            'title' => $q['title'],
+            'total_answers' => 0,
+            'data' => []
+        ];
+
+        if ($type === 'rating_scale') {
+            $starCounts = [5 => 0, 4 => 0, 3 => 0, 2 => 0, 1 => 0];
+            $sumRating = 0;
+            $ratedCount = 0;
+
+            foreach ($responses as $r) {
+                $ans = json_decode($r['answers_json'], true) ?: [];
+                $val = $ans[$qId] ?? ($r['overall_rating'] ?? null);
+                if ($val !== null && is_numeric($val)) {
+                    $star = (int)round((float)$val);
+                    if ($star >= 1 && $star <= 5) {
+                        $starCounts[$star]++;
+                        $sumRating += (float)$val;
+                        $ratedCount++;
+                    }
+                }
+            }
+
+            $stat['total_answers'] = $ratedCount;
+            $stat['avg_score'] = $ratedCount > 0 ? round($sumRating / $ratedCount, 1) : 0;
+            $stat['stars'] = [];
+            foreach ($starCounts as $sNum => $sCount) {
+                $pct = $ratedCount > 0 ? round(($sCount / $ratedCount) * 100, 1) : 0;
+                $stat['stars'][$sNum] = ['count' => $sCount, 'pct' => $pct];
+            }
+        } elseif ($type === 'likert_scale') {
+            $likertKeys = ['Strongly Agree', 'Agree', 'Neutral / Undecided', 'Disagree', 'Strongly Disagree'];
+            $likertCounts = array_fill_keys($likertKeys, 0);
+            $totalLikert = 0;
+
+            foreach ($responses as $r) {
+                $ans = json_decode($r['answers_json'], true) ?: [];
+                $val = $ans[$qId] ?? null;
+                if ($val && isset($likertCounts[$val])) {
+                    $likertCounts[$val]++;
+                    $totalLikert++;
+                }
+            }
+
+            $stat['total_answers'] = $totalLikert;
+            $stat['likert'] = [];
+            foreach ($likertCounts as $lKey => $lCount) {
+                $pct = $totalLikert > 0 ? round(($lCount / $totalLikert) * 100, 1) : 0;
+                $stat['likert'][$lKey] = ['count' => $lCount, 'pct' => $pct];
+            }
+        } elseif ($type === 'yes_no') {
+            $yesCount = 0;
+            $noCount = 0;
+            $totalYn = 0;
+
+            foreach ($responses as $r) {
+                $ans = json_decode($r['answers_json'], true) ?: [];
+                $val = strtolower((string)($ans[$qId] ?? ''));
+                if ($val === 'yes' || $val === '1' || $val === 'true') {
+                    $yesCount++;
+                    $totalYn++;
+                } elseif ($val === 'no' || $val === '0' || $val === 'false') {
+                    $noCount++;
+                    $totalYn++;
+                }
+            }
+
+            $stat['total_answers'] = $totalYn;
+            $stat['yes_pct'] = $totalYn > 0 ? round(($yesCount / $totalYn) * 100, 1) : 0;
+            $stat['no_pct'] = $totalYn > 0 ? round(($noCount / $totalYn) * 100, 1) : 0;
+            $stat['yes_count'] = $yesCount;
+            $stat['no_count'] = $noCount;
+        } elseif ($type === 'multiple_choice' || $type === 'multiple_selection') {
+            $optCounts = [];
+            foreach ($options as $opt) {
+                $optCounts[$opt] = 0;
+            }
+            $totalPicks = 0;
+
+            foreach ($responses as $r) {
+                $ans = json_decode($r['answers_json'], true) ?: [];
+                $val = $ans[$qId] ?? null;
+                if (is_array($val)) {
+                    foreach ($val as $subVal) {
+                        if (isset($optCounts[$subVal])) {
+                            $optCounts[$subVal]++;
+                            $totalPicks++;
+                        }
+                    }
+                } elseif (is_string($val) && isset($optCounts[$val])) {
+                    $optCounts[$val]++;
+                    $totalPicks++;
+                }
+            }
+
+            $stat['total_answers'] = $totalPicks;
+            $stat['options'] = [];
+            foreach ($optCounts as $oLabel => $oCount) {
+                $pct = $totalPicks > 0 ? round(($oCount / $totalPicks) * 100, 1) : 0;
+                $stat['options'][] = ['label' => $oLabel, 'count' => $oCount, 'pct' => $pct];
+            }
+        } elseif ($type === 'long_answer' || $type === 'short_answer') {
+            $comments = [];
+            foreach ($responses as $r) {
+                $ans = json_decode($r['answers_json'], true) ?: [];
+                $text = trim((string)($ans[$qId] ?? ($r['commentary'] ?? '')));
+                if (!empty($text)) {
+                    $comments[] = [
+                        'citizen_name' => $r['citizen_name'] ?? 'Verified Citizen',
+                        'barangay' => $r['barangay'] ?? 'District 1',
+                        'commentary' => $text,
+                        'date' => date('M d, Y', strtotime($r['submitted_at']))
+                    ];
+                }
+            }
+            $stat['total_answers'] = count($comments);
+            $stat['comments'] = array_slice($comments, 0, 15);
+        }
+
+        $questionStats[] = $stat;
+    }
+}
 
 include '../../includes/header.php';
 include '../../includes/sidebar.php';
-
-// Survey Dataset for Live Results
-$surveys = [
-    'SRV-2025-001' => [
-        'id' => 'SRV-2025-001',
-        'title' => '2026 Barangay Disaster Resilience & Flood Control Plan',
-        'category' => 'Disaster Preparedness',
-        'target' => 'All Residents (Caloocan City)',
-        'responses' => 3420,
-        'target_responses' => 4000,
-        'progress_pct' => 85.5,
-        'completion_rate' => '94.2%',
-        'avg_time' => '2m 34s',
-        'top_turnout' => 'Barangay 176 (Bagong Silang)',
-        'q1' => [
-            'title' => 'What is the most urgent disaster risk in your barangay?',
-            'type' => 'Multiple Choice',
-            'options' => [
-                ['label' => 'Flooding / Canal Blockage', 'pct' => 52, 'count' => '1,778', 'color' => 'bg-[#0f53d1]', 'text_color' => 'text-[#0f53d1]'],
-                ['label' => 'Typhoon / Strong Winds', 'pct' => 28, 'count' => '957', 'color' => 'bg-emerald-500', 'text_color' => 'text-emerald-600'],
-                ['label' => 'Fire Hazard in Dense Alleyways', 'pct' => 14, 'count' => '478', 'color' => 'bg-amber-500', 'text_color' => 'text-amber-600'],
-                ['label' => 'Earthquake Fault Line Risk', 'pct' => 6, 'count' => '207', 'color' => 'bg-purple-500', 'text_color' => 'text-purple-600']
-            ]
-        ],
-        'q2' => [
-            'title' => 'How would you rate the current barangay flood response preparedness?',
-            'type' => 'Rating Scale (1-5 Stars)',
-            'avg_score' => '4.2',
-            'stars' => [
-                5 => ['count' => 1420, 'pct' => 41.5],
-                4 => ['count' => 1250, 'pct' => 36.5],
-                3 => ['count' => 510, 'pct' => 14.9],
-                2 => ['count' => 180, 'pct' => 5.3],
-                1 => ['count' => 60, 'pct' => 1.8]
-            ]
-        ],
-        'q3' => [
-            'title' => 'Which emergency equipment and mitigation facilities should the Barangay procure first?',
-            'type' => 'Checkbox (Multi-Select)',
-            'top_choice' => 'High-Capacity Drainage De-clogging Water Pumps (68% Top Pick)',
-            'options' => [
-                ['label' => 'High-Capacity Drainage De-clogging Water Pumps', 'pct' => 68, 'count' => '2,325', 'color' => 'bg-emerald-600', 'text_color' => 'text-emerald-600'],
-                ['label' => 'Solar-Powered Emergency Warning Sirens', 'pct' => 54, 'count' => '1,846', 'color' => 'bg-[#0f53d1]', 'text_color' => 'text-[#0f53d1]'],
-                ['label' => 'Inflatable Rubber Rescue Boats & Life Vests', 'pct' => 42, 'count' => '1,436', 'color' => 'bg-indigo-600', 'text_color' => 'text-indigo-600'],
-                ['label' => 'Emergency Food & Medical Relief Stockpiles', 'pct' => 35, 'count' => '1,197', 'color' => 'bg-amber-500', 'text_color' => 'text-amber-600'],
-                ['label' => 'Portable Evacuation Center Generators & Solar Stations', 'pct' => 28, 'count' => '957', 'color' => 'bg-purple-600', 'text_color' => 'text-purple-600']
-            ]
-        ]
-    ],
-    'SRV-2025-002' => [
-        'id' => 'SRV-2025-002',
-        'title' => 'Solar Streetlights & Security Lighting Priority Selection',
-        'category' => 'Public Safety',
-        'target' => 'Purok 1-6 Residents',
-        'responses' => 1840,
-        'target_responses' => 2000,
-        'progress_pct' => 92.0,
-        'completion_rate' => '96.8%',
-        'avg_time' => '1m 50s',
-        'top_turnout' => 'Barangay 178 (Camarin)',
-        'q1' => [
-            'title' => 'Which location has the highest need for new LED streetlights?',
-            'type' => 'Multiple Choice',
-            'options' => [
-                ['label' => 'Market Alleyways', 'pct' => 58, 'count' => '1,067', 'color' => 'bg-[#0f53d1]', 'text_color' => 'text-[#0f53d1]'],
-                ['label' => 'School Perimeter Zones', 'pct' => 27, 'count' => '496', 'color' => 'bg-emerald-500', 'text_color' => 'text-emerald-600'],
-                ['label' => 'Main Highway Crosswalks', 'pct' => 15, 'count' => '277', 'color' => 'bg-amber-500', 'text_color' => 'text-amber-600']
-            ]
-        ],
-        'q2' => [
-            'title' => 'How urgent is night lighting installation for public safety?',
-            'type' => 'Rating Scale (1-5 Stars)',
-            'avg_score' => '4.7',
-            'stars' => [
-                5 => ['count' => 1310, 'pct' => 71.1],
-                4 => ['count' => 380, 'pct' => 20.6],
-                3 => ['count' => 110, 'pct' => 5.9],
-                2 => ['count' => 30, 'pct' => 1.6],
-                1 => ['count' => 10, 'pct' => 0.5]
-            ]
-        ],
-        'q3' => [
-            'title' => 'Which safety features should be integrated into new streetlight poles?',
-            'type' => 'Checkbox (Multi-Select)',
-            'top_choice' => 'High-Definition CCTV Security Camera (74% Top Pick)',
-            'options' => [
-                ['label' => 'High-Definition CCTV Security Camera', 'pct' => 74, 'count' => '1,361', 'color' => 'bg-emerald-600', 'text_color' => 'text-emerald-600'],
-                ['label' => 'Emergency Panic Button to Barangay Hall', 'pct' => 61, 'count' => '1,122', 'color' => 'bg-[#0f53d1]', 'text_color' => 'text-[#0f53d1]'],
-                ['label' => 'Solar Battery Backup (24hr Duration)', 'pct' => 45, 'count' => '828', 'color' => 'bg-amber-500', 'text_color' => 'text-amber-600']
-            ]
-        ]
-    ]
-];
-
-$selectedSurveyId = $_GET['id'] ?? 'SRV-2025-001';
-$currentSurvey = $surveys[$selectedSurveyId] ?? $surveys['SRV-2025-001'];
 ?>
-
-<style>
-    .custom-scrollbar::-webkit-scrollbar {
-        height: 6px;
-        width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background-color: #cbd5e1;
-        border-radius: 20px;
-    }
-</style>
 
 <main class="flex-1 p-4 md:p-6 lg:p-8 w-full overflow-y-auto bg-slate-50/50 min-h-[calc(100vh-4rem)] space-y-6">
 
-    <!-- Top Action & Survey Selector Header Bar -->
+    <!-- Top Action & Title Header Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
-                <i class="fa-solid fa-chart-pie"></i>
-            </div>
-            <div>
-                <div class="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
-                    <span>Public Consultation & Survey</span>
-                    <i class="fa-solid fa-chevron-right text-[8px] opacity-60"></i>
-                    <span class="text-brand-dark">Live Results</span>
+        <div>
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-chart-pie"></i>
                 </div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Live Results</h1>
-                    <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1">
-                        <i class="fa-solid fa-circle text-[6px] animate-pulse"></i> Live Syncing
-                    </span>
+                <div>
+                    <div class="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        <span>Public Consultation & Survey</span>
+                        <i class="fa-solid fa-chevron-right text-[8px] opacity-60"></i>
+                        <span class="text-brand-dark">Live Results</span>
+                    </div>
+                    <h1 class="text-xl font-black text-slate-900 tracking-tight">Real-Time Survey Analytics & Citizen Feedback</h1>
                 </div>
             </div>
+            <p class="text-xs text-slate-500 font-medium mt-1">Live aggregated responses, star rating distributions, Likert scales, and qualitative commentary feeds.</p>
         </div>
 
-        <div class="flex items-center gap-2 flex-wrap">
-            <!-- Active Survey Selector Dropdown -->
-            <select id="surveySelector" onchange="switchSurveyDataset(this.value)" class="bg-white border border-slate-200 text-slate-800 font-bold rounded-xl py-2.5 px-3 text-xs outline-none cursor-pointer shadow-xs">
-                <?php foreach ($surveys as $sId => $sData): ?>
-                <option value="<?php echo $sId; ?>" <?php echo $sId === $selectedSurveyId ? 'selected' : ''; ?>>
-                    <?php echo $sId; ?> - <?php echo htmlspecialchars($sData['title']); ?>
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <a href="manage-surveys.php" class="px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-list-check text-slate-400"></i>
+                <span>Manage Surveys</span>
+            </a>
+
+            <?php if (!empty($allSurveys)): ?>
+            <select onchange="window.location.href='live-results.php?survey_id=' + this.value" class="bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl px-3 py-2.5 shadow-xs outline-none cursor-pointer">
+                <?php foreach ($allSurveys as $srv): ?>
+                <option value="<?php echo $srv['id']; ?>" <?php echo ($selectedSurveyId == $srv['id']) ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($srv['survey_code'] . ' - ' . $srv['title']); ?>
                 </option>
                 <?php endforeach; ?>
             </select>
-
-            <button onclick="triggerLiveRefresh()" class="px-3.5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                <i id="refreshIcon" class="fa-solid fa-arrows-rotate text-slate-400 text-xs"></i>
-                <span>Refresh</span>
-            </button>
-
-            <button onclick="exportLiveReport()" class="px-4 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-download text-xs"></i>
-                <span>Export Report (PDF)</span>
-            </button>
+            <?php endif; ?>
         </div>
     </div>
 
-    <!-- Live Analytics KPI Metrics Row (4 Cards) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <!-- Card 1: Response Count & Progress Bar -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Responses</span>
-                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-base border border-blue-100">
-                    <i class="fa-solid fa-square-poll-vertical"></i>
-                </div>
-            </div>
-            <div>
-                <h3 class="text-2xl font-black text-slate-900 tracking-tight"><?php echo number_format($currentSurvey['responses']); ?></h3>
-                <div class="space-y-1 mt-2">
-                    <div class="flex justify-between text-[10px] font-bold text-slate-500">
-                        <span>Target: <?php echo number_format($currentSurvey['target_responses']); ?></span>
-                        <span class="text-[#0f53d1]"><?php echo $currentSurvey['progress_pct']; ?>%</span>
-                    </div>
-                    <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-[#0f53d1] rounded-full transition-all duration-500" style="width: <?php echo $currentSurvey['progress_pct']; ?>%;"></div>
-                    </div>
-                </div>
-            </div>
+    <?php if (empty($allSurveys)): ?>
+    <!-- Zero Surveys State -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-12 text-center space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-blue-50 text-[#0f53d1] mx-auto flex items-center justify-center text-2xl border border-blue-100">
+            <i class="fa-solid fa-chart-pie"></i>
         </div>
-
-        <!-- Card 2: Completion Rate -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Completion Rate</span>
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-base border border-emerald-100">
-                    <i class="fa-solid fa-circle-check"></i>
-                </div>
-            </div>
-            <div>
-                <h3 class="text-2xl font-black text-slate-900 tracking-tight"><?php echo $currentSurvey['completion_rate']; ?></h3>
-                <p class="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
-                    <i class="fa-solid fa-arrow-trend-up"></i>
-                    <span>High survey engagement</span>
-                </p>
-            </div>
+        <div class="max-w-md mx-auto space-y-1.5">
+            <h3 class="text-base font-black text-slate-900">No Live Survey Data Available</h3>
+            <p class="text-xs text-slate-500 font-medium">All mock data has been cleared. To view live analytics, please publish a survey from the Manage Surveys engine.</p>
         </div>
-
-        <!-- Card 3: Avg Response Time -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Avg Completion Time</span>
-                <div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-base border border-purple-100">
-                    <i class="fa-solid fa-stopwatch"></i>
-                </div>
-            </div>
-            <div>
-                <h3 class="text-2xl font-black text-slate-900 tracking-tight"><?php echo $currentSurvey['avg_time']; ?></h3>
-                <p class="text-[11px] font-semibold text-purple-600 flex items-center gap-1 mt-1">
-                    <i class="fa-solid fa-clock"></i>
-                    <span>Optimal completion speed</span>
-                </p>
-            </div>
-        </div>
-
-        <!-- Card 4: Top Turnout Barangay -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Highest Turnout</span>
-                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base border border-amber-100">
-                    <i class="fa-solid fa-location-dot"></i>
-                </div>
-            </div>
-            <div>
-                <h3 class="text-lg font-black text-slate-900 tracking-tight truncate"><?php echo $currentSurvey['top_turnout']; ?></h3>
-                <p class="text-[11px] font-semibold text-amber-600 flex items-center gap-1 mt-1">
-                    <i class="fa-solid fa-fire"></i>
-                    <span>Top participating area</span>
-                </p>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Caloocan Barangay & Demographic Response Filter Bar -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-filter text-slate-400"></i>
-            <span class="font-black text-slate-900 uppercase tracking-wider text-[11px]">Filter Visual Analytics:</span>
-        </div>
-
-        <div class="flex items-center gap-3 flex-wrap w-full md:w-auto">
-            <select id="barangayFilter" onchange="filterLiveCharts()" class="bg-slate-50 border border-slate-200 text-slate-800 font-bold rounded-xl py-2 px-3 text-xs outline-none cursor-pointer">
-                <option value="">All Caloocan Barangays</option>
-                <option value="Barangay 178, Camarin">Barangay 178, Camarin</option>
-                <option value="Barangay 176, Bagong Silang">Barangay 176, Bagong Silang</option>
-                <option value="Barangay 12, Caloocan">Barangay 12, Caloocan</option>
-                <option value="Barangay 88, Caloocan">Barangay 88, Caloocan</option>
-            </select>
-
-            <select id="demographicFilter" onchange="filterLiveCharts()" class="bg-slate-50 border border-slate-200 text-slate-800 font-bold rounded-xl py-2 px-3 text-xs outline-none cursor-pointer">
-                <option value="">All Demographic Groups</option>
-                <option value="Senior Citizens">Senior Citizens (60+)</option>
-                <option value="Youth">Youth / Students</option>
-                <option value="Household Head">Head of Household</option>
-            </select>
+        <div class="pt-2">
+            <a href="manage-surveys.php" class="px-5 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition inline-flex items-center gap-2">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Create or Sync Survey</span>
+            </a>
         </div>
     </div>
 
-    <!-- Visual Charts Grid (Question 1, Question 2 & Question 3 Checkbox Multi-Select) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Question 1: Multiple Choice Bar Chart Card (8 Cols) -->
-        <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="space-y-0.5">
-                    <span class="text-[10px] font-black text-[#0f53d1] uppercase tracking-wider block">Question 1 &bull; Multiple Choice</span>
-                    <h3 class="text-base font-black text-slate-900"><?php echo htmlspecialchars($currentSurvey['q1']['title']); ?></h3>
-                </div>
-                <span class="px-2.5 py-1 rounded-md bg-blue-50 text-[#0f53d1] font-bold text-xs border border-blue-100">Single Select</span>
-            </div>
-
-            <div class="space-y-4">
-                <?php foreach ($currentSurvey['q1']['options'] as $opt): ?>
-                <div class="space-y-1.5">
-                    <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-slate-800"><?php echo htmlspecialchars($opt['label']); ?></span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-slate-400 font-medium text-[11px]">(<?php echo $opt['count']; ?> votes)</span>
-                            <span class="<?php echo $opt['text_color']; ?> font-black"><?php echo $opt['pct']; ?>%</span>
-                        </div>
-                    </div>
-                    <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full <?php echo $opt['color']; ?> rounded-full transition-all duration-500" style="width: <?php echo $opt['pct']; ?>%;"></div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
+    <?php elseif ($totalResponses === 0): ?>
+    <!-- Survey exists but 0 responses yet -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-10 text-center space-y-4">
+        <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center text-xl border border-amber-100">
+            <i class="fa-solid fa-hourglass-start"></i>
         </div>
-
-        <!-- Question 2: 5-Star Rating Distribution Card (4 Cols) -->
-        <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="space-y-0.5">
-                    <span class="text-[10px] font-black text-amber-600 uppercase tracking-wider block">Question 2 &bull; Rating Scale</span>
-                    <h3 class="text-sm font-black text-slate-900 leading-snug"><?php echo htmlspecialchars($currentSurvey['q2']['title']); ?></h3>
-                </div>
-            </div>
-
-            <div class="p-4 bg-amber-50/60 border border-amber-100 rounded-2xl text-center space-y-1">
-                <h2 class="text-3xl font-black text-amber-600 tracking-tight"><?php echo $currentSurvey['q2']['avg_score']; ?> <span class="text-sm font-bold text-amber-500">/ 5.0</span></h2>
-                <div class="flex items-center justify-center gap-1 text-amber-400 text-sm">
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star"></i>
-                    <i class="fa-solid fa-star-half-stroke"></i>
-                </div>
-                <p class="text-[10px] font-bold text-amber-700">Overall Rating Score</p>
-            </div>
-
-            <div class="space-y-2 text-xs font-medium">
-                <?php foreach ($currentSurvey['q2']['stars'] as $star => $sData): ?>
-                <div class="flex items-center gap-2">
-                    <span class="w-12 font-bold text-slate-700 text-right"><?php echo $star; ?> Stars</span>
-                    <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div class="h-full bg-amber-400 rounded-full" style="width: <?php echo $sData['pct']; ?>%;"></div>
-                    </div>
-                    <span class="w-10 text-[11px] font-bold text-slate-500 text-right"><?php echo $sData['pct']; ?>%</span>
-                </div>
-                <?php endforeach; ?>
-            </div>
+        <div class="max-w-md mx-auto space-y-1.5">
+            <h3 class="text-base font-black text-slate-900"><?php echo htmlspecialchars($selectedSurvey['title']); ?></h3>
+            <p class="text-xs text-slate-500 font-medium">Survey code: <span class="font-bold text-slate-700"><?php echo htmlspecialchars($selectedSurvey['survey_code']); ?></span>. No citizen responses have been submitted yet. Responses from the Civentral citizen mobile app will appear here in real time.</p>
         </div>
+        <div class="pt-2 flex items-center justify-center gap-3">
+            <a href="manage-surveys.php" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">
+                <span>Back to Surveys</span>
+            </a>
+        </div>
+    </div>
 
-        <!-- QUESTION 3: CHECKBOX MULTI-SELECT HORIZONTAL PROGRESS BARS -->
-        <div class="lg:col-span-12 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                <div class="space-y-0.5">
-                    <span class="text-[10px] font-black text-emerald-600 uppercase tracking-wider block">Question 3 &bull; Checkbox Multi-Select Analysis</span>
-                    <h3 class="text-base font-black text-slate-900"><?php echo htmlspecialchars($currentSurvey['q3']['title']); ?></h3>
+    <?php else: ?>
+    <!-- Active Real-Time Analytics Dashboard -->
+
+    <!-- Header Meta & KPI Grid -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-blue-50 text-[#0f53d1] border border-blue-100"><?php echo htmlspecialchars($selectedSurvey['category']); ?></span>
+                    <span class="text-xs font-bold text-slate-400"><?php echo htmlspecialchars($selectedSurvey['survey_code']); ?></span>
                 </div>
-                <span class="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-600 font-bold text-xs border border-emerald-100 flex items-center gap-1">
-                    <i class="fa-solid fa-square-check text-xs"></i> Multi-Select Allowed
+                <h2 class="text-lg font-black text-slate-900"><?php echo htmlspecialchars($selectedSurvey['title']); ?></h2>
+                <p class="text-xs text-slate-500 mt-0.5"><?php echo htmlspecialchars($selectedSurvey['short_description']); ?></p>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Live Tracking</span>
                 </span>
             </div>
-
-            <!-- Top Choice Banner -->
-            <div class="p-3.5 bg-emerald-50/60 border border-emerald-100 rounded-xl flex items-center justify-between text-xs">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-trophy text-amber-500 text-base"></i>
-                    <div>
-                        <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Highest Voted Priority Option</span>
-                        <span class="font-black text-slate-900 text-xs"><?php echo $currentSurvey['q3']['top_choice']; ?></span>
-                    </div>
-                </div>
-                <span class="px-2.5 py-1 rounded-lg bg-white text-emerald-700 font-bold text-[11px] border border-emerald-200 shadow-xs">Top Priority</span>
-            </div>
-
-            <!-- Multi-Select Progress Bars Grid -->
-            <div class="space-y-4">
-                <?php foreach ($currentSurvey['q3']['options'] as $mOpt): ?>
-                <div class="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-2">
-                    <div class="flex items-center justify-between text-xs font-bold">
-                        <span class="text-slate-900 text-xs flex items-center gap-2">
-                            <i class="fa-regular fa-square-check text-emerald-600"></i>
-                            <?php echo htmlspecialchars($mOpt['label']); ?>
-                        </span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-slate-400 font-medium text-[11px]">(<?php echo $mOpt['count']; ?> votes)</span>
-                            <span class="<?php echo $mOpt['text_color']; ?> font-black text-sm"><?php echo $mOpt['pct']; ?>%</span>
-                        </div>
-                    </div>
-                    <div class="w-full h-3.5 bg-slate-200/80 rounded-full overflow-hidden">
-                        <div class="h-full <?php echo $mOpt['color']; ?> rounded-full transition-all duration-500" style="width: <?php echo $mOpt['pct']; ?>%;"></div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
         </div>
 
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Total Submissions</span>
+                <h4 class="text-xl font-black text-slate-900"><?php echo number_format($totalResponses); ?></h4>
+                <span class="text-[10px] text-emerald-600 font-bold">100% Verified</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Average Rating</span>
+                <h4 class="text-xl font-black text-amber-600"><?php echo $selectedSurvey['avg_rating'] ? $selectedSurvey['avg_rating'] . ' ★' : 'N/A'; ?></h4>
+                <span class="text-[10px] text-slate-400 font-medium">Out of 5.0 Stars</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Est. Completion</span>
+                <h4 class="text-xl font-black text-slate-900"><?php echo htmlspecialchars($selectedSurvey['estimated_time']); ?></h4>
+                <span class="text-[10px] text-blue-600 font-bold">Quick Mobile Form</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Target Audience</span>
+                <h4 class="text-xs font-black text-slate-900 truncate"><?php echo htmlspecialchars($selectedSurvey['target_audience']); ?></h4>
+                <span class="text-[10px] text-slate-400 font-medium">Caloocan Citizens</span>
+            </div>
+        </div>
     </div>
 
+    <!-- Questions Dynamic Breakdown Cards -->
+    <div class="space-y-6">
+        <h3 class="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-list-ol text-[#0f53d1]"></i>
+            <span>Question Responses Breakdown (<?php echo count($questionStats); ?> Questions)</span>
+        </h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <?php foreach ($questionStats as $idx => $qs): ?>
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-4 flex flex-col justify-between">
+                
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 rounded font-bold text-[10px] bg-blue-50 text-[#0f53d1] border border-blue-100">
+                            Q<?php echo $idx + 1; ?> &bull; <?php echo strtoupper(str_replace('_', ' ', $qs['type'])); ?>
+                        </span>
+                        <span class="text-[11px] font-bold text-slate-400"><?php echo $qs['total_answers']; ?> Responses</span>
+                    </div>
+                    <h4 class="text-sm font-black text-slate-900 leading-snug"><?php echo htmlspecialchars($qs['title']); ?></h4>
+                </div>
+
+                <!-- RATING SCALE VISUALIZER -->
+                <?php if ($qs['type'] === 'rating_scale'): ?>
+                <div class="space-y-3 pt-2">
+                    <div class="flex items-center gap-4 p-3 bg-amber-50/60 border border-amber-200/60 rounded-xl">
+                        <div class="text-center">
+                            <span class="text-2xl font-black text-amber-700"><?php echo $qs['avg_score']; ?></span>
+                            <span class="block text-[9px] font-bold text-amber-600 uppercase">Avg Score</span>
+                        </div>
+                        <div class="flex-1 space-y-1">
+                            <div class="flex text-amber-500 text-sm">
+                                <?php for ($s = 1; $s <= 5; $s++): ?>
+                                <i class="fa-solid fa-star <?php echo ($s <= round($qs['avg_score'])) ? 'text-amber-500' : 'text-slate-200'; ?>"></i>
+                                <?php endfor; ?>
+                            </div>
+                            <span class="text-[11px] font-medium text-slate-500">Based on <?php echo $qs['total_answers']; ?> citizen ratings</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5 text-xs">
+                        <?php for ($s = 5; $s >= 1; $s--): 
+                            $info = $qs['stars'][$s] ?? ['count' => 0, 'pct' => 0];
+                        ?>
+                        <div class="flex items-center gap-2">
+                            <span class="w-12 font-bold text-slate-600 text-[11px] flex items-center gap-1"><?php echo $s; ?> <i class="fa-solid fa-star text-[9px] text-amber-500"></i></span>
+                            <div class="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                <div class="bg-amber-500 h-full rounded-full transition-all" style="width: <?php echo $info['pct']; ?>%;"></div>
+                            </div>
+                            <span class="w-16 text-right font-black text-slate-800 text-[11px]"><?php echo $info['pct']; ?>% <span class="text-slate-400 font-normal">(<?php echo $info['count']; ?>)</span></span>
+                        </div>
+                        <?php endfor; ?>
+                    </div>
+                </div>
+
+                <!-- LIKERT SCALE VISUALIZER -->
+                <?php elseif ($qs['type'] === 'likert_scale'): ?>
+                <div class="space-y-2 pt-2 text-xs">
+                    <?php 
+                    $colors = [
+                        'Strongly Agree' => 'bg-emerald-600',
+                        'Agree' => 'bg-emerald-400',
+                        'Neutral / Undecided' => 'bg-slate-400',
+                        'Disagree' => 'bg-amber-500',
+                        'Strongly Disagree' => 'bg-rose-500'
+                    ];
+                    foreach ($qs['likert'] as $label => $lData): 
+                        $col = $colors[$label] ?? 'bg-blue-500';
+                    ?>
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <span><?php echo htmlspecialchars($label); ?></span>
+                            <span class="text-slate-900"><?php echo $lData['pct']; ?>% (<?php echo $lData['count']; ?>)</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="<?php echo $col; ?> h-full rounded-full" style="width: <?php echo $lData['pct']; ?>%;"></div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- YES / NO VISUALIZER -->
+                <?php elseif ($qs['type'] === 'yes_no'): ?>
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-emerald-800 uppercase flex items-center gap-1"><i class="fa-solid fa-thumbs-up"></i> Yes</span>
+                            <span class="text-lg font-black text-emerald-600"><?php echo $qs['yes_pct']; ?>%</span>
+                        </div>
+                        <span class="text-[11px] text-emerald-700 font-medium"><?php echo $qs['yes_count']; ?> Citizens In Favor</span>
+                    </div>
+
+                    <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-rose-800 uppercase flex items-center gap-1"><i class="fa-solid fa-thumbs-down"></i> No</span>
+                            <span class="text-lg font-black text-rose-600"><?php echo $qs['no_pct']; ?>%</span>
+                        </div>
+                        <span class="text-[11px] text-rose-700 font-medium"><?php echo $qs['no_count']; ?> Citizens Opposed</span>
+                    </div>
+                </div>
+
+                <!-- MULTIPLE CHOICE / MULTI SELECTION VISUALIZER -->
+                <?php elseif ($qs['type'] === 'multiple_choice' || $qs['type'] === 'multiple_selection'): ?>
+                <div class="space-y-2.5 pt-2 text-xs">
+                    <?php foreach ($qs['options'] as $o): ?>
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                            <span class="truncate max-w-xs"><?php echo htmlspecialchars($o['label']); ?></span>
+                            <span class="text-slate-900 font-black"><?php echo $o['pct']; ?>% <span class="text-slate-400 font-normal">(<?php echo $o['count']; ?>)</span></span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div class="bg-[#0f53d1] h-full rounded-full" style="width: <?php echo $o['pct']; ?>%;"></div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <!-- COMMENTARY & LONG ANSWER VISUALIZER -->
+                <?php elseif ($qs['type'] === 'long_answer' || $qs['type'] === 'short_answer'): ?>
+                <div class="space-y-2 pt-1 max-h-56 overflow-y-auto custom-scrollbar">
+                    <?php if (empty($qs['comments'])): ?>
+                    <p class="text-xs text-slate-400 italic">No written commentaries recorded yet.</p>
+                    <?php else: ?>
+                    <?php foreach ($qs['comments'] as $c): ?>
+                    <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1 text-xs">
+                        <p class="text-slate-800 font-medium italic">“<?php echo htmlspecialchars($c['commentary']); ?>”</p>
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-semibold pt-0.5">
+                            <span><i class="fa-solid fa-user-check text-[#0f53d1]"></i> <?php echo htmlspecialchars($c['citizen_name']); ?> (<?php echo htmlspecialchars($c['barangay']); ?>)</span>
+                            <span><?php echo $c['date']; ?></span>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <?php endif; ?>
+
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
 </main>
-
-<script>
-function switchSurveyDataset(surveyId) {
-    window.location.href = `live-results.php?id=${surveyId}`;
-}
-
-function triggerLiveRefresh() {
-    const icon = document.getElementById('refreshIcon');
-    if (icon) icon.classList.add('animate-spin');
-    setTimeout(() => {
-        if (icon) icon.classList.remove('animate-spin');
-        alert('Live poll data refreshed with real-time incoming citizen responses!');
-    }, 600);
-}
-
-function filterLiveCharts() {
-    const brgy = document.getElementById('barangayFilter').value;
-    const demo = document.getElementById('demographicFilter').value;
-    alert(`Filtering Live Results for ${brgy || 'All Barangays'} and ${demo || 'All Demographics'}...`);
-}
-
-function exportLiveReport() {
-    alert('Exporting Live Poll Analytics Report (PDF)...');
-}
-</script>
 
 <?php include '../../includes/footer.php'; ?>

@@ -1415,6 +1415,160 @@ function switchViewMode(mode) {
 
     filterCitizensByDistrict();
 }
+
+function getSelectedRowsData() {
+    const checkedBoxes = document.querySelectorAll('.citizen-row-checkbox:checked');
+    const data = [];
+    checkedBoxes.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row) {
+            data.push({
+                row: row,
+                id: row.getAttribute('data-citizen-id') || row.children[1]?.innerText?.trim() || '',
+                name: row.getAttribute('data-full-name') || row.children[2]?.innerText?.trim() || '',
+                age: row.getAttribute('data-age') || '',
+                sex: row.getAttribute('data-sex') || '',
+                civilStatus: row.getAttribute('data-civil-status') || '',
+                barangay: row.getAttribute('data-barangay') || '',
+                district: row.getAttribute('data-district') || '',
+                status: row.getAttribute('data-status') || '',
+                household: row.getAttribute('data-household') || row.children[8]?.innerText?.trim() || ''
+            });
+        }
+    });
+    return data;
+}
+
+function exportSelectedCitizensCSV() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) {
+        alert('Please select at least one citizen from the table to export.');
+        return;
+    }
+    const headers = ['Citizen ID', 'Full Name', 'Age', 'Sex', 'Civil Status', 'Barangay', 'District', 'Household', 'Status'];
+    const rows = [headers.join(',')];
+    selected.forEach(c => {
+        rows.push([
+            `"${c.id.replace(/"/g, '""')}"`,
+            `"${c.name.replace(/"/g, '""')}"`,
+            `"${c.age}"`,
+            `"${c.sex}"`,
+            `"${c.civilStatus}"`,
+            `"${c.barangay.replace(/"/g, '""')}"`,
+            `"${c.district.replace(/"/g, '""')}"`,
+            `"${c.household.replace(/"/g, '""')}"`,
+            `"${c.status.replace(/"/g, '""')}"`
+        ].join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `citizens_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function printSelectedCitizensRoster() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) {
+        alert('Please select at least one citizen to print.');
+        return;
+    }
+    const printWindow = window.open('', '_blank');
+    let rowsHtml = '';
+    selected.forEach((c, idx) => {
+        rowsHtml += `<tr>
+            <td style="padding:6px; border:1px solid #cbd5e1; text-align:center;">${idx + 1}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1; font-weight:bold;">${c.id}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.name}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.age} / ${c.sex}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.civilStatus}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.barangay}, ${c.district}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.household || 'None'}</td>
+            <td style="padding:6px; border:1px solid #cbd5e1;">${c.status}</td>
+        </tr>`;
+    });
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Selected Citizens Official Roster - City of Caloocan</title>
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 11px; margin: 30px; color: #1e293b; }
+                h1 { font-size: 16px; margin: 0 0 4px 0; text-transform: uppercase; color: #0f53d1; }
+                h2 { font-size: 12px; margin: 0 0 16px 0; color: #64748b; font-weight: normal; }
+                table { width: 100%; border-collapse: collapse; margin-top: 14px; }
+                th { background-color: #f8fafc; padding: 8px; border: 1px solid #cbd5e1; text-align: left; font-size: 10px; text-transform: uppercase; color: #475569; }
+                td { padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 11px; }
+            </style>
+        </head>
+        <body>
+            <div style="text-align:center; border-bottom: 2px solid #0f53d1; padding-bottom: 12px; margin-bottom: 14px;">
+                <h1>City of Caloocan • Citizen Registry Office</h1>
+                <h2>Official Roster of Selected Citizens • Generated on ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}</h2>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:30px; text-align:center;">#</th>
+                        <th>Citizen ID</th>
+                        <th>Full Name</th>
+                        <th>Age / Sex</th>
+                        <th>Civil Status</th>
+                        <th>Barangay & District</th>
+                        <th>Household</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHtml}
+                </tbody>
+            </table>
+            <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px;">
+                <div>Certified Correct: <strong>Barangay Registrar</strong></div>
+                <div style="border-top: 1px solid #64748b; width: 220px; text-align: center; padding-top: 4px;">Authorized Signature & Seal</div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 250);
+}
+
+function assignSelectedCitizensHousehold() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) {
+        alert('Please select at least one citizen to assign to a household.');
+        return;
+    }
+    const hhNum = prompt(`Enter Household Number to assign ${selected.length} selected citizen(s):`, 'HH-2026-001');
+    if (!hhNum || !hhNum.trim()) return;
+
+    selected.forEach(c => {
+        c.row.setAttribute('data-household', hhNum.trim());
+        const hhCell = c.row.children[8];
+        if (hhCell) {
+            hhCell.innerHTML = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-[#0f53d1] border border-blue-200/80">${hhNum.trim()}</span>`;
+        }
+    });
+    alert(`Successfully assigned ${selected.length} citizen(s) to household "${hhNum.trim()}"!`);
+}
+
+function archiveSelectedCitizens() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) {
+        alert('Please select at least one citizen to archive.');
+        return;
+    }
+    if (!confirm(`Are you sure you want to archive ${selected.length} selected citizen record(s)?`)) return;
+
+    changeSelectedCitizensStatus('Archived');
+    alert(`Successfully archived ${selected.length} citizen record(s).`);
+}
+
 </script>
 
 <!-- Floating Global Row Actions Dropdown Overlay -->

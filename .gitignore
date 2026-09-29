@@ -11,3 +11,6 @@
 # OS files
 .DS_Store
 Thumbs.db
+*.local_bak
+citizen-backend/
+citizen-engagement-app/

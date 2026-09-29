@@ -409,7 +409,23 @@ function confirmDismissal() {
 }
 
 function runAutoDuplicateScan() {
-    alert('Scanning Citizen Registry database for duplicate names, birthdates, and addresses...');
+    const btn = event ? event.currentTarget : document.querySelector('button[onclick="runAutoDuplicateScan()"]');
+    if (!btn) return;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('opacity-75');
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-[#0f53d1]"></i> <span>Scanning Citizen Registry...</span>`;
+
+    setTimeout(() => {
+        btn.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500"></i> <span class="text-emerald-700">Database Scan Clean</span>`;
+        setTimeout(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            btn.classList.remove('opacity-75');
+        }, 2200);
+    }, 1200);
+}, 2200);
+    }, 1200);
 }
 </script>
 

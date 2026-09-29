@@ -134,7 +134,7 @@ $recaptchaSiteKey = getenv('RECAPTCHA_SITE_KEY') ?: '';
             />
             <span class="text-xs text-gray-500">Keep me signed in</span>
           </label>
-          <a href="#" class="text-xs font-semibold text-brand-medium hover:underline">Forgot password?</a>
+          <a href="javascript:void(0)" onclick="openForgotPasswordModal(event)" class="text-xs font-semibold text-brand-medium hover:underline cursor-pointer">Forgot password?</a>
         </div>
 
         <div class="flex justify-center my-2">
@@ -230,6 +230,214 @@ $recaptchaSiteKey = getenv('RECAPTCHA_SITE_KEY') ?: '';
     </div>
   </div>
 
+  <!-- Forgot Password Multi-Step Modal -->
+  <div id="forgotPasswordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs transition-all duration-300 opacity-0">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 sm:p-8 transform scale-95 transition-all duration-300 border border-slate-100 relative">
+      
+      <!-- Close Button -->
+      <button type="button" onclick="closeForgotPasswordModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition cursor-pointer" title="Close">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <!-- Step Indicator -->
+      <div class="flex items-center justify-center space-x-2 mb-6">
+        <div id="fpDot1" class="h-2 w-8 rounded-full bg-brand-medium transition-all duration-300"></div>
+        <div id="fpDot2" class="h-2 w-2 rounded-full bg-slate-200 transition-all duration-300"></div>
+        <div id="fpDot3" class="h-2 w-2 rounded-full bg-slate-200 transition-all duration-300"></div>
+      </div>
+
+      <!-- STEP 1: Enter Identifier / Email -->
+      <div id="fpStep1" class="space-y-5">
+        <div class="text-center space-y-2">
+          <div class="h-14 w-14 rounded-2xl bg-brand-light border border-brand-border flex items-center justify-center text-brand-dark mx-auto shadow-xs">
+            <i class="fa-solid fa-key text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Forgot Password?</h3>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            Enter your Employee ID or registered email. We'll send you a 6-digit verification code to reset your password.
+          </p>
+        </div>
+
+        <form id="fpForm1" onsubmit="handleForgotPasswordRequest(event)" class="space-y-4">
+          <div class="space-y-1">
+            <label for="fpIdentifier" class="text-xs font-semibold text-gray-500">Employee ID or Email</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3.5 text-gray-400">
+                <i class="fa-solid fa-user-tie text-sm"></i>
+              </span>
+              <input 
+                type="text" 
+                id="fpIdentifier" 
+                placeholder="e.g. EMP-2026-001 or name@caloocan.gov.ph" 
+                required
+                class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-medium focus:ring-1 focus:ring-brand-medium transition"
+              />
+            </div>
+          </div>
+
+          <div id="fpAlert1" class="hidden text-xs text-center p-3 rounded-lg border"></div>
+
+          <button 
+            type="submit" 
+            id="fpBtnSubmit1"
+            class="w-full py-3 px-4 bg-brand-medium hover:bg-opacity-90 text-white font-bold rounded-xl text-sm transition shadow-sm focus:outline-none cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Send Reset Code</span>
+          </button>
+        </form>
+
+        <div class="text-center pt-2">
+          <button type="button" onclick="closeForgotPasswordModal()" class="text-xs font-semibold text-slate-500 hover:text-brand-dark transition cursor-pointer">
+            <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i> Back to Sign In
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: Verify OTP -->
+      <div id="fpStep2" class="hidden space-y-5">
+        <div class="text-center space-y-2">
+          <div class="h-14 w-14 rounded-2xl bg-brand-light border border-brand-border flex items-center justify-center text-brand-dark mx-auto shadow-xs">
+            <i class="fa-solid fa-shield-halved text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Verify Reset Code</h3>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            We sent a 6-digit verification code to <strong id="fpMaskedContact" class="text-brand-dark font-mono">your registered contact</strong>.
+          </p>
+        </div>
+
+        <form id="fpForm2" onsubmit="handleVerifyResetOTP(event)" class="space-y-5">
+          <!-- 6 Digit Input Boxes -->
+          <div class="flex justify-between items-center gap-2 max-w-xs mx-auto">
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+            <input type="text" maxlength="1" pattern="[0-9]*" inputmode="numeric" class="fp-otp-input w-11 h-12 text-center text-xl font-bold font-mono text-brand-dark bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-brand-medium focus:ring-2 focus:ring-brand-medium/20 focus:outline-none transition" required />
+          </div>
+
+          <div id="fpAlert2" class="hidden text-xs text-center p-3 rounded-lg border"></div>
+
+          <button 
+            type="submit" 
+            id="fpBtnSubmit2"
+            class="w-full py-3 px-4 bg-brand-medium hover:bg-opacity-90 text-white font-bold rounded-xl text-sm transition shadow-sm focus:outline-none cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Verify & Continue</span>
+          </button>
+        </form>
+
+        <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
+          <button type="button" onclick="goToFpStep(1)" class="text-slate-500 hover:text-brand-dark transition cursor-pointer">
+            <i class="fa-solid fa-arrow-left text-[10px] mr-1"></i> Edit Identifier
+          </button>
+          <div>
+            Didn't get code? 
+            <button type="button" id="btnFpResend" onclick="handleResendResetOTP()" class="font-bold text-brand-dark hover:underline cursor-pointer focus:outline-none">
+              Resend
+            </button>
+            <span id="fpResendTimer" class="text-slate-400 font-semibold hidden ml-1"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Enter New Password -->
+      <div id="fpStep3" class="hidden space-y-5">
+        <div class="text-center space-y-2">
+          <div class="h-14 w-14 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 mx-auto shadow-xs">
+            <i class="fa-solid fa-lock-open text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Set New Password</h3>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            Choose a strong password with at least 8 characters to secure your account.
+          </p>
+        </div>
+
+        <form id="fpForm3" onsubmit="handleResetPasswordSubmit(event)" class="space-y-4">
+          <div class="space-y-1">
+            <label for="fpNewPassword" class="text-xs font-semibold text-gray-500">New Password</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3.5 text-gray-400">
+                <i class="fa-solid fa-lock text-sm"></i>
+              </span>
+              <input 
+                type="password" 
+                id="fpNewPassword" 
+                placeholder="At least 8 characters" 
+                required
+                minlength="8"
+                class="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-medium focus:ring-1 focus:ring-brand-medium transition"
+              />
+              <button 
+                type="button" 
+                onclick="toggleFpPasswordVisibility('fpNewPassword', 'fpNewPassIcon')" 
+                class="absolute right-3.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <i id="fpNewPassIcon" class="fa-solid fa-eye-slash text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <label for="fpConfirmPassword" class="text-xs font-semibold text-gray-500">Confirm New Password</label>
+            <div class="relative flex items-center">
+              <span class="absolute left-3.5 text-gray-400">
+                <i class="fa-solid fa-check-double text-sm"></i>
+              </span>
+              <input 
+                type="password" 
+                id="fpConfirmPassword" 
+                placeholder="Re-type new password" 
+                required
+                minlength="8"
+                class="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-brand-medium focus:ring-1 focus:ring-brand-medium transition"
+              />
+              <button 
+                type="button" 
+                onclick="toggleFpPasswordVisibility('fpConfirmPassword', 'fpConfirmPassIcon')" 
+                class="absolute right-3.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                <i id="fpConfirmPassIcon" class="fa-solid fa-eye-slash text-sm"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="fpAlert3" class="hidden text-xs text-center p-3 rounded-lg border"></div>
+
+          <button 
+            type="submit" 
+            id="fpBtnSubmit3"
+            class="w-full py-3 px-4 bg-brand-medium hover:bg-opacity-90 text-white font-bold rounded-xl text-sm transition shadow-sm focus:outline-none cursor-pointer flex items-center justify-center gap-2"
+          >
+            <span>Update Password</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- STEP 4: Success Screen -->
+      <div id="fpStep4" class="hidden space-y-6 text-center py-2">
+        <div class="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-sm animate-bounce">
+          <i class="fa-solid fa-circle-check text-3xl"></i>
+        </div>
+        <div class="space-y-2">
+          <h3 class="text-xl font-black text-slate-800 tracking-tight">Password Reset Complete!</h3>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            Your account password has been successfully updated. You can now log in with your new credentials.
+          </p>
+        </div>
+        <button 
+          type="button" 
+          onclick="finishForgotPassword()"
+          class="w-full py-3 px-4 bg-brand-dark hover:bg-opacity-95 text-white font-bold rounded-xl text-sm transition shadow-sm focus:outline-none cursor-pointer flex items-center justify-center gap-2"
+        >
+          <span>Continue to Sign In</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Fullscreen Dashboard Loading Overlay -->
   <div id="dashboardLoadingOverlay" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md transition-all duration-500 opacity-0 pointer-events-auto">
     <div class="flex flex-col items-center space-y-6 text-center p-8 max-w-sm mx-auto">
@@ -261,5 +469,6 @@ $recaptchaSiteKey = getenv('RECAPTCHA_SITE_KEY') ?: '';
   </div>
 
   <script src="assets/js/login.js"></script>
+  <script src="assets/js/forgot-password.js"></script>
 </body>
 </html>

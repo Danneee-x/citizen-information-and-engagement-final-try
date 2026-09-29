@@ -247,6 +247,82 @@ foreach ($dbPending as $row) {
 
     </div>
 
+
+<!-- PRINTABLE / PREVIEW CERTIFICATE CANVAS MODAL -->
+<div id="previewCertificateModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-6">
+        
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Document Review Canvas (Pending Approval)</h3>
+            </div>
+            <button onclick="closeCertificatePreview()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Official Barangay Letterhead Template Canvas -->
+        <div class="p-8 border-2 border-slate-300 rounded-xl space-y-6 bg-white text-slate-900 font-serif">
+            <div class="text-center space-y-0.5 border-b-2 border-slate-900 pb-4">
+                <p class="text-xs tracking-widest uppercase font-sans text-slate-500">Republic of the Philippines</p>
+                <p class="text-xs tracking-wider uppercase font-sans font-bold text-slate-700">City of Caloocan • District 1</p>
+                <h2 class="text-lg font-black tracking-wide uppercase font-sans text-slate-900">Office of the Barangay Captain</h2>
+            </div>
+
+            <div class="text-center pt-2">
+                <h1 id="previewCertTitle" class="text-2xl font-black uppercase tracking-wider border-b border-slate-400 inline-block pb-1">BARANGAY CLEARANCE</h1>
+            </div>
+
+            <div class="space-y-4 text-sm leading-relaxed text-justify pt-4">
+                <p class="font-sans font-bold text-xs uppercase tracking-wider text-slate-500">TO WHOM IT MAY CONCERN:</p>
+                <p>
+                    This is to officially certify that <strong id="previewCitizenName" class="underline font-black font-sans uppercase">CITIZEN NAME</strong>, of legal age, is a bona fide resident of this Barangay with good moral standing in the community.
+                </p>
+                <p>
+                    Records on file in this office show that the above-named person has <strong>NO DEROGATORY RECORD</strong> or pending administrative case filed against them as of this date.
+                </p>
+                <p>
+                    This certification is being processed upon the official request of the interested party for <strong id="previewPurpose" class="font-bold">Employment Purposes</strong>.
+                </p>
+                <p class="text-xs text-slate-500 pt-4">
+                    Document reference generated at the Barangay Hall, City of Caloocan, Metro Manila.
+                </p>
+            </div>
+
+            <div class="pt-8 flex items-end justify-between border-t border-slate-200">
+                <div class="text-center">
+                    <div class="w-16 h-16 border border-slate-300 rounded-lg flex items-center justify-center mx-auto text-slate-300 text-xs font-sans">
+                        <i class="fa-solid fa-qrcode text-2xl"></i>
+                    </div>
+                    <span id="previewControlNo" class="text-[9px] font-mono text-slate-500 block mt-1">REQ-2026-0000</span>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-44 border-b border-slate-900 mx-auto mb-1"></div>
+                    <p class="font-sans font-bold text-xs">HON. BARANGAY CAPTAIN</p>
+                    <p class="font-sans text-[10px] text-slate-500">Punong Barangay</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+            <span class="text-xs text-amber-600 font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-exclamation text-xs"></i> Ready for administrative decision
+            </span>
+            <div class="flex items-center gap-2">
+                <button onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close Review
+                </button>
+                <button id="previewApproveBtn" onclick="approveFromPreview()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-check"></i>
+                    <span>Approve Document</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </main>
 
 <script>

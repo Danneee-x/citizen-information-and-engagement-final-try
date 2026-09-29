@@ -1,4 +1,4 @@
--- ==============================================================================
+﻿-- ==============================================================================
 -- DATABASE: citizen_verification
 -- Target System: Civentral Citizen Portal / Verification Module
 -- Generated for: Local MySQL / phpMyAdmin import
@@ -171,3 +171,4 @@ INSERT INTO `citizen_verifications` (
   '/uploads/selfies/selfie_1001_sample.jpg',
   'Pending'
 );
+

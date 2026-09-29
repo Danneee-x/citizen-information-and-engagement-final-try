@@ -420,7 +420,7 @@ include '../../includes/sidebar.php';
                         </label>
 
                         <div id="schedulePickers" class="ml-7 grid grid-cols-2 gap-3 opacity-50 pointer-events-none transition-all">
-                            <input type="date" id="scheduleDateInput" value="2025-06-08" onchange="updatePreviewSummary()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none cursor-pointer">
+                            <input type="date" id="scheduleDateInput" value="<?php echo date('Y-m-d'); ?>" onchange="updatePreviewSummary()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none cursor-pointer">
                             <input type="time" id="scheduleTimeInput" value="10:00" onchange="updatePreviewSummary()" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none cursor-pointer">
                         </div>
                     </div>
@@ -532,7 +532,7 @@ include '../../includes/sidebar.php';
                 <!-- Title -->
                 <div class="space-y-1">
                     <span class="text-xs text-slate-400 font-medium flex items-center gap-1.5"><i class="fa-solid fa-heading text-slate-400"></i> Title</span>
-                    <p id="modalSummaryTitle" class="text-xs font-bold text-slate-900 leading-snug">Dengue Prevention Week Advisory</p>
+                    <p id="modalSummaryTitle" class="text-xs font-bold text-slate-900 leading-snug">Untitled Alert</p>
                 </div>
 
                 <!-- Category -->
@@ -609,7 +609,7 @@ include '../../includes/sidebar.php';
                         <span class="text-[10px] text-slate-400 font-medium">Just now</span>
                     </div>
 
-                    <h4 id="previewModalTitle" class="text-sm font-black text-slate-900 leading-snug">Dengue Prevention Week Advisory</h4>
+                    <h4 id="previewModalTitle" class="text-sm font-black text-slate-900 leading-snug">Alert Title</h4>
                     
                     <div id="previewModalBody" class="text-xs text-slate-700 font-medium leading-relaxed space-y-2 whitespace-pre-line">
                         Mag-ingat sa dengue! Upang maiwasan ang pagkalat ng sakit, sundin ang mga simpleng hakbang:
@@ -630,7 +630,7 @@ include '../../includes/sidebar.php';
                 <div id="contentSms" class="hidden border border-slate-200 rounded-2xl p-4 space-y-3 bg-slate-50">
                     <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wide">SMS Text Message Preview</div>
                     <div class="p-3.5 bg-emerald-500 text-white rounded-2xl rounded-tl-none max-w-sm text-xs font-medium space-y-1.5 shadow-sm">
-                        <p id="smsPreviewTitle" class="font-bold border-b border-emerald-400 pb-1">[BARANGAY ALERT] Dengue Prevention Week Advisory</p>
+                        <p id="smsPreviewTitle" class="font-bold border-b border-emerald-400 pb-1">[BARANGAY ALERT] Alert Title</p>
                         <p id="smsPreviewBody" class="leading-relaxed text-[11px] whitespace-pre-line">Mag-ingat sa dengue! Upang maiwasan ang pagkalat ng sakit, sundin ang mga simpleng hakbang: Linisin ang paligid ng inyong tahanan.</p>
                         <p class="text-[9px] text-emerald-100 text-right font-semibold">Just now &bull; Delivered</p>
                     </div>
@@ -640,7 +640,7 @@ include '../../includes/sidebar.php';
                 <div id="contentEmail" class="hidden border border-slate-200 rounded-2xl p-4 space-y-3 bg-white">
                     <div class="border-b border-slate-100 pb-2 text-xs">
                         <p class="text-slate-500 font-medium"><span class="font-bold text-slate-700">From:</span> Barangay Notice System &lt;no-reply@lgu.gov.ph&gt;</p>
-                        <p id="emailSubjectLine" class="text-slate-900 font-bold mt-1"><span class="text-slate-500 font-medium">Subject:</span> [OFFICIAL ADVISORY] Dengue Prevention Week Advisory</p>
+                        <p id="emailSubjectLine" class="text-slate-900 font-bold mt-1"><span class="text-slate-500 font-medium">Subject:</span> [OFFICIAL ADVISORY] Alert Title</p>
                     </div>
                     <div id="emailPreviewContent" class="text-xs text-slate-700 font-medium leading-relaxed space-y-2 p-2 whitespace-pre-line">
                         Mag-ingat sa dengue! Upang maiwasan ang pagkalat ng sakit, sundin ang mga simpleng hakbang...
@@ -1147,11 +1147,122 @@ function switchPreviewTab(tab) {
     }
 }
 
-function confirmSendAlertNow() {
-    const title = document.getElementById('modalSummaryTitle').innerText;
-    alert(`Success! Alert "${title}" has been transmitted to all selected recipients.`);
-    closeReviewModal();
-    window.location.href = '<?php echo $basePath; ?>pages/notifications-alerts/broadcast-history.php';
+async function confirmSendAlertNow() {
+    const btn = document.querySelector('button[onclick="confirmSendAlertNow()"]');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Broadcasting...</span>';
+    }
+
+    try {
+        const title = (document.getElementById('alertTitleInput').value || '').trim();
+        const bodyHTML = getAlertBodyHTML();
+        const bodyText = getAlertBodyText();
+
+        const channels = [];
+        if (document.getElementById('channelPush')?.checked) channels.push('In-App / Push');
+        if (document.getElementById('channelSms')?.checked) channels.push('SMS');
+        if (document.getElementById('channelEmail')?.checked) channels.push('Email');
+
+        const recipientRadio = document.querySelector('input[name="targetRecipient"]:checked');
+        let targetAudience = recipientRadio ? recipientRadio.value : 'All Residents';
+        let targetBarangay = 'All Barangays';
+        if (targetAudience === 'Specific District') {
+            const dist = document.getElementById('districtSelect')?.value || '';
+            const brgy = document.getElementById('barangaySelect')?.value || '';
+            targetBarangay = brgy || (dist ? `All in ${dist}` : 'All Barangays');
+            targetAudience = `District: ${dist} - ${targetBarangay}`;
+        } else if (targetAudience === 'Specific Group') {
+            targetAudience = document.getElementById('groupSelect')?.value || 'Specific Group';
+        }
+
+        const schedRadio = document.querySelector('input[name="scheduleSend"]:checked');
+        const isScheduled = schedRadio && schedRadio.value !== 'Send Immediately';
+        const status = isScheduled ? 'Scheduled' : 'Delivered';
+
+        let priority = 'Normal';
+        if (selectedCategory === 'Emergency') priority = 'Urgent';
+        else if (selectedCategory === 'Health Advisory' || selectedCategory === 'Curfew / Ordinance Notice') priority = 'High';
+
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('body', bodyHTML || bodyText);
+        formData.append('category', selectedCategory);
+        formData.append('priority', priority);
+        formData.append('channels', channels.join(', ') || 'In-App / Push');
+        formData.append('target_audience', targetAudience);
+        formData.append('target_barangay', targetBarangay);
+        formData.append('sender_name', 'Caloocan Public Information Office');
+        formData.append('sender_role', 'Public Information Officer');
+        formData.append('status', status);
+
+        if (uploadedFileObject) {
+            formData.append('attachment', uploadedFileObject);
+        }
+
+        const res = await fetch('<?php echo $basePath; ?>api/admin/create-alert.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await res.json();
+        if (result.status === 'success') {
+            closeReviewModal();
+            alert(`Success! Alert "${title}" has been broadcasted and saved to the database.`);
+            window.location.href = '<?php echo $basePath; ?>pages/notifications-alerts/broadcast-history.php';
+        } else {
+            alert('Error broadcasting alert: ' + (result.message || 'Unknown error'));
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Failed to transmit broadcast: ' + err.message);
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
+async function saveAlertDraft() {
+    const title = (document.getElementById('alertTitleInput').value || '').trim();
+    const bodyHTML = getAlertBodyHTML();
+    const bodyText = getAlertBodyText();
+
+    if (!title) {
+        alert('Please enter at least an Alert Title to save as a draft.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('body', bodyHTML || bodyText || '(Draft message)');
+        formData.append('category', selectedCategory);
+        formData.append('priority', 'Normal');
+        formData.append('status', 'Draft');
+        formData.append('channels', 'In-App / Push');
+        formData.append('target_audience', 'Draft');
+
+        const res = await fetch('<?php echo $basePath; ?>api/admin/create-alert.php', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await res.json();
+        if (result.status === 'success') {
+            alert(`Draft "${title}" saved successfully.`);
+            window.location.href = '<?php echo $basePath; ?>pages/notifications-alerts/broadcast-history.php';
+        } else {
+            alert('Failed to save draft: ' + (result.message || 'Unknown error'));
+        }
+    } catch (err) {
+        alert('Failed to save draft: ' + err.message);
+    }
 }
 </script>
 

@@ -417,7 +417,7 @@ foreach ($dbRequests as $row) {
 </main>
 
 <!-- NEW REQUEST ENCODING MODAL (Connected to Backend Database) -->
-<div id="newRequestModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+<div id="newRequestModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         <div class="flex items-center justify-between border-b border-slate-100 pb-3.5">

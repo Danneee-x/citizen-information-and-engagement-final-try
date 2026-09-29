@@ -66,6 +66,12 @@ function getDbConnection(): PDO {
                 'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : (getenv('MYSQL_PASSWORD') !== false ? getenv('MYSQL_PASSWORD') : getenv('MYSQL_ROOT_PASSWORD')),
             ],
             [
+                'host' => 'citizeninformation-citizendb-o5cfyu',
+                'port' => 3306,
+                'user' => 'mysql',
+                'pass' => '5o2bsejclrb2v5bp',
+            ],
+            [
                 'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
                 'port' => 3306,
                 'user' => 'civentral_user',

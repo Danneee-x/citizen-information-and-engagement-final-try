@@ -67,14 +67,21 @@ $departments = [
 
 // Live AI Analysis Dataset populated from MySQL
 $initialAiClassifications = [];
+$clustersByGroup = [];
 
-// Load Live Concerns from MySQL Database (Replaces Mock Data)
+// Load Live Concerns from MySQL Database
 require_once __DIR__ . '/../../config/database.php';
 try {
     $pdo = getDbConnection();
     $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC");
     $dbRows = $stmt->fetchAll();
     if (!empty($dbRows)) {
+        // Group by barangay + category for intelligent proximity clustering
+        foreach ($dbRows as $r) {
+            $grpKey = trim($r['barangay']) . '|' . trim($r['category']);
+            $clustersByGroup[$grpKey][] = $r['ticket_number'];
+        }
+
         $liveAi = [];
         foreach ($dbRows as $row) {
             $cat = $row['category'];
@@ -89,6 +96,15 @@ try {
             $deptName = !empty($row['assigned_department']) ? $row['assigned_department'] : ($departments[$deptKey]['name'] ?? 'City Engineering & Public Works Office');
             $hasPhoto = !empty($row['photo_evidence_url']);
             $isUrgent = (!empty($row['priority']) && ($row['priority'] === 'Urgent' || $row['priority'] === 'High'));
+
+            $grpKey = trim($row['barangay']) . '|' . trim($row['category']);
+            $grpTickets = $clustersByGroup[$grpKey] ?? [$row['ticket_number']];
+            $hasDups = count($grpTickets) > 1;
+
+            $currentStatus = 'Pending Review';
+            if (in_array($row['status'], ['Routed', 'In Progress', 'Resolved'])) {
+                $currentStatus = 'Accepted';
+            }
 
             $liveAi[] = [
                 'id' => $row['ticket_number'],
@@ -106,20 +122,52 @@ try {
                 'sentiment_badge' => $isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
                 'barangay' => !empty($row['barangay']) ? $row['barangay'] : 'Caloocan City',
                 'cluster' => [
-                    'has_duplicates' => false,
-                    'cluster_count' => 1,
-                    'cluster_name' => 'Citizen Report #' . $row['ticket_number'],
-                    'duplicate_ids' => [$row['ticket_number']]
+                    'has_duplicates' => $hasDups,
+                    'cluster_count' => count($grpTickets),
+                    'cluster_name' => $hasDups ? ('Cluster: ' . $row['category'] . ' (' . $row['barangay'] . ')') : ('Citizen Report #' . $row['ticket_number']),
+                    'duplicate_ids' => $grpTickets
                 ],
-                'status' => 'Pending Review',
+                'status' => $currentStatus,
                 'routing_target_url' => 'concern-routing.php'
             ];
         }
         $initialAiClassifications = $liveAi;
     }
 } catch (Exception $e) {
-    // Keep fallback
+    // Graceful fallback
 }
+
+// Compute Dynamic AI Intelligence Metrics from live database rows
+$totalTickets = count($initialAiClassifications);
+$avgConfidenceVal = 96.2;
+$urgentFlagsCount = 0;
+$duplicateClustersCount = 0;
+$totalDuplicatesCount = 0;
+$acceptedCount = 0;
+
+if ($totalTickets > 0) {
+    $sumConf = 0;
+    foreach ($initialAiClassifications as $item) {
+        $sumConf += (int)($item['ai_confidence'] ?? 95);
+        if (!empty($item['sentiment_badge']) && strpos($item['sentiment_badge'], 'rose') !== false) {
+            $urgentFlagsCount++;
+        }
+        if (!empty($item['cluster']['has_duplicates'])) {
+            $totalDuplicatesCount++;
+        }
+        if ($item['status'] === 'Accepted') {
+            $acceptedCount++;
+        }
+    }
+    $avgConfidenceVal = round($sumConf / $totalTickets, 1);
+
+    foreach ($clustersByGroup as $g => $tList) {
+        if (count($tList) > 1) {
+            $duplicateClustersCount++;
+        }
+    }
+}
+$acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) * 100, 1) : 94.8;
 ?>
 
 <!-- Custom Styling -->
@@ -198,10 +246,10 @@ try {
                 </div>
             </div>
             <div>
-                <h3 id="kpiAvgConfidence" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">96.2% Avg</h3>
+                <h3 id="kpiAvgConfidence" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight"><?= $avgConfidenceVal ?>% Avg</h3>
                 <p class="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-check-double"></i>
-                    <span>High precision multi-modal extraction</span>
+                    <span id="kpiAvgConfidenceSub"><?= $totalTickets ?> concerns evaluated with NLP</span>
                 </p>
             </div>
         </div>
@@ -215,10 +263,10 @@ try {
                 </div>
             </div>
             <div>
-                <h3 id="kpiDuplicateClusters" class="text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight">14 Clusters</h3>
+                <h3 id="kpiDuplicateClusters" class="text-2xl font-black text-purple-600 dark:text-purple-400 tracking-tight"><?= $duplicateClustersCount ?> Clusters</h3>
                 <p class="text-[11px] font-semibold text-purple-600 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-layer-group"></i>
-                    <span>42 duplicate reports grouped</span>
+                    <span id="kpiDuplicateClustersSub"><?= $totalDuplicatesCount > 0 ? ($totalDuplicatesCount . ' duplicate reports grouped') : 'No proximity duplicates detected' ?></span>
                 </p>
             </div>
         </div>
@@ -232,10 +280,10 @@ try {
                 </div>
             </div>
             <div>
-                <h3 id="kpiUrgentFlags" class="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">5 Flagged</h3>
+                <h3 id="kpiUrgentFlags" class="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight"><?= $urgentFlagsCount ?> Flagged</h3>
                 <p class="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-bolt"></i>
-                    <span>High distress & safety alerts</span>
+                    <span id="kpiUrgentFlagsSub"><?= $urgentFlagsCount > 0 ? 'High distress & safety alerts' : 'Standard priority queue' ?></span>
                 </p>
             </div>
         </div>
@@ -249,10 +297,10 @@ try {
                 </div>
             </div>
             <div>
-                <h3 id="kpiAcceptanceRate" class="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight">94.8%</h3>
+                <h3 id="kpiAcceptanceRate" class="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight"><?= $totalTickets > 0 ? ($acceptedCount . ' / ' . $totalTickets . ' (' . $acceptanceRateVal . '%)') : '100%' ?></h3>
                 <p class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-thumbs-up"></i>
-                    <span>Staff confirmed auto-dispatch</span>
+                    <span id="kpiAcceptanceRateSub"><?= $acceptedCount > 0 ? 'Staff confirmed auto-dispatch' : 'Awaiting initial staff dispatch' ?></span>
                 </p>
             </div>
         </div>
@@ -609,13 +657,60 @@ function applyAiFilters() {
     renderAiFeed();
 }
 
-// Accept AI Triage & Dispatch to Concern Routing
+// Dynamically Recalculate KPI Analytics in Real-Time
+function updateAiKpis() {
+    const total = aiClassificationsData.length;
+    if (total === 0) return;
+
+    let sumConf = 0;
+    let urgent = 0;
+    let accepted = 0;
+    let clusters = 0;
+    let duplicates = 0;
+
+    aiClassificationsData.forEach(item => {
+        sumConf += (item.ai_confidence || 95);
+        if (item.sentiment_badge && item.sentiment_badge.includes('rose')) urgent++;
+        if (item.status === 'Accepted' || item.status === 'Overridden') accepted++;
+        if (item.cluster && item.cluster.has_duplicates) duplicates++;
+    });
+
+    const avgConf = (sumConf / total).toFixed(1);
+    const acceptPct = ((accepted / total) * 100).toFixed(1);
+
+    const elConf = document.getElementById('kpiAvgConfidence');
+    if (elConf) elConf.innerText = `${avgConf}% Avg`;
+
+    const elUrgent = document.getElementById('kpiUrgentFlags');
+    if (elUrgent) elUrgent.innerText = `${urgent} Flagged`;
+
+    const elAccept = document.getElementById('kpiAcceptanceRate');
+    if (elAccept) elAccept.innerText = `${accepted} / ${total} (${acceptPct}%)`;
+
+    const elAcceptSub = document.getElementById('kpiAcceptanceRateSub');
+    if (elAcceptSub) elAcceptSub.innerText = accepted > 0 ? 'Staff confirmed auto-dispatch' : 'Awaiting initial staff dispatch';
+}
+
+// Accept AI Triage & Dispatch to Concern Routing (Persists to MySQL)
 function acceptAiRecommendation(id) {
     const item = aiClassificationsData.find(c => c.id === id);
     if (!item) return;
 
     item.status = 'Accepted';
     renderAiFeed();
+    updateAiKpis();
+
+    // Persist status change to MySQL database
+    fetch('../../api/admin/concerns.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ticket_number: id,
+            status: 'Routed',
+            assigned_department: item.suggested_routing
+        })
+    }).then(res => res.json()).catch(err => console.warn('Sync notice:', err));
+
     showAiToast(`Triage for ${id} ACCEPTED! Concern auto-dispatched to ${item.suggested_routing}.`, 'success');
 }
 
@@ -644,14 +739,29 @@ function saveStaffOverride() {
     const newCat = document.getElementById('overrideCategorySelect').value;
     const newDeptKey = document.getElementById('overrideDeptSelect').value;
     const reason = document.getElementById('overrideReasonText').value.trim() || 'Staff administrative jurisdiction override.';
+    const deptName = departmentsMap[newDeptKey]?.name || newDeptKey;
 
     activeOverrideItem.ai_category = newCat;
     activeOverrideItem.department_key = newDeptKey;
-    activeOverrideItem.suggested_routing = departmentsMap[newDeptKey]?.name || newDeptKey;
+    activeOverrideItem.suggested_routing = deptName;
     activeOverrideItem.status = 'Overridden';
 
     closeStaffOverrideModal();
     renderAiFeed();
+    updateAiKpis();
+
+    // Persist override to MySQL database
+    fetch('../../api/admin/concerns.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ticket_number: activeOverrideItem.id,
+            status: 'Routed',
+            assigned_department: deptName,
+            resolution_notes: 'Staff Override: ' + reason
+        })
+    }).then(res => res.json()).catch(err => console.warn('Sync notice:', err));
+
     showAiToast(`Staff override saved for ${activeOverrideItem.id}: Routed to ${departmentsMap[newDeptKey]?.short}.`, 'success');
 }
 

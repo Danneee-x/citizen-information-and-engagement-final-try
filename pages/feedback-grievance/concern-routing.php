@@ -152,13 +152,21 @@ try {
             else if (stripos($cat, 'Safety') !== false || stripos($cat, 'Police') !== false) $deptKey = 'cptmd';
             else if (stripos($cat, 'Environment') !== false) $deptKey = 'cenro_env';
 
-            $stage = 'new';
-            $st = $row['status'];
-            if ($st === 'Under Review') $stage = 'under_review';
-            else if ($st === 'Routed') $stage = 'routed';
-            else if ($st === 'In Progress') $stage = 'in_progress';
-            else if ($st === 'Resolved') $stage = 'resolved';
-            else if ($st === 'Closed') $stage = 'closed';
+            $st = $row['status'] ?? 'New';
+            $stage = 'submitted';
+            if ($st === 'New') {
+                $stage = !empty($row['ai_detected_category']) ? 'ai_analyzed' : 'submitted';
+            } else if ($st === 'Under Review') {
+                $stage = 'under_review';
+            } else if ($st === 'Routed') {
+                $stage = 'routed';
+            } else if ($st === 'In Progress') {
+                $stage = 'in_progress';
+            } else if ($st === 'Resolved') {
+                $stage = 'resolved';
+            } else if ($st === 'Closed') {
+                $stage = 'closed';
+            }
 
             $liveConcerns[] = [
                 'id' => $row['ticket_number'],
@@ -169,7 +177,7 @@ try {
                 'department_name' => $row['assigned_department'] ?: ($departments[$deptKey]['name'] ?? 'City Engineering & Public Works Office'),
                 'priority' => $row['priority'],
                 'stage' => $stage,
-                'sla_text' => '⏱ 24h SLA',
+                'sla_text' => '24h SLA',
                 'sla_status' => $row['priority'] === 'Urgent' ? 'urgent' : 'normal',
                 'sla_total_hours' => 24,
                 'date_filed' => date('Y-m-d h:i A', strtotime($row['created_at'])),
@@ -1633,8 +1641,12 @@ function renderModalStepBar(currentStage) {
     const summary = document.getElementById('modalTimelineStageSummary');
     if (!bar) return;
 
-    const currentStageIndex = STAGES_ORDER.findIndex(s => s.key === currentStage);
-    if (summary) summary.innerText = `Stage ${currentStageIndex + 1} of 7: ${STAGES_ORDER[currentStageIndex].label}`;
+    let currentStageIndex = STAGES_ORDER.findIndex(s => s.key === currentStage);
+    if (currentStageIndex === -1) {
+        currentStageIndex = (currentStage === 'new') ? 0 : 0;
+    }
+    const currentStageObj = STAGES_ORDER[currentStageIndex] || STAGES_ORDER[0];
+    if (summary) summary.innerText = `Stage ${currentStageIndex + 1} of 7: ${currentStageObj.label}`;
 
     let html = '';
     STAGES_ORDER.forEach((stage, idx) => {
@@ -1692,11 +1704,12 @@ function renderModalStageAdvanceControls(item) {
     const actionContainer = document.getElementById('modalStageActionContainer');
     const resolutionSection = document.getElementById('modalResolutionSection');
     const primaryBtn = document.getElementById('modalPrimaryActionButton');
-
     if (!actionContainer) return;
 
+    const normalizedStage = (item.stage === 'new') ? 'submitted' : item.stage;
+
     // Show resolution section if in progress, resolved, or closed
-    if (['in_progress', 'resolved', 'closed'].includes(item.stage)) {
+    if (['in_progress', 'resolved', 'closed'].includes(normalizedStage)) {
         resolutionSection?.classList.remove('hidden');
         document.getElementById('modalResolutionNotes').value = item.resolution_notes || '';
 
@@ -1718,7 +1731,7 @@ function renderModalStageAdvanceControls(item) {
     let actionButtonsHtml = '';
     let primaryBtnText = 'Advance Stage';
 
-    switch (item.stage) {
+    switch (normalizedStage) {
         case 'submitted':
             actionButtonsHtml = `
                 <button onclick="advanceStage('ai_analyzed')" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1856,6 +1869,26 @@ function advanceStage(targetStage) {
     renderAllViews();
     openConcernDetailModal(activeConcernId);
     showToast(`Ticket ${item.id} advanced to "${newStageLabel}"!`, 'success');
+
+    const statusMap = {
+        'submitted': 'New',
+        'ai_analyzed': 'New',
+        'routed': 'Routed',
+        'under_review': 'Under Review',
+        'in_progress': 'In Progress',
+        'resolved': 'Resolved',
+        'closed': 'Closed'
+    };
+    const dbStatus = statusMap[targetStage] || 'Under Review';
+    fetch('../../api/admin/concerns.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ticket_number: item.id,
+            status: dbStatus,
+            resolution_notes: item.resolution_notes || ''
+        })
+    }).catch(e => console.error('Failed to persist stage advance:', e));
 }
 
 function advanceActiveTicketStage() {
@@ -1931,7 +1964,7 @@ function closeQuickReRouteModal() {
     activeQuickReRouteId = null;
 }
 
-function confirmQuickReRoute() {
+async function confirmQuickReRoute() {
     if (!activeQuickReRouteId) return;
     const item = concernsDataset.find(c => c.id === activeQuickReRouteId);
     if (!item) return;
@@ -1941,6 +1974,7 @@ function confirmQuickReRoute() {
 
     item.department_key = newDept;
     item.department_name = departmentsMap[newDept]?.name || newDept;
+    item.stage = 'routed';
 
     const now = getCurrentFormattedTime();
     item.activity_log.unshift({
@@ -1951,7 +1985,21 @@ function confirmQuickReRoute() {
 
     closeQuickReRouteModal();
     renderAllViews();
-    showToast(`Ticket ${item.id} re-routed to ${departmentsMap[newDept]?.short}!`, 'success');
+    showToast(`Ticket ${item.id} re-routed to ${departmentsMap[newDept]?.short || item.department_name}!`, 'success');
+
+    try {
+        await fetch('../../api/admin/concerns.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket_number: item.id,
+                assigned_department: item.department_name,
+                status: 'Routed'
+            })
+        });
+    } catch (err) {
+        console.error('Failed to sync re-route to backend:', err);
+    }
 }
 
 // -------------------------------------------------------------
@@ -1973,7 +2021,7 @@ function closeQuickAssignModal() {
     activeQuickAssignId = null;
 }
 
-function confirmQuickAssign() {
+async function confirmQuickAssign() {
     if (!activeQuickAssignId) return;
     const item = concernsDataset.find(c => c.id === activeQuickAssignId);
     if (!item) return;
@@ -1981,7 +2029,7 @@ function confirmQuickAssign() {
     const officer = document.getElementById('quickAssignOfficerSelect').value;
     item.assigned_officer = officer;
 
-    if (item.stage === 'routed' || item.stage === 'submitted') {
+    if (item.stage === 'routed' || item.stage === 'submitted' || item.stage === 'ai_analyzed' || item.stage === 'new') {
         item.stage = 'under_review';
     }
 
@@ -1995,6 +2043,19 @@ function confirmQuickAssign() {
     closeQuickAssignModal();
     renderAllViews();
     showToast(`Assigned to ${officer} & SMS alert dispatched!`, 'success');
+
+    try {
+        await fetch('../../api/admin/concerns.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket_number: item.id,
+                status: 'Under Review'
+            })
+        });
+    } catch (err) {
+        console.error('Failed to sync assignment to backend:', err);
+    }
 }
 
 // -------------------------------------------------------------
@@ -2281,6 +2342,7 @@ function getPriorityBadgeClasses(priority) {
 }
 
 function getStageLabel(stageKey) {
+    if (stageKey === 'new') return 'Submitted';
     const stage = STAGES_ORDER.find(s => s.key === stageKey);
     return stage ? stage.label : stageKey;
 }
@@ -2292,6 +2354,7 @@ function getStageBadgeHtml(stageKey) {
 }
 
 function getStageBadgeClasses(stageKey) {
+    if (stageKey === 'new') stageKey = 'submitted';
     switch (stageKey) {
         case 'submitted':
             return 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';

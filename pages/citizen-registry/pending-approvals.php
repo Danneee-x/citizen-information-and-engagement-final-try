@@ -104,7 +104,7 @@ try {
     $dbRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($dbRows as $row) {
-        $fullName = trim("{$row['first_name']} {$row['middle_name']} {$row['last_name']} {$row['suffix']}");
+        $fullName = preg_replace('/\s+/', ' ', trim("{$row['first_name']} {$row['middle_name']} {$row['last_name']} {$row['suffix']}"));
         $dt = !empty($row['submitted_at']) ? new DateTime($row['submitted_at']) : new DateTime();
         $statusDisplay = $row['verification_status'] === 'Under_Review' ? 'Under Review' : $row['verification_status'];
 
@@ -208,7 +208,7 @@ include '../../includes/sidebar.php';
     </div>
 
     <!-- KPI Summary Row -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <!-- Card 1 -->
         <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
             <div class="flex items-center gap-2.5">
@@ -238,22 +238,6 @@ include '../../includes/sidebar.php';
             </div>
             <div class="flex items-center gap-1 mt-2 text-[9px] font-semibold text-emerald-500">
                 <i class="fa-solid fa-caret-up"></i> <span>8%</span> <span class="text-slate-400 font-normal">vs yesterday</span>
-            </div>
-        </div>
-
-        <!-- Card 3 -->
-        <div class="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                    <i class="fa-regular fa-user text-blue-500 text-sm"></i>
-                </div>
-                <div>
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-wide leading-tight">Assigned<br>to Me</p>
-                    <h3 class="text-lg font-black text-slate-800 mt-0.5"><?php echo $counts['assigned_to_me']; ?></h3>
-                </div>
-            </div>
-            <div class="flex items-center gap-1 mt-2 text-[9px] font-semibold text-red-500">
-                <i class="fa-solid fa-caret-down"></i> <span>3%</span> <span class="text-slate-400 font-normal">vs yesterday</span>
             </div>
         </div>
 
@@ -350,20 +334,13 @@ include '../../includes/sidebar.php';
                 </div>
 
                 <!-- Filters Grid (Hidden by Default) -->
-                <div id="filterGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+                <div id="filterGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-500 uppercase">Submission Date</label>
                         <div class="relative">
                             <input type="text" placeholder="Select date range" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium pr-8">
                             <i class="fa-regular fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                         </div>
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Reviewer</label>
-                        <select class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium">
-                            <option>All Reviewers</option>
-                        </select>
                     </div>
 
                     <div class="space-y-1">
@@ -387,13 +364,6 @@ include '../../includes/sidebar.php';
                         <label class="text-[10px] font-bold text-slate-500 uppercase">Status</label>
                         <select class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium">
                             <option>All Status</option>
-                        </select>
-                    </div>
-
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Priority</label>
-                        <select class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium">
-                            <option>All Priority</option>
                         </select>
                     </div>
 
@@ -442,17 +412,15 @@ include '../../includes/sidebar.php';
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Submission Date <i class="fa-solid fa-arrow-down text-[8px] opacity-60"></i></th>
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Submitted By</th>
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">District</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assigned Reviewer</th>
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Documents</th>
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Priority</th>
                                 <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100" id="pendingTableBody">
                             <?php if (empty($applications)): ?>
                             <tr>
-                                <td colspan="10" class="p-12 text-center text-slate-400">
+                                <td colspan="8" class="p-12 text-center text-slate-400">
                                     <div class="flex flex-col items-center justify-center gap-2">
                                         <i class="fa-regular fa-folder-open text-4xl text-slate-300"></i>
                                         <p class="font-bold text-slate-700 text-sm">No Citizen Verifications in Queue</p>
@@ -484,19 +452,6 @@ include '../../includes/sidebar.php';
                                 <td class="p-3.5 text-xs text-slate-600 font-medium"><?php echo htmlspecialchars($app['submitted_by']); ?></td>
                                 <td class="p-3.5 text-xs text-slate-600 font-medium"><?php echo htmlspecialchars($app['district']); ?></td>
                                 <td class="p-3.5">
-                                    <?php if ($app['reviewer'] !== 'Unassigned'): ?>
-                                        <div class="flex items-center gap-2">
-                                            <img src="<?php echo $app['reviewer_avatar']; ?>" class="w-6 h-6 rounded-full border border-slate-200" alt="Reviewer">
-                                            <span class="text-xs text-slate-700 font-medium"><?php echo htmlspecialchars($app['reviewer']); ?></span>
-                                        </div>
-                                    <?php else: ?>
-                                        <div class="flex items-center gap-1.5 text-slate-400">
-                                            <i class="fa-regular fa-user text-xs"></i>
-                                            <span class="text-xs font-medium italic">Unassigned</span>
-                                        </div>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="p-3.5">
                                     <div class="flex items-center gap-1">
                                         <div class="w-6 h-6 rounded bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-500" title="Valid ID"><i class="fa-solid fa-id-card text-[10px]"></i></div>
                                         <div class="w-6 h-6 rounded bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-500" title="Selfie Photo"><i class="fa-solid fa-camera text-[10px]"></i></div>
@@ -506,11 +461,6 @@ include '../../includes/sidebar.php';
                                 <td class="p-3.5">
                                     <span id="badge-<?php echo $app['raw_id']; ?>" class="px-2 py-0.5 text-[10px] font-bold rounded-md border <?php echo getAppStatusBadge($app['status']); ?>">
                                         <?php echo $app['status']; ?>
-                                    </span>
-                                </td>
-                                <td class="p-3.5">
-                                    <span class="px-2.5 py-0.5 text-[10px] font-bold rounded-md border <?php echo getPriorityBadge($app['priority']); ?>">
-                                        <?php echo $app['priority']; ?>
                                     </span>
                                 </td>
                                 <td class="p-3.5 text-center">

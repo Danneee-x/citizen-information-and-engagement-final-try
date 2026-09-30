@@ -1,12 +1,10 @@
 <?php
-// Prevent session lock issues
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+/**
+ * Endpoint: /api/citizen/verify-citizen.php
+ * Handles Citizen Verification Form submissions and status checks.
+ */
 
-header('Content-Type: application/json; charset=utf-8');
-
-// 1. CORS Configuration (Allow mobile apps, local dev, and cloud web admin)
+// 1. CORS Configuration
 if (isset($_SERVER['HTTP_ORIGIN'])) {
     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
     header('Access-Control-Allow-Credentials: true');
@@ -21,190 +19,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 2. Load .env if available
-$envPath = __DIR__ . '/../../.env';
-if (file_exists($envPath)) {
-    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if (empty($line) || strpos($line, '#') === 0 || strpos($line, '=') === false) continue;
-        list($key, $val) = explode('=', $line, 2);
-        $key = trim($key);
-        $val = trim($val, " \t\n\r\0\x0B\"'");
-        if (!array_key_exists($key, $_ENV)) {
-            $_ENV[$key] = $val;
-            putenv("{$key}={$val}");
+header('Content-Type: application/json; charset=utf-8');
+
+require_once __DIR__ . '/../../config/database.php';
+
+// Helper to save base64 uploaded photos to server disk
+if (!function_exists('saveBase64Image')) {
+    function saveBase64Image($dataUrl, $prefix = 'photo') {
+        if (empty($dataUrl)) return null;
+        $dataUrl = trim($dataUrl);
+
+        if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0 || strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, '/uploads/') === 0) {
+            return $dataUrl;
         }
-    }
-}
 
-// 3. Database Connection Factory
-function getDbConnection() {
-    $dbName = getenv('DB_NAME') ?: 'citizen_verification';
-    $isLocal = (PHP_OS_FAMILY === 'Windows') || (!file_exists('/.dockerenv') && empty(getenv('DOKPLOY')) && empty(getenv('DOCKER')));
+        $ext = 'jpg';
+        $data = null;
 
-    if ($isLocal) {
-        $candidates = [
-            [
-                'host' => getenv('DB_HOST') ?: '127.0.0.1',
-                'port' => getenv('DB_PORT') ?: 3306,
-                'user' => getenv('DB_USER') ?: 'root',
-                'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '',
-                'desc' => 'Localhost XAMPP Default (root)'
-            ],
-            [
-                'host' => '127.0.0.1',
-                'port' => 3306,
-                'user' => 'civentral_user',
-                'pass' => 'Civentral2026!',
-                'desc' => 'Localhost (civentral_user)'
-            ],
-            [
-                'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
-                'port' => 3306,
-                'user' => 'civentral_user',
-                'pass' => 'Civentral2026!',
-                'desc' => 'Dokploy Internal Docker Mesh'
-            ]
-        ];
-    } else {
-        $candidates = [
-            [
-                'host' => getenv('DB_HOST') ?: '',
-                'port' => getenv('DB_PORT') ?: 3306,
-                'user' => getenv('DB_USER') ?: '',
-                'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '',
-                'desc' => 'Dokploy Environment Config'
-            ],
-            [
-                'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
-                'port' => 3306,
-                'user' => 'civentral_user',
-                'pass' => 'Civentral2026!',
-                'desc' => 'Dokploy Internal Docker Mesh (citizenregistry)'
-            ],
-            [
-                'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
-                'port' => 3306,
-                'user' => 'mysql',
-                'pass' => 'm68xnwxsqv3urvon',
-                'desc' => 'Dokploy Internal Docker (mysql user)'
-            ],
-            [
-                'host' => '127.0.0.1',
-                'port' => 3306,
-                'user' => 'root',
-                'pass' => '',
-                'desc' => 'Localhost Fallback'
-            ]
-        ];
-    }
+        if (preg_match('/^data:image\/(\w+);base64,/', $dataUrl, $type)) {
+            $data = substr($dataUrl, strpos($dataUrl, ',') + 1);
+            $ext = strtolower($type[1]);
+            if ($ext === 'jpeg') $ext = 'jpg';
+        } elseif (strlen($dataUrl) > 100 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
+            $data = $dataUrl;
+        }
 
-    $lastError = '';
-    foreach ($candidates as $cand) {
-        if (empty($cand['host'])) continue;
+        if ($data !== null) {
+            $decoded = base64_decode(trim($data));
+            if ($decoded !== false && strlen($decoded) > 0) {
+                $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
 
-        try {
-            $dsn = "mysql:host={$cand['host']};port={$cand['port']};charset=utf8mb4";
-            $pdo = new PDO($dsn, $cand['user'], $cand['pass'], [
-                PDO::ATTR_TIMEOUT => 2,
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-            ]);
+                $targetDirs = [
+                    __DIR__ . '/../../assets/uploads/verifications/',
+                    'C:/xampp/htdocs/civentral-citizen-information-and-engagement/assets/uploads/verifications/',
+                    'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/verifications/',
+                    'C:/xampp/htdocs/citizen-backend/assets/uploads/verifications/'
+                ];
 
-            // Ensure database and table exist
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-            $pdo->exec("USE `{$dbName}`;");
-            $pdo->exec("CREATE TABLE IF NOT EXISTS `citizen_verifications` (
-                `verification_id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                `citizen_user_id` INT UNSIGNED NULL,
-                `first_name` VARCHAR(100) NOT NULL,
-                `middle_name` VARCHAR(100) NULL,
-                `last_name` VARCHAR(100) NOT NULL,
-                `suffix` VARCHAR(20) NULL,
-                `sex` VARCHAR(20) NOT NULL,
-                `place_of_birth` VARCHAR(255) NOT NULL,
-                `birth_date` DATE NOT NULL,
-                `civil_status` VARCHAR(50) NOT NULL,
-                `employment_status` VARCHAR(100) NOT NULL,
-                `occupation` VARCHAR(150) NOT NULL,
-                `educational_attainment` VARCHAR(100) NOT NULL,
-                `district` VARCHAR(50) NOT NULL,
-                `barangay` VARCHAR(100) NOT NULL,
-                `street_address` VARCHAR(255) NOT NULL,
-                `years_resident` INT UNSIGNED NOT NULL,
-                `valid_id_type` VARCHAR(100) NOT NULL,
-                `valid_id_number` VARCHAR(100) NOT NULL,
-                `id_front_photo_url` MEDIUMTEXT NULL,
-                `selfie_photo_url` MEDIUMTEXT NULL,
-                `verification_status` ENUM('Pending', 'Under_Review', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
-                `reviewed_by` VARCHAR(100) NULL,
-                `rejection_reason` TEXT NULL,
-                `reviewed_at` DATETIME NULL,
-                `is_duplicate` TINYINT(1) NOT NULL DEFAULT 0,
-                `duplicate_notes` TEXT NULL,
-                `submitted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-            // Self-healing columns & types
-            $cols = $pdo->query("SHOW COLUMNS FROM citizen_verifications")->fetchAll(PDO::FETCH_COLUMN);
-            $needed = [
-                'reviewed_by' => 'VARCHAR(100) NULL',
-                'rejection_reason' => 'TEXT NULL',
-                'reviewed_at' => 'DATETIME NULL',
-                'is_duplicate' => 'TINYINT(1) NOT NULL DEFAULT 0',
-                'duplicate_notes' => 'TEXT NULL'
-            ];
-            foreach ($needed as $col => $type) {
-                if (!in_array($col, $cols)) {
-                    $pdo->exec("ALTER TABLE citizen_verifications ADD COLUMN `$col` $type");
+                foreach ($targetDirs as $dir) {
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0777, true);
+                    }
+                    @file_put_contents($dir . $filename, $decoded);
                 }
+
+                return 'assets/uploads/verifications/' . $filename;
             }
-
-            // Ensure photo columns are MEDIUMTEXT
-            try {
-                $pdo->exec("ALTER TABLE citizen_verifications MODIFY COLUMN id_front_photo_url MEDIUMTEXT;");
-                $pdo->exec("ALTER TABLE citizen_verifications MODIFY COLUMN selfie_photo_url MEDIUMTEXT;");
-            } catch (\Exception $ignore) {}
-
-            return ['pdo' => $pdo, 'target' => $cand['desc'], 'host' => $cand['host']];
-        } catch (\Exception $e) {
-            $lastError = $cand['desc'] . ': ' . $e->getMessage();
         }
-    }
 
-    throw new \Exception("Unable to connect to any database target. Last error: " . $lastError);
+        return $dataUrl;
+    }
 }
 
-// 4. Handle GET: Check Status & List Submissions
+try {
+    $pdo = getDbConnection();
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["status" => "error", "message" => "Database connection failure: " . $e->getMessage()]);
+    exit;
+}
+
+// 2. Handle GET: System Health & Status Check
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
-        $conn = getDbConnection();
-        $pdo = $conn['pdo'];
-
         $countStmt = $pdo->query("SELECT COUNT(*) as total FROM `citizen_verifications`");
         $total = $countStmt->fetchColumn();
 
-        $recentStmt = $pdo->query("SELECT * FROM `citizen_verifications` ORDER BY `verification_id` DESC LIMIT 10");
+        $recentStmt = $pdo->query("SELECT verification_id, citizen_user_id, first_name, last_name, verification_status, submitted_at FROM `citizen_verifications` ORDER BY `verification_id` DESC LIMIT 10");
         $recent = $recentStmt->fetchAll();
 
         echo json_encode([
             'status' => 'success',
             'database' => 'citizen_verification',
-            'connected_to' => $conn['target'],
             'message' => 'Civentral Citizen Verification API is online and healthy.',
             'total_verifications_stored' => (int)$total,
             'recent_submissions' => $recent
         ]);
         exit;
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
 }
 
-// 5. Handle POST: Submit Citizen Verification Record
+// 3. Handle POST: Citizen Verification Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rawInput = file_get_contents('php://input');
     $data = json_decode($rawInput, true);
@@ -220,163 +119,193 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$data) {
         http_response_code(400);
         echo json_encode([
-            'status' => 'error', 
+            'status' => 'error',
             'message' => 'Invalid JSON payload received.',
-            'debug' => json_last_error_msg(),
-            'raw_length' => strlen($rawInput)
+            'debug' => json_last_error_msg()
         ]);
         exit;
     }
 
-    $required = ['first_name', 'last_name', 'street_address', 'barangay', 'valid_id_number'];
-    foreach ($required as $field) {
-        if (empty($data[$field])) {
-            http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => "Missing required field: {$field}"]);
-            exit;
-        }
+    // Extract & sanitize fields
+    $firstName     = trim($data['first_name'] ?? '');
+    $lastName      = trim($data['last_name'] ?? '');
+    $middleName    = trim($data['middle_name'] ?? '') ?: null;
+    $suffix        = trim($data['suffix'] ?? '') ?: null;
+    $sex           = $data['sex'] ?? 'Male';
+    $placeOfBirth  = trim($data['place_of_birth'] ?? '');
+    $birthDate     = $data['birth_date'] ?? '2000-01-01';
+    $civilStatus   = $data['civil_status'] ?? 'Single';
+    $employment    = $data['employment_status'] ?? 'Employed';
+    $occupation    = $data['occupation'] ?? 'Other';
+    $education     = $data['educational_attainment'] ?? 'College Graduate';
+    $district      = $data['district'] ?? 'District 1';
+    $barangay      = $data['barangay'] ?? '';
+    $streetAddress = trim($data['street_address'] ?? '');
+    $yearsResident = intval($data['years_resident'] ?? 1);
+    $validIdType   = $data['valid_id_type'] ?? 'PhilSys National ID';
+    $validIdNumber = trim($data['valid_id_number'] ?? '');
+    $rawIdFront    = $data['id_front_photo_url'] ?? null;
+    $rawSelfie     = $data['selfie_photo_url'] ?? null;
+    $citizenUserId = intval($data['citizen_user_id'] ?? 0);
+
+    if (empty($firstName) || empty($lastName) || empty($barangay) || empty($validIdNumber)) {
+        http_response_code(422);
+        echo json_encode([
+            "status"  => "error",
+            "message" => "Required fields missing: First Name, Last Name, Barangay, and Valid ID Number are required."
+        ]);
+        exit;
     }
 
     try {
-        $conn = getDbConnection();
-        $pdo = $conn['pdo'];
+        // Ensure citizen_users table exists
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `citizen_users` (
+            `citizen_user_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            `first_name` VARCHAR(100) NOT NULL,
+            `middle_name` VARCHAR(100) DEFAULT NULL,
+            `has_no_middle_name` TINYINT(1) NOT NULL DEFAULT 0,
+            `last_name` VARCHAR(100) NOT NULL,
+            `suffix` VARCHAR(20) DEFAULT NULL,
+            `email` VARCHAR(150) DEFAULT NULL,
+            `mobile_number` VARCHAR(20) DEFAULT NULL,
+            `password` VARCHAR(255) DEFAULT NULL,
+            `status` ENUM('Active','Inactive','Suspended') NOT NULL DEFAULT 'Active',
+            `registry_completed` TINYINT(1) NOT NULL DEFAULT 0,
+            `failed_attempts` TINYINT(3) UNSIGNED NOT NULL DEFAULT 0,
+            `last_login` DATETIME DEFAULT NULL,
+            `biometric_enabled` TINYINT(1) NOT NULL DEFAULT 0,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `deleted_at` DATETIME DEFAULT NULL,
+            PRIMARY KEY (`citizen_user_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        // Helper to save base64 uploaded photos to server disk
-        if (!function_exists('saveBase64Image')) {
-            function saveBase64Image($dataUrl, $prefix = 'photo') {
-                if (empty($dataUrl)) return null;
-                $dataUrl = trim($dataUrl);
+        // Guarantee foreign key constraint fk_verif_user exists in citizen_users
+        if ($citizenUserId > 0) {
+            $userCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE citizen_user_id = ?");
+            $userCheck->execute([$citizenUserId]);
+            if (!$userCheck->fetch()) {
+                $email = !empty($data['email']) ? trim($data['email']) : (strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . $citizenUserId . '@citizen.local');
+                $phone = !empty($data['phone']) ? trim($data['phone']) : ('09' . str_pad($citizenUserId, 9, '0', STR_PAD_LEFT));
 
-                if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0 || strpos($dataUrl, 'assets/') === 0) {
-                    return $dataUrl;
+                $emailCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE email = ?");
+                $emailCheck->execute([$email]);
+                if ($emailCheck->fetch()) {
+                    $email = 'user_' . $citizenUserId . '_' . time() . '@citizen.local';
                 }
 
-                if (preg_match('/^data:image\/(\w+);base64,/', $dataUrl, $type)) {
-                    $data = substr($dataUrl, strpos($dataUrl, ',') + 1);
-                    $ext = strtolower($type[1]);
-                    if ($ext === 'jpeg') $ext = 'jpg';
-
-                    $decoded = base64_decode($data);
-                    if ($decoded === false) return null;
-
-                    $targetDir = __DIR__ . '/../../assets/uploads/verifications/';
-                    if (!is_dir($targetDir)) {
-                        mkdir($targetDir, 0777, true);
-                    }
-
-                    $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
-                    $targetPath = $targetDir . $filename;
-
-                    if (file_put_contents($targetPath, $decoded)) {
-                        return 'assets/uploads/verifications/' . $filename;
-                    }
+                $phoneCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE mobile_number = ?");
+                $phoneCheck->execute([$phone]);
+                if ($phoneCheck->fetch()) {
+                    $phone = '09' . substr(str_shuffle('0123456789'), 0, 9);
                 }
 
-                return $dataUrl;
+                $insUser = $pdo->prepare("INSERT INTO citizen_users (
+                    citizen_user_id, first_name, middle_name, last_name, suffix, email, mobile_number, status, registry_completed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Active', 0)");
+                $insUser->execute([
+                    $citizenUserId,
+                    $firstName,
+                    $middleName,
+                    $lastName,
+                    $suffix,
+                    $email,
+                    $phone
+                ]);
+            }
+        } else {
+            // Find user by name or create a new user entry
+            $findUser = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE first_name = ? AND last_name = ? LIMIT 1");
+            $findUser->execute([$firstName, $lastName]);
+            $existing = $findUser->fetch(PDO::FETCH_ASSOC);
+            if ($existing) {
+                $citizenUserId = (int)$existing['citizen_user_id'];
+            } else {
+                $email = !empty($data['email']) ? trim($data['email']) : (strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . time() . '@citizen.local');
+                $phone = !empty($data['phone']) ? trim($data['phone']) : ('09' . substr(str_shuffle('0123456789'), 0, 9));
+                $insUser = $pdo->prepare("INSERT INTO citizen_users (
+                    first_name, middle_name, last_name, suffix, email, mobile_number, status, registry_completed
+                ) VALUES (?, ?, ?, ?, ?, ?, 'Active', 0)");
+                $insUser->execute([$firstName, $middleName, $lastName, $suffix, $email, $phone]);
+                $citizenUserId = (int)$pdo->lastInsertId();
             }
         }
 
-        $idFrontSavedPath = saveBase64Image($data['id_front_photo_url'] ?? null, 'id_front');
-        $selfieSavedPath  = saveBase64Image($data['selfie_photo_url'] ?? null, 'selfie');
+        // Process and save photos
+        $idFrontSavedPath = saveBase64Image($rawIdFront, 'id_front');
+        $selfieSavedPath  = saveBase64Image($rawSelfie, 'selfie');
 
-        $stmt = $pdo->prepare("INSERT INTO `citizen_verifications` (
-            `citizen_user_id`,
-            `first_name`,
-            `middle_name`,
-            `last_name`,
-            `suffix`,
-            `sex`,
-            `place_of_birth`,
-            `birth_date`,
-            `civil_status`,
-            `employment_status`,
-            `occupation`,
-            `educational_attainment`,
-            `district`,
-            `barangay`,
-            `street_address`,
-            `years_resident`,
-            `valid_id_type`,
-            `valid_id_number`,
-            `id_front_photo_url`,
-            `selfie_photo_url`,
-            `verification_status`
+        // Insert verification row
+        $stmt = $pdo->prepare("INSERT INTO citizen_verifications (
+            citizen_user_id, first_name, middle_name, last_name, suffix, sex,
+            place_of_birth, birth_date, civil_status, employment_status, occupation,
+            educational_attainment, district, barangay, street_address, years_resident,
+            valid_id_type, valid_id_number, id_front_photo_url, selfie_photo_url, verification_status
         ) VALUES (
-            :citizen_user_id,
-            :first_name,
-            :middle_name,
-            :last_name,
-            :suffix,
-            :sex,
-            :place_of_birth,
-            :birth_date,
-            :civil_status,
-            :employment_status,
-            :occupation,
-            :educational_attainment,
-            :district,
-            :barangay,
-            :street_address,
-            :years_resident,
-            :valid_id_type,
-            :valid_id_number,
-            :id_front_photo_url,
-            :selfie_photo_url,
-            'Pending'
+            :citizen_user_id, :first_name, :middle_name, :last_name, :suffix, :sex,
+            :place_of_birth, :birth_date, :civil_status, :employment_status, :occupation,
+            :educational_attainment, :district, :barangay, :street_address, :years_resident,
+            :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url, 'Pending'
         )");
 
         $stmt->execute([
-            ':citizen_user_id'       => !empty($data['citizen_user_id']) ? (int)$data['citizen_user_id'] : null,
-            ':first_name'            => trim($data['first_name']),
-            ':middle_name'           => !empty($data['middle_name']) ? trim($data['middle_name']) : null,
-            ':last_name'             => trim($data['last_name']),
-            ':suffix'                => !empty($data['suffix']) ? trim($data['suffix']) : null,
-            ':sex'                   => $data['sex'] ?? 'Male',
-            ':place_of_birth'        => $data['place_of_birth'] ?? '',
-            ':birth_date'            => $data['birth_date'] ?? '2000-01-01',
-            ':civil_status'          => $data['civil_status'] ?? 'Single',
-            ':employment_status'     => $data['employment_status'] ?? 'Employed',
-            ':occupation'            => $data['occupation'] ?? 'Other',
-            ':educational_attainment'=> $data['educational_attainment'] ?? 'College Graduate',
-            ':district'              => $data['district'] ?? 'District 1',
-            ':barangay'              => $data['barangay'] ?? '',
-            ':street_address'        => trim($data['street_address']),
-            ':years_resident'        => (int)($data['years_resident'] ?? 1),
-            ':valid_id_type'         => $data['valid_id_type'] ?? 'National ID',
-            ':valid_id_number'       => trim($data['valid_id_number']),
-            ':id_front_photo_url'    => $idFrontSavedPath,
-            ':selfie_photo_url'      => $selfieSavedPath
+            ':citizen_user_id'         => $citizenUserId,
+            ':first_name'              => $firstName,
+            ':middle_name'             => $middleName,
+            ':last_name'               => $lastName,
+            ':suffix'                  => $suffix,
+            ':sex'                     => $sex,
+            ':place_of_birth'          => $placeOfBirth,
+            ':birth_date'              => $birthDate,
+            ':civil_status'            => $civilStatus,
+            ':employment_status'       => $employment,
+            ':occupation'              => $occupation,
+            ':educational_attainment'  => $education,
+            ':district'                => $district,
+            ':barangay'                => $barangay,
+            ':street_address'          => $streetAddress,
+            ':years_resident'          => $yearsResident,
+            ':valid_id_type'           => $validIdType,
+            ':valid_id_number'         => $validIdNumber,
+            ':id_front_photo_url'      => $idFrontSavedPath,
+            ':selfie_photo_url'        => $selfieSavedPath,
         ]);
 
-        $newId = $pdo->lastInsertId();
+        $verificationId = (int)$pdo->lastInsertId();
 
-        // Check for duplicate valid_id_number
-        $dupStmt = $pdo->prepare("SELECT COUNT(*) FROM `citizen_verifications` WHERE `valid_id_number` = :id_num AND `verification_id` != :curr_id");
+        // Check for duplicates
+        $dupStmt = $pdo->prepare("SELECT COUNT(*) FROM citizen_verifications WHERE valid_id_number = :id_num AND verification_id != :curr_id");
         $dupStmt->execute([
-            ':id_num' => trim($data['valid_id_number']),
-            ':curr_id' => $newId
+            ':id_num' => $validIdNumber,
+            ':curr_id' => $verificationId
         ]);
         $dupCount = (int)$dupStmt->fetchColumn();
 
         if ($dupCount > 0) {
-            $updateDup = $pdo->prepare("UPDATE `citizen_verifications` SET `is_duplicate` = 1, `duplicate_notes` = :notes WHERE `verification_id` = :id");
+            $updateDup = $pdo->prepare("UPDATE citizen_verifications SET is_duplicate = 1, duplicate_notes = :notes WHERE verification_id = :id");
             $updateDup->execute([
                 ':notes' => "Potential duplicate ID number matched {$dupCount} other verification record(s).",
-                ':id' => $newId
+                ':id' => $verificationId
             ]);
         }
 
+        http_response_code(200);
         echo json_encode([
-            'status' => 'success',
-            'message' => 'Citizen verification submitted successfully.',
-            'verification_id' => (int)$newId,
-            'connected_to' => $conn['target'],
-            'reference_number' => 'CAL-VERIF-' . date('Y') . '-' . str_pad($newId, 5, '0', STR_PAD_LEFT)
+            "status"             => "success",
+            "message"            => "Citizen verification submitted successfully and is under review.",
+            "verification_id"    => $verificationId,
+            "verification_status"=> "Pending",
+            "reference_number"   => 'VER-' . str_pad($verificationId, 4, '0', STR_PAD_LEFT),
+            "id_front_saved"     => !empty($idFrontSavedPath),
+            "selfie_saved"       => !empty($selfieSavedPath)
         ]);
         exit;
-    } catch (\Exception $e) {
+    } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+        echo json_encode([
+            "status"  => "error",
+            "message" => "Database insertion error: " . $e->getMessage()
+        ]);
         exit;
     }
 }

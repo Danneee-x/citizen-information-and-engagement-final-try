@@ -63,17 +63,28 @@ try {
 $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `{$pkCol}` DESC");
 $dbConcerns = $stmt->fetchAll();
 
-// Available Caloocan Departments for Routing
-$caloocanDepartments = [
-    'City Engineering & Public Works Office',
-    'Environmental / Waste Management Department',
-    'Caloocan Flood Control & Drainage Bureau',
-    'Public Safety Electrical Division',
-    'Caloocan Public Safety & Police Bureau (CPTMD)',
-    'City Environment & Natural Resources Office',
-    'Caloocan Public Assistance Bureau',
-    'Barangay Peacekeeping Action Team (Tanod)'
-];
+// Available Caloocan Official Municipal Departments (Reference from Department Management)
+$caloocanDepartments = [];
+try {
+    $deptStmt = $pdo->query("SELECT `department_name` FROM `departments` WHERE `status` = 'Active' ORDER BY `department_id` ASC");
+    $caloocanDepartments = $deptStmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (Exception $e) {}
+
+if (empty($caloocanDepartments)) {
+    $caloocanDepartments = [
+        'Public Assets & Facilities Management (PAFM)',
+        'Health & Sanitation Management (HSM)',
+        'Disaster Risk Reduction & Emergency Response (DRRM)',
+        'Transport & Mobility Management (TMM)',
+        'Citizenship Information & Engagement (CIE)',
+        'Social Services Management (SSM)',
+        'Permits & Licensing Management (PLM)',
+        'Urban Planning Zoning & Housing (UPZH)',
+        'Revenue Collection & Treasury Services (RCTS)',
+        'Education & Scholarship (ESMS)',
+        'Information Technology Department (IT)'
+    ];
+}
 
 // Transform records for rendering
 $concerns = [];

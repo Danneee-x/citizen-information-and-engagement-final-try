@@ -7,82 +7,132 @@ include '../../includes/sidebar.php';
 
 // Department & Auto-Routing Rules Data Reference
 $departments = [
-    'dpwh' => [
-        'name' => 'City Engineering & Public Works Office (DPWH/CEPO)',
-        'short' => 'DPWH / City Engineering',
+    'pafm' => [
+        'code' => 'PAFM',
+        'name' => 'Public Assets & Facilities Management (PAFM)',
+        'short' => 'Public Assets & Facilities (PAFM)',
         'badge' => 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
         'icon' => 'fa-solid fa-road',
         'default_priority' => 'High',
         'default_sla' => '24 Hours'
     ],
-    'cenro' => [
-        'name' => 'Environmental / Waste Management Department (CENRO)',
-        'short' => 'CENRO Waste Mgmt',
+    'hsm' => [
+        'code' => 'HSM',
+        'name' => 'Health & Sanitation Management (HSM)',
+        'short' => 'Health & Sanitation (HSM)',
         'badge' => 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800',
         'icon' => 'fa-solid fa-recycle',
         'default_priority' => 'Medium',
         'default_sla' => '48 Hours'
     ],
-    'flood' => [
-        'name' => 'Caloocan Flood Control & Drainage Bureau',
-        'short' => 'Flood Control Bureau',
+    'drrm' => [
+        'code' => 'DRRM',
+        'name' => 'Disaster Risk Reduction & Emergency Response (DRRM)',
+        'short' => 'Disaster & Emergency (DRRM)',
         'badge' => 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
         'icon' => 'fa-solid fa-water',
-        'default_priority' => 'High',
-        'default_sla' => '24 Hours'
-    ],
-    'electrical' => [
-        'name' => 'Public Safety Electrical Division',
-        'short' => 'Electrical Division',
-        'badge' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
-        'icon' => 'fa-solid fa-bolt',
-        'default_priority' => 'Medium',
-        'default_sla' => '48 Hours'
-    ],
-    'cptmd' => [
-        'name' => 'Caloocan Public Safety & Police Bureau (CPTMD)',
-        'short' => 'CPTMD Public Safety',
-        'badge' => 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800',
-        'icon' => 'fa-solid fa-shield-halved',
         'default_priority' => 'Urgent',
         'default_sla' => '4 Hours'
     ],
-    'cenro_env' => [
-        'name' => 'City Environment & Natural Resources Office',
-        'short' => 'City Environment Office',
-        'badge' => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
-        'icon' => 'fa-solid fa-tree',
+    'tmm' => [
+        'code' => 'TMM',
+        'name' => 'Transport & Mobility Management (TMM)',
+        'short' => 'Transport & Mobility (TMM)',
+        'badge' => 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+        'icon' => 'fa-solid fa-traffic-light',
         'default_priority' => 'Medium',
         'default_sla' => '48 Hours'
     ],
-    'assistance' => [
-        'name' => 'Caloocan Public Assistance & Grievance Bureau',
-        'short' => 'Public Assistance Bureau',
+    'cie' => [
+        'code' => 'CIE',
+        'name' => 'Citizenship Information & Engagement (CIE)',
+        'short' => 'Citizen Engagement (CIE)',
         'badge' => 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800',
-        'icon' => 'fa-solid fa-handshake-angle',
+        'icon' => 'fa-solid fa-comments',
         'default_priority' => 'Low',
         'default_sla' => '72 Hours'
+    ],
+    'ssm' => [
+        'code' => 'SSM',
+        'name' => 'Social Services Management (SSM)',
+        'short' => 'Social Services (SSM)',
+        'badge' => 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+        'icon' => 'fa-solid fa-hands-holding-child',
+        'default_priority' => 'Medium',
+        'default_sla' => '48 Hours'
+    ],
+    'plm' => [
+        'code' => 'PLM',
+        'name' => 'Permits & Licensing Management (PLM)',
+        'short' => 'Permits & Licensing (PLM)',
+        'badge' => 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
+        'icon' => 'fa-solid fa-file-contract',
+        'default_priority' => 'Medium',
+        'default_sla' => '72 Hours'
+    ],
+    'upzh' => [
+        'code' => 'UPZH',
+        'name' => 'Urban Planning Zoning & Housing (UPZH)',
+        'short' => 'Urban Planning & Housing (UPZH)',
+        'badge' => 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
+        'icon' => 'fa-solid fa-city',
+        'default_priority' => 'Medium',
+        'default_sla' => '72 Hours'
+    ],
+    'rcts' => [
+        'code' => 'RCTS',
+        'name' => 'Revenue Collection & Treasury Services (RCTS)',
+        'short' => 'Revenue & Treasury (RCTS)',
+        'badge' => 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800',
+        'icon' => 'fa-solid fa-coins',
+        'default_priority' => 'Low',
+        'default_sla' => '72 Hours'
+    ],
+    'esms' => [
+        'code' => 'ESMS',
+        'name' => 'Education & Scholarship (ESMS)',
+        'short' => 'Education & Scholarship (ESMS)',
+        'badge' => 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800',
+        'icon' => 'fa-solid fa-graduation-cap',
+        'default_priority' => 'Low',
+        'default_sla' => '72 Hours'
+    ],
+    'it' => [
+        'code' => 'IT',
+        'name' => 'Information Technology Department (IT)',
+        'short' => 'Information Technology (IT)',
+        'badge' => 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+        'icon' => 'fa-solid fa-laptop-code',
+        'default_priority' => 'Medium',
+        'default_sla' => '24 Hours'
     ]
 ];
-// Live Concerns Dataset populated from MySQL
-$initialConcerns = [];
 
 // Initial Routing Rules Dataset
 $routingRules = [
     [
         'category' => 'Road & Infrastructure',
-        'keywords' => ['pothole', 'road', 'bridge', 'crack', 'asphalt', 'crater', 'pavement'],
-        'department_key' => 'dpwh',
-        'department_name' => 'City Engineering & Public Works Office (DPWH/CEPO)',
+        'keywords' => ['pothole', 'road', 'bridge', 'crack', 'asphalt', 'crater', 'pavement', 'sidewalk'],
+        'department_key' => 'pafm',
+        'department_name' => 'Public Assets & Facilities Management (PAFM)',
         'default_priority' => 'High',
         'default_sla' => '24 Hours',
         'is_active' => true
     ],
     [
-        'category' => 'Garbage & Waste',
-        'keywords' => ['garbage', 'waste', 'trash', 'dump', 'basura', 'odor', 'leachate', 'uncollected'],
-        'department_key' => 'cenro',
-        'department_name' => 'Environmental / Waste Management Department (CENRO)',
+        'category' => 'Streetlights & Electrical',
+        'keywords' => ['light', 'dark', 'lamp', 'post', 'wire', 'sparking', 'electric', 'bulb'],
+        'department_key' => 'pafm',
+        'department_name' => 'Public Assets & Facilities Management (PAFM)',
+        'default_priority' => 'Medium',
+        'default_sla' => '24 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Garbage & Sanitation',
+        'keywords' => ['garbage', 'waste', 'trash', 'dump', 'basura', 'odor', 'leachate', 'uncollected', 'cleanliness'],
+        'department_key' => 'hsm',
+        'department_name' => 'Health & Sanitation Management (HSM)',
         'default_priority' => 'Medium',
         'default_sla' => '48 Hours',
         'is_active' => true
@@ -90,46 +140,91 @@ $routingRules = [
     [
         'category' => 'Flooding & Drainage',
         'keywords' => ['flood', 'drain', 'canal', 'waterlog', 'culvert', 'clogged', 'gutter'],
-        'department_key' => 'flood',
-        'department_name' => 'Caloocan Flood Control & Drainage Bureau',
-        'default_priority' => 'High',
-        'default_sla' => '24 Hours',
-        'is_active' => true
-    ],
-    [
-        'category' => 'Streetlights',
-        'keywords' => ['light', 'dark', 'lamp', 'post', 'wire', 'sparking', 'electric', 'bulb'],
-        'department_key' => 'electrical',
-        'department_name' => 'Public Safety Electrical Division',
-        'default_priority' => 'Medium',
-        'default_sla' => '48 Hours',
-        'is_active' => true
-    ],
-    [
-        'category' => 'Public Safety',
-        'keywords' => ['safety', 'police', 'hazard', 'theft', 'crime', 'brawl', 'curfew', 'videoke', 'disturbance'],
-        'department_key' => 'cptmd',
-        'department_name' => 'Caloocan Public Safety & Police Bureau (CPTMD)',
+        'department_key' => 'drrm',
+        'department_name' => 'Disaster Risk Reduction & Emergency Response (DRRM)',
         'default_priority' => 'Urgent',
         'default_sla' => '4 Hours',
         'is_active' => true
     ],
     [
-        'category' => 'Environment',
-        'keywords' => ['tree', 'smoke', 'pollution', 'air', 'burning', 'toxic', 'branch'],
-        'department_key' => 'cenro_env',
-        'department_name' => 'City Environment & Natural Resources Office',
+        'category' => 'Traffic & Mobility',
+        'keywords' => ['traffic', 'congestion', 'tricycle', 'terminal', 'parking', 'obstruction', 'route', 'jeepney'],
+        'department_key' => 'tmm',
+        'department_name' => 'Transport & Mobility Management (TMM)',
         'default_priority' => 'Medium',
         'default_sla' => '48 Hours',
         'is_active' => true
     ],
     [
-        'category' => 'Government Service / General Inquiry',
-        'keywords' => ['inquiry', 'assistance', 'subsidy', 'clinic', 'program', 'schedule', 'certificate', 'help'],
-        'department_key' => 'assistance',
-        'department_name' => 'Caloocan Public Assistance & Grievance Bureau',
+        'category' => 'Public Safety & Peace Order',
+        'keywords' => ['safety', 'police', 'hazard', 'theft', 'crime', 'brawl', 'curfew', 'videoke', 'disturbance', 'noise'],
+        'department_key' => 'tmm',
+        'department_name' => 'Transport & Mobility Management (TMM)',
+        'default_priority' => 'High',
+        'default_sla' => '4 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Social Welfare & Community Assistance',
+        'keywords' => ['aid', 'indigent', 'burial', 'senior', 'pwd', 'solo parent', 'welfare', 'assistance', 'subsidy'],
+        'department_key' => 'ssm',
+        'department_name' => 'Social Services Management (SSM)',
+        'default_priority' => 'Medium',
+        'default_sla' => '48 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Business Permits & Licensing',
+        'keywords' => ['permit', 'business', 'license', 'commercial', 'clearance', 'vendor', 'inspection'],
+        'department_key' => 'plm',
+        'department_name' => 'Permits & Licensing Management (PLM)',
+        'default_priority' => 'Medium',
+        'default_sla' => '72 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Zoning & Housing Compliance',
+        'keywords' => ['zoning', 'housing', 'building', 'structure', 'boundary', 'setback', 'encroachment', 'land use'],
+        'department_key' => 'upzh',
+        'department_name' => 'Urban Planning Zoning & Housing (UPZH)',
+        'default_priority' => 'Medium',
+        'default_sla' => '72 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Revenue & Local Taxes',
+        'keywords' => ['tax', 'rpt', 'treasury', 'assessment', 'receipt', 'payment', 'fees', 'cedula'],
+        'department_key' => 'rcts',
+        'department_name' => 'Revenue Collection & Treasury Services (RCTS)',
         'default_priority' => 'Low',
         'default_sla' => '72 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Scholarships & Student Grants',
+        'keywords' => ['scholarship', 'student', 'grant', 'tuition', 'academic', 'college', 'grades'],
+        'department_key' => 'esms',
+        'department_name' => 'Education & Scholarship (ESMS)',
+        'default_priority' => 'Low',
+        'default_sla' => '72 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'Citizen Registry & Civic Feedback',
+        'keywords' => ['feedback', 'inquiry', 'suggestion', 'consultation', 'poll', 'survey', 'citizen id', 'registry', 'general'],
+        'department_key' => 'cie',
+        'department_name' => 'Citizenship Information & Engagement (CIE)',
+        'default_priority' => 'Low',
+        'default_sla' => '72 Hours',
+        'is_active' => true
+    ],
+    [
+        'category' => 'IT & Mobile App Support',
+        'keywords' => ['app', 'login', 'account', 'password', 'portal', 'technical', 'bug', 'error', 'system'],
+        'department_key' => 'it',
+        'department_name' => 'Information Technology Department (IT)',
+        'default_priority' => 'Medium',
+        'default_sla' => '24 Hours',
         'is_active' => true
     ]
 ];
@@ -143,14 +238,31 @@ try {
     if (!empty($dbRows)) {
         $liveConcerns = [];
         foreach ($dbRows as $row) {
-            $cat = $row['category'];
-            $deptKey = 'assistance';
-            if (stripos($cat, 'Road') !== false || stripos($cat, 'Infra') !== false) $deptKey = 'dpwh';
-            else if (stripos($cat, 'Garbage') !== false || stripos($cat, 'Waste') !== false || stripos($cat, 'Sanitation') !== false) $deptKey = 'cenro';
-            else if (stripos($cat, 'Flood') !== false || stripos($cat, 'Drain') !== false) $deptKey = 'flood';
-            else if (stripos($cat, 'Light') !== false) $deptKey = 'electrical';
-            else if (stripos($cat, 'Safety') !== false || stripos($cat, 'Police') !== false) $deptKey = 'cptmd';
-            else if (stripos($cat, 'Environment') !== false) $deptKey = 'cenro_env';
+            $cat = $row['category'] ?? '';
+            $assigned = $row['assigned_department'] ?? '';
+            $deptKey = 'cie';
+
+            if (stripos($assigned, 'PAFM') !== false || stripos($assigned, 'Public Assets') !== false || stripos($cat, 'Road') !== false || stripos($cat, 'Infra') !== false || stripos($cat, 'Streetlight') !== false || stripos($cat, 'Light') !== false) {
+                $deptKey = 'pafm';
+            } else if (stripos($assigned, 'HSM') !== false || stripos($assigned, 'Health') !== false || stripos($assigned, 'Sanitation') !== false || stripos($cat, 'Garbage') !== false || stripos($cat, 'Waste') !== false || stripos($cat, 'Sanitation') !== false || stripos($cat, 'Health') !== false || stripos($cat, 'Environment') !== false) {
+                $deptKey = 'hsm';
+            } else if (stripos($assigned, 'DRRM') !== false || stripos($assigned, 'Disaster') !== false || stripos($cat, 'Flood') !== false || stripos($cat, 'Drain') !== false || stripos($cat, 'Emergency') !== false) {
+                $deptKey = 'drrm';
+            } else if (stripos($assigned, 'TMM') !== false || stripos($assigned, 'Transport') !== false || stripos($cat, 'Traffic') !== false || stripos($cat, 'Transport') !== false || stripos($cat, 'Safety') !== false || stripos($cat, 'Police') !== false) {
+                $deptKey = 'tmm';
+            } else if (stripos($assigned, 'SSM') !== false || stripos($assigned, 'Social') !== false || stripos($cat, 'Social') !== false || stripos($cat, 'Welfare') !== false || stripos($cat, 'Indigent') !== false || stripos($cat, 'Senior') !== false) {
+                $deptKey = 'ssm';
+            } else if (stripos($assigned, 'PLM') !== false || stripos($assigned, 'Permits') !== false || stripos($cat, 'Permit') !== false || stripos($cat, 'License') !== false || stripos($cat, 'Business') !== false) {
+                $deptKey = 'plm';
+            } else if (stripos($assigned, 'UPZH') !== false || stripos($assigned, 'Zoning') !== false || stripos($cat, 'Zoning') !== false || stripos($cat, 'Housing') !== false) {
+                $deptKey = 'upzh';
+            } else if (stripos($assigned, 'RCTS') !== false || stripos($assigned, 'Revenue') !== false || stripos($cat, 'Tax') !== false || stripos($cat, 'Treasury') !== false) {
+                $deptKey = 'rcts';
+            } else if (stripos($assigned, 'ESMS') !== false || stripos($assigned, 'Education') !== false || stripos($cat, 'Scholarship') !== false || stripos($cat, 'Education') !== false) {
+                $deptKey = 'esms';
+            } else if (stripos($assigned, 'IT') !== false || stripos($cat, 'System') !== false || stripos($cat, 'App') !== false || stripos($cat, 'Technical') !== false) {
+                $deptKey = 'it';
+            }
 
             $st = $row['status'] ?? 'New';
             $stage = 'submitted';
@@ -174,7 +286,7 @@ try {
                 'description' => $row['description'],
                 'category' => $row['category'],
                 'department_key' => $deptKey,
-                'department_name' => $row['assigned_department'] ?: ($departments[$deptKey]['name'] ?? 'City Engineering & Public Works Office'),
+                'department_name' => $row['assigned_department'] ?: ($departments[$deptKey]['name'] ?? 'Citizenship Information & Engagement (CIE)'),
                 'priority' => $row['priority'],
                 'stage' => $stage,
                 'sla_text' => '24h SLA',
@@ -401,14 +513,10 @@ try {
             <div>
                 <label class="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Target Department</label>
                 <select id="filterDepartment" onchange="applyFilters()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 outline-none font-medium text-xs cursor-pointer focus:border-blue-500">
-                    <option value="all">All Departments (7 Offices)</option>
-                    <option value="dpwh">City Engineering & Public Works (DPWH)</option>
-                    <option value="cenro">CENRO Waste Management</option>
-                    <option value="flood">Caloocan Flood Control Bureau</option>
-                    <option value="electrical">Public Safety Electrical Division</option>
-                    <option value="cptmd">CPTMD Public Safety & Police</option>
-                    <option value="cenro_env">City Environment & Natural Resources</option>
-                    <option value="assistance">Public Assistance & Grievance</option>
+                    <option value="all">All Municipal Departments (11 Offices)</option>
+                    <?php foreach ($departments as $k => $d): ?>
+                    <option value="<?= $k ?>"><?= htmlspecialchars($d['name']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -789,13 +897,9 @@ try {
                                 <span class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Auto-Routed</span>
                             </div>
                             <select id="modalDepartmentSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer focus:border-blue-500">
-                                <option value="dpwh">City Engineering & Public Works (DPWH)</option>
-                                <option value="cenro">CENRO Waste Management</option>
-                                <option value="flood">Caloocan Flood Control Bureau</option>
-                                <option value="electrical">Public Safety Electrical Division</option>
-                                <option value="cptmd">CPTMD Public Safety & Police</option>
-                                <option value="cenro_env">City Environment & Natural Resources</option>
-                                <option value="assistance">Public Assistance & Grievance</option>
+                                <?php foreach ($departments as $k => $d): ?>
+                                <option value="<?= $k ?>"><?= htmlspecialchars($d['name']) ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
 
@@ -1035,7 +1139,7 @@ try {
                     <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
                     <div>
                         <span class="text-[10px] font-bold uppercase text-indigo-700 dark:text-indigo-300 block">AI Recommended Bureau:</span>
-                        <span id="walkInAiBureauText" class="font-extrabold text-xs text-indigo-900 dark:text-indigo-100">City Engineering & Public Works Office (DPWH)</span>
+                        <span id="walkInAiBureauText" class="font-extrabold text-xs text-indigo-900 dark:text-indigo-100">Public Assets & Facilities Management (PAFM)</span>
                     </div>
                 </div>
                 <span id="walkInAiConfidenceScore" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">98% Match</span>
@@ -1046,13 +1150,9 @@ try {
                 <div>
                     <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Assigned Department</label>
                     <select id="walkInDepartmentSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500 font-medium text-slate-800 dark:text-slate-200 cursor-pointer">
-                        <option value="dpwh">City Engineering & Public Works (DPWH)</option>
-                        <option value="cenro">CENRO Waste Management</option>
-                        <option value="flood">Caloocan Flood Control Bureau</option>
-                        <option value="electrical">Public Safety Electrical Division</option>
-                        <option value="cptmd">CPTMD Public Safety & Police</option>
-                        <option value="cenro_env">City Environment & Natural Resources</option>
-                        <option value="assistance">Public Assistance & Grievance</option>
+                        <?php foreach ($departments as $k => $d): ?>
+                        <option value="<?= $k ?>"><?= htmlspecialchars($d['name']) ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div>
@@ -1106,13 +1206,9 @@ try {
             <div>
                 <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">New Target Department</label>
                 <select id="quickReRouteDeptSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer focus:border-blue-500">
-                    <option value="dpwh">City Engineering & Public Works (DPWH)</option>
-                    <option value="cenro">CENRO Waste Management</option>
-                    <option value="flood">Caloocan Flood Control Bureau</option>
-                    <option value="electrical">Public Safety Electrical Division</option>
-                    <option value="cptmd">CPTMD Public Safety & Police</option>
-                    <option value="cenro_env">City Environment & Natural Resources</option>
-                    <option value="assistance">Public Assistance & Grievance</option>
+                    <?php foreach ($departments as $k => $d): ?>
+                    <option value="<?= $k ?>"><?= htmlspecialchars($d['name']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -1158,12 +1254,18 @@ try {
             <div>
                 <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Select Action Officer / Unit</label>
                 <select id="quickAssignOfficerSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer focus:border-blue-500">
-                    <option value="Engr. Arnel Castillo (Road Maintenance Unit 4)">Engr. Arnel Castillo (Road Maintenance Unit 4)</option>
-                    <option value="Chief Inspector Danilo Cruz (Electrical Emergency Team)">Chief Inspector Danilo Cruz (Electrical Emergency Team)</option>
-                    <option value="Engr. Danilo Santos (Drainage Dredging Team 2)">Engr. Danilo Santos (Drainage Dredging Team 2)</option>
-                    <option value="Officer Jerome Valdez (CPTMD Sector 3 Patrol)">Officer Jerome Valdez (CPTMD Sector 3 Patrol)</option>
-                    <option value="CENRO Waste Operations Team Alpha">CENRO Waste Operations Team Alpha</option>
-                    <option value="Helpdesk Officer Carla Dizon (Public Assistance)">Helpdesk Officer Carla Dizon (Public Assistance)</option>
+                    <option value="Engr. Arnel Castillo (PAFM Public Assets & Facilities Unit 4)">Engr. Arnel Castillo (PAFM Public Assets & Facilities Unit 4)</option>
+                    <option value="Inspector Danilo Cruz (PAFM Streetlights & Electrical Team)">Inspector Danilo Cruz (PAFM Streetlights & Electrical Team)</option>
+                    <option value="Renato Diaz (HSM Sanitation & Waste Ops Team Alpha)">Renato Diaz (HSM Sanitation & Waste Ops Team Alpha)</option>
+                    <option value="Engr. Danilo Santos (DRRM Flood & Emergency Dredging Team 2)">Engr. Danilo Santos (DRRM Flood & Emergency Dredging Team 2)</option>
+                    <option value="Officer Jerome Valdez (TMM Traffic & Mobility Patrol Sector 3)">Officer Jerome Valdez (TMM Traffic & Mobility Patrol Sector 3)</option>
+                    <option value="Helpdesk Officer Carla Dizon (CIE Citizen Engagement & Grievance Desk)">Helpdesk Officer Carla Dizon (CIE Citizen Engagement & Grievance Desk)</option>
+                    <option value="Case Officer Maria Santos (SSM Social Welfare Unit)">Case Officer Maria Santos (SSM Social Welfare Unit)</option>
+                    <option value="Inspector Jose Reyes (PLM Business Regulation & Permits)">Inspector Jose Reyes (PLM Business Regulation & Permits)</option>
+                    <option value="Compliance Officer Andrea Luna (UPZH Urban Planning & Housing)">Compliance Officer Andrea Luna (UPZH Urban Planning & Housing)</option>
+                    <option value="Revenue Officer Carlos Mendoza (RCTS Treasury Services)">Revenue Officer Carlos Mendoza (RCTS Treasury Services)</option>
+                    <option value="Coordinator Grace Tan (ESMS Scholarship Assistance Desk)">Coordinator Grace Tan (ESMS Scholarship Assistance Desk)</option>
+                    <option value="Systems Engineer Mark Villanueva (IT Technical Support Desk)">Systems Engineer Mark Villanueva (IT Technical Support Desk)</option>
                 </select>
             </div>
 

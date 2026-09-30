@@ -196,11 +196,6 @@ foreach ($dbConcerns as $row) {
                 <i class="fa-solid fa-download text-slate-400"></i>
                 <span>Export Tickets</span>
             </button>
-
-            <button onclick="openSubmitConcernModal()" class="px-4.5 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer">
-                <i class="fa-solid fa-plus text-xs"></i>
-                <span>Submit New Concern</span>
-            </button>
         </div>
     </div>
 
@@ -533,93 +528,7 @@ foreach ($dbConcerns as $row) {
 
 </main>
 
-<!-- SUBMIT CONCERN MODAL (With Anonymous Option & Real Backend Submission) -->
-<div id="submitConcernModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
-        
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-base border border-blue-100">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </div>
-                <h3 class="text-base font-black text-slate-900">File New Grievance / Concern</h3>
-            </div>
-            <button onclick="closeSubmitConcernModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition flex items-center justify-center cursor-pointer">
-                <i class="fa-solid fa-xmark text-sm"></i>
-            </button>
-        </div>
 
-        <div class="space-y-4 text-xs">
-            <!-- Anonymous Toggle Switch -->
-            <div class="p-3.5 bg-purple-50/60 border border-purple-100 rounded-xl space-y-2">
-                <div class="flex items-center justify-between">
-                    <label class="font-black text-purple-900 text-xs flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-user-secret text-purple-600"></i>
-                        <span>Submit Anonymously</span>
-                    </label>
-                    <input type="checkbox" id="anonymousToggle" onchange="toggleAnonymousNotice(this.checked)" class="w-4 h-4 text-purple-600 rounded cursor-pointer">
-                </div>
-                <p id="anonymousNotice" class="text-[11px] text-purple-700 font-medium leading-tight hidden">
-                    <i class="fa-solid fa-shield-halved mr-1"></i>
-                    <strong>Abuse-Prevention Notice:</strong> Anonymous reports hide your name from public view. System IP logging & CAPTCHA validation remain active to prevent spam/false reporting.
-                </p>
-            </div>
-
-            <!-- Subject & Category -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div class="sm:col-span-2">
-                    <label class="font-bold text-slate-700 block mb-1">Subject / Title <span class="text-rose-500">*</span></label>
-                    <input type="text" id="newTitle" placeholder="e.g., Broken Streetlight along Market Alleyway" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs">
-                </div>
-
-                <div>
-                    <label class="font-bold text-slate-700 block mb-1">Category <span class="text-rose-500">*</span></label>
-                    <select id="newCategory" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer">
-                        <option value="Road & Infrastructure">Road & Infrastructure</option>
-                        <option value="Garbage & Waste">Garbage & Waste</option>
-                        <option value="Flooding & Drainage">Flooding & Drainage</option>
-                        <option value="Streetlights">Streetlights</option>
-                        <option value="Public Safety">Public Safety</option>
-                        <option value="Noise Complaint">Noise Complaint</option>
-                        <option value="Environment">Environment</option>
-                        <option value="Government Service">Government Service</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="font-bold text-slate-700 block mb-1">Location Barangay <span class="text-rose-500">*</span></label>
-                    <select id="newBarangay" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer">
-                        <option value="Barangay 171 (Bagumbong)">Barangay 171 (Bagumbong)</option>
-                        <option value="Barangay 178 (Camarin)">Barangay 178 (Camarin)</option>
-                        <option value="Barangay 176 (Bagong Silang)">Barangay 176 (Bagong Silang)</option>
-                        <option value="Barangay 12 (Grace Park)">Barangay 12 (Grace Park)</option>
-                        <option value="Barangay 88 (Caloocan South)">Barangay 88 (Caloocan South)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Specific Location Landmark -->
-            <div>
-                <label class="font-bold text-slate-700 block mb-1">Specific Location / Landmark <span class="text-rose-500">*</span></label>
-                <input type="text" id="newLocation" placeholder="e.g. 10th Avenue Corner 4th Street near Barangay Hall" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs">
-            </div>
-
-            <!-- Description -->
-            <div>
-                <label class="font-bold text-slate-700 block mb-1">Full Description <span class="text-rose-500">*</span></label>
-                <textarea id="newDescription" rows="4" placeholder="Describe the issue in detail (location landmarks, impact, duration)..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs"></textarea>
-            </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-            <button onclick="closeSubmitConcernModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">Cancel</button>
-            <button id="submitConcernBtn" onclick="submitConcernForm()" class="px-5 py-2.5 text-xs font-bold text-white bg-[#0f53d1] hover:bg-[#0d46b0] rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-paper-plane text-xs"></i>
-                <span>Submit Grievance Ticket</span>
-            </button>
-        </div>
-    </div>
-</div>
 
 <script>
 const concernsData = <?php echo json_encode(array_column($concerns, null, 'id')); ?>;
@@ -746,77 +655,7 @@ function filterConcernsTable() {
     });
 }
 
-function openSubmitConcernModal() {
-    document.getElementById('submitConcernModal').classList.remove('hidden');
-}
 
-function closeSubmitConcernModal() {
-    document.getElementById('submitConcernModal').classList.add('hidden');
-}
-
-function toggleAnonymousNotice(checked) {
-    const notice = document.getElementById('anonymousNotice');
-    if (checked) notice.classList.remove('hidden');
-    else notice.classList.add('hidden');
-}
-
-async function submitConcernForm() {
-    const title = document.getElementById('newTitle').value.trim();
-    const description = document.getElementById('newDescription').value.trim();
-    const category = document.getElementById('newCategory').value;
-    const barangay = document.getElementById('newBarangay').value;
-    const location = document.getElementById('newLocation').value.trim() || barangay;
-    const isAnonymous = document.getElementById('anonymousToggle').checked ? 1 : 0;
-
-    if (!title) {
-        alert('Please enter a ticket subject/title.');
-        return;
-    }
-    if (!description) {
-        alert('Please enter a full description.');
-        return;
-    }
-
-    const btn = document.getElementById('submitConcernBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Submitting...';
-
-    try {
-        const payload = {
-            title: title,
-            description: description,
-            category: category,
-            barangay: barangay,
-            location: location,
-            is_anonymous: isAnonymous,
-            citizen_name: isAnonymous ? 'Anonymous Resident' : 'Web Admin Reporter'
-        };
-
-        const res = await fetch('../../api/citizen/submit-concern.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (data && data.status === 'success') {
-            alert(`Concern successfully registered in database!\nTicket Number: ${data.ticket_number}\nAssigned Dept: ${data.data.recommended_department}`);
-            closeSubmitConcernModal();
-            window.location.reload();
-        } else {
-            alert('Submission error: ' + (data.message || 'Unknown error'));
-        }
-    } catch (err) {
-        console.error('Failed to submit concern:', err);
-        alert('Could not submit concern to backend. Please verify database connection.');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> <span>Submit Grievance Ticket</span>';
-    }
-}
 
 async function updateTicketStatus(newStatus) {
     if (!activeConcernId) {

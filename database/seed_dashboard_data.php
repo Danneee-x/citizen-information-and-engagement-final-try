@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Civentral Dashboard Seeder
  * Tables are initialized in a clean state for production database setup.

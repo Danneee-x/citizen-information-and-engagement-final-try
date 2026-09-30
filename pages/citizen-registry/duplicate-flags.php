@@ -1,7 +1,6 @@
-﻿<?php
-$basePath = '../../';
+<?php
 require_once __DIR__ . '/../../src/bootstrap.php';
-
+$basePath = '../../';
 include '../../includes/header.php';
 include '../../includes/sidebar.php';
 

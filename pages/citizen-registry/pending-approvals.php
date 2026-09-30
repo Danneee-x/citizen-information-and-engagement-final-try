@@ -5,6 +5,8 @@ require_once __DIR__ . '/../../src/bootstrap.php';
 // Real Applications & Metrics Data from MySQL
 require_once __DIR__ . '/../../config/database.php';
 
+$apiBase = rtrim(getenv('API_BASE_URL') ?: 'https://api-citizen.civentral.tech', '/');
+
 $applications = [];
 $counts = [
     'total' => 0,
@@ -126,7 +128,8 @@ try {
             'years_resident' => $row['years_resident'] ?? 1,
             'valid_id_type' => $row['valid_id_type'] ?? 'Valid ID',
             'valid_id_number' => $row['valid_id_number'] ?? '',
-            'id_front_photo_url' => $row['id_front_photo_url'] ?? '',
+            'id_front_photo_url' => $row['id_front_photo_url'] ?? $row['id_photo_url'] ?? '',
+            'id_photo_url' => $row['id_front_photo_url'] ?? $row['id_photo_url'] ?? '',
             'selfie_photo_url' => $row['selfie_photo_url'] ?? '',
             'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($fullName) . '&background=random',
             'date' => $dt->format('M d, Y'),
@@ -780,6 +783,8 @@ function selectPendingApplication(rowElement) {
     document.getElementById('drawerValidIdNumber').textContent = app.valid_id_number || 'N/A';
 
     // Photos Helper: support relative assets/, server uploads, data URIs, and full URLs
+    const API_BASE_URL = <?php echo json_encode($apiBase); ?>;
+
     function formatPhotoSrc(url) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
@@ -787,17 +792,23 @@ function selectPendingApplication(rowElement) {
         if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
             return url;
         }
-        if (url.startsWith('assets/')) {
-            return '../../' + url;
+        const cleanPath = url.replace(/^\/+/, '');
+        // Local XAMPP check: when serving on localhost, allow relative fallback if file exists locally
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocal) {
+            if (cleanPath.startsWith('assets/')) {
+                return '../../' + cleanPath;
+            }
+            if (cleanPath.startsWith('uploads/')) {
+                return '../../' + cleanPath;
+            }
         }
-        if (url.startsWith('/')) {
-            return url;
-        }
-        return '../../assets/uploads/verifications/' + url;
+        // External backend gateway URL
+        return API_BASE_URL + '/' + cleanPath;
     }
 
     const idBox = document.getElementById('drawerIdPhotoBox');
-    const idSrc = formatPhotoSrc(app.id_front_photo_url);
+    const idSrc = formatPhotoSrc(app.id_front_photo_url || app.id_photo_url);
     if (idSrc) {
         idBox.innerHTML = `<a href="${idSrc}" target="_blank" title="Click to view full image in new tab"><img src="${idSrc}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="Valid ID" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'fa-solid fa-id-card text-2xl mb-1\\'></i><span class=\\'block text-[9px]\\'>Image unavailable</span></div>';" /></a>`;
     } else {

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Duplicate Flags API — CIVentral Admin
  * Handles: GET (fetch flags), POST (scan/merge/dismiss)

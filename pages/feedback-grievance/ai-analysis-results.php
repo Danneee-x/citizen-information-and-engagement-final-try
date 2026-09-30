@@ -99,10 +99,10 @@ try {
                 'sub_category' => !empty($row['sub_category']) ? $row['sub_category'] : $row['category'],
                 'department_key' => $deptKey,
                 'suggested_routing' => $deptName,
-                'ai_confidence' => 96,
+                'ai_confidence' => (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96,
                 'vision_verified' => $hasPhoto,
                 'vision_summary' => $hasPhoto ? 'Gemini Vision verified citizen uploaded photo evidence.' : 'Intake verified from citizen mobile app report text.',
-                'sentiment' => $isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report',
+                'sentiment' => !empty($row['ai_reason']) ? $row['ai_reason'] : ($isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report'),
                 'sentiment_badge' => $isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
                 'barangay' => !empty($row['barangay']) ? $row['barangay'] : 'Caloocan City',
                 'cluster' => [

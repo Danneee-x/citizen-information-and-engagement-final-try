@@ -1,7 +1,7 @@
 <?php
 /**
  * Endpoint: /api/citizen/verify-citizen.php
- * Handles Citizen Verification Form submissions and status checks.
+ * Handles Citizen Verification Form submissions, rework resubmissions, and status checks.
  */
 
 // 1. CORS Configuration
@@ -29,8 +29,21 @@ if (!function_exists('saveBase64Image')) {
         if (empty($dataUrl)) return null;
         $dataUrl = trim($dataUrl);
 
-        if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0 || strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, '/uploads/') === 0) {
+        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+
+        if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
+            if (preg_match('#/(?:assets/)?uploads/verifications/([^/?]+)#', $dataUrl, $m)) {
+                return $baseUrl . '/uploads/verifications/' . $m[1];
+            }
             return $dataUrl;
+        }
+
+        if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0 || strpos($dataUrl, '/uploads/') === 0) {
+            $clean = ltrim($dataUrl, '/');
+            if (strpos($clean, 'assets/uploads/') === 0) {
+                $clean = substr($clean, strlen('assets/'));
+            }
+            return $baseUrl . '/' . $clean;
         }
 
         $ext = 'jpg';
@@ -50,20 +63,25 @@ if (!function_exists('saveBase64Image')) {
                 $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
 
                 $targetDirs = [
+                    '/var/www/html/uploads/verifications/',
+                    __DIR__ . '/../../uploads/verifications/',
                     __DIR__ . '/../../assets/uploads/verifications/',
-                    'C:/xampp/htdocs/civentral-citizen-information-and-engagement/assets/uploads/verifications/',
-                    'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/verifications/',
-                    'C:/xampp/htdocs/citizen-backend/assets/uploads/verifications/'
+                    'C:/xampp/htdocs/citizen-backend/uploads/verifications/',
+                    'C:/xampp/htdocs/citizen-backend/assets/uploads/verifications/',
+                    'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/verifications/'
                 ];
 
                 foreach ($targetDirs as $dir) {
                     if (!is_dir($dir)) {
-                        @mkdir($dir, 0777, true);
+                        @mkdir($dir, 0775, true);
+                        @chmod($dir, 0775);
                     }
-                    @file_put_contents($dir . $filename, $decoded);
+                    if (is_dir($dir)) {
+                        @file_put_contents($dir . $filename, $decoded);
+                    }
                 }
 
-                return 'assets/uploads/verifications/' . $filename;
+                return $baseUrl . '/uploads/verifications/' . $filename;
             }
         }
 
@@ -85,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $countStmt = $pdo->query("SELECT COUNT(*) as total FROM `citizen_verifications`");
         $total = $countStmt->fetchColumn();
 
-        $recentStmt = $pdo->query("SELECT verification_id, citizen_user_id, first_name, last_name, verification_status, submitted_at FROM `citizen_verifications` ORDER BY `verification_id` DESC LIMIT 10");
+        $recentStmt = $pdo->query("SELECT verification_id, citizen_id_number, citizen_user_id, first_name, last_name, verification_status, submitted_at FROM `citizen_verifications` ORDER BY `verification_id` DESC LIMIT 10");
         $recent = $recentStmt->fetchAll();
 
         echo json_encode([
@@ -146,11 +164,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $validIdNumber = trim($data['valid_id_number'] ?? '');
     $rawIdFront    = $data['id_front_photo_url'] ?? null;
     $rawSelfie     = $data['selfie_photo_url'] ?? null;
+    $rawPhoto1x1   = $data['photo_1x1_url'] ?? null;
+    $rawSignature  = $data['signature_photo_url'] ?? null;
     $citizenUserId = intval($data['citizen_user_id'] ?? 0);
 
     if (empty($firstName) || empty($lastName) || empty($barangay) || empty($validIdNumber)) {
         http_response_code(422);
         echo json_encode([
+            "success" => false,
             "status"  => "error",
             "message" => "Required fields missing: First Name, Last Name, Barangay, and Valid ID Number are required."
         ]);
@@ -158,29 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Ensure citizen_users table exists
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `citizen_users` (
-            `citizen_user_id` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-            `first_name` VARCHAR(100) NOT NULL,
-            `middle_name` VARCHAR(100) DEFAULT NULL,
-            `has_no_middle_name` TINYINT(1) NOT NULL DEFAULT 0,
-            `last_name` VARCHAR(100) NOT NULL,
-            `suffix` VARCHAR(20) DEFAULT NULL,
-            `email` VARCHAR(150) DEFAULT NULL,
-            `mobile_number` VARCHAR(20) DEFAULT NULL,
-            `password` VARCHAR(255) DEFAULT NULL,
-            `status` ENUM('Active','Inactive','Suspended') NOT NULL DEFAULT 'Active',
-            `registry_completed` TINYINT(1) NOT NULL DEFAULT 0,
-            `failed_attempts` TINYINT(3) UNSIGNED NOT NULL DEFAULT 0,
-            `last_login` DATETIME DEFAULT NULL,
-            `biometric_enabled` TINYINT(1) NOT NULL DEFAULT 0,
-            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            `deleted_at` DATETIME DEFAULT NULL,
-            PRIMARY KEY (`citizen_user_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
-        // Guarantee foreign key constraint fk_verif_user exists in citizen_users
+        // Ensure user exists in citizen_users if citizenUserId > 0
         if ($citizenUserId > 0) {
             $userCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE citizen_user_id = ?");
             $userCheck->execute([$citizenUserId]);
@@ -231,21 +230,140 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Process and save photos
-        $idFrontSavedPath = saveBase64Image($rawIdFront, 'id_front');
-        $selfieSavedPath  = saveBase64Image($rawSelfie, 'selfie');
+        // Process and save photos & signatures
+        $idFrontSavedPath   = saveBase64Image($rawIdFront, 'id_front');
+        $selfieSavedPath    = saveBase64Image($rawSelfie, 'selfie');
+        $photo1x1SavedPath  = saveBase64Image($rawPhoto1x1, 'photo_1x1');
+        $signatureSavedPath = saveBase64Image($rawSignature, 'signature');
 
-        // Insert verification row
+        // Check for existing active application for this citizen_user_id
+        $dupCheckStmt = $pdo->prepare("SELECT verification_id, verification_status, id_front_photo_url, selfie_photo_url, photo_1x1_url, signature_photo_url 
+            FROM citizen_verifications 
+            WHERE citizen_user_id = ? 
+            ORDER BY verification_id DESC LIMIT 1");
+        $dupCheckStmt->execute([$citizenUserId]);
+        $existingRecord = $dupCheckStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existingRecord) {
+            $curStatus = $existingRecord['verification_status'];
+
+            // 1. Pending or Under_Review: Reject duplicate submission with 409 Conflict
+            if ($curStatus === 'Pending' || $curStatus === 'Under_Review') {
+                http_response_code(409);
+                echo json_encode([
+                    "success"             => false,
+                    "status"              => "error",
+                    "message"             => "You already have an active application under review.",
+                    "verification_status" => $curStatus,
+                    "verification_id"     => (int)$existingRecord['verification_id']
+                ]);
+                exit;
+            }
+
+            // 2. Approved: Citizen is already registered
+            if ($curStatus === 'Approved') {
+                http_response_code(409);
+                echo json_encode([
+                    "success"             => false,
+                    "status"              => "error",
+                    "message"             => "Citizen is already verified and registered.",
+                    "verification_status" => "Approved",
+                    "verification_id"     => (int)$existingRecord['verification_id']
+                ]);
+                exit;
+            }
+
+            // 3. Returned_For_Correction: UPDATE existing record instead of inserting a duplicate row!
+            if ($curStatus === 'Returned_For_Correction') {
+                $finalIdFront   = $idFrontSavedPath ?: $existingRecord['id_front_photo_url'];
+                $finalSelfie    = $selfieSavedPath ?: $existingRecord['selfie_photo_url'];
+                $finalPhoto1x1  = $photo1x1SavedPath ?: $existingRecord['photo_1x1_url'];
+                $finalSignature = $signatureSavedPath ?: $existingRecord['signature_photo_url'];
+
+                $updateStmt = $pdo->prepare("UPDATE citizen_verifications SET
+                    first_name = :first_name,
+                    middle_name = :middle_name,
+                    last_name = :last_name,
+                    suffix = :suffix,
+                    sex = :sex,
+                    place_of_birth = :place_of_birth,
+                    birth_date = :birth_date,
+                    civil_status = :civil_status,
+                    employment_status = :employment_status,
+                    occupation = :occupation,
+                    educational_attainment = :educational_attainment,
+                    district = :district,
+                    barangay = :barangay,
+                    street_address = :street_address,
+                    years_resident = :years_resident,
+                    valid_id_type = :valid_id_type,
+                    valid_id_number = :valid_id_number,
+                    id_front_photo_url = :id_front_photo_url,
+                    selfie_photo_url = :selfie_photo_url,
+                    photo_1x1_url = :photo_1x1_url,
+                    signature_photo_url = :signature_photo_url,
+                    verification_status = 'Pending',
+                    admin_action_notes = CONCAT(COALESCE(admin_action_notes, ''), '\n[Resubmitted by Applicant at ', NOW(), ']'),
+                    submitted_at = NOW(),
+                    updated_at = NOW()
+                    WHERE verification_id = :verification_id");
+
+                $updateStmt->execute([
+                    ':first_name'             => $firstName,
+                    ':middle_name'            => $middleName,
+                    ':last_name'              => $lastName,
+                    ':suffix'                 => $suffix,
+                    ':sex'                    => $sex,
+                    ':place_of_birth'         => $placeOfBirth,
+                    ':birth_date'             => $birthDate,
+                    ':civil_status'           => $civilStatus,
+                    ':employment_status'      => $employment,
+                    ':occupation'             => $occupation,
+                    ':educational_attainment' => $education,
+                    ':district'               => $district,
+                    ':barangay'               => $barangay,
+                    ':street_address'         => $streetAddress,
+                    ':years_resident'         => $yearsResident,
+                    ':valid_id_type'          => $validIdType,
+                    ':valid_id_number'        => $validIdNumber,
+                    ':id_front_photo_url'     => $finalIdFront,
+                    ':selfie_photo_url'       => $finalSelfie,
+                    ':photo_1x1_url'          => $finalPhoto1x1,
+                    ':signature_photo_url'    => $finalSignature,
+                    ':verification_id'        => $existingRecord['verification_id']
+                ]);
+
+                http_response_code(200);
+                echo json_encode([
+                    "success"             => true,
+                    "status"              => "success",
+                    "message"             => "Application corrections submitted successfully and is now pending review.",
+                    "verification_id"     => (int)$existingRecord['verification_id'],
+                    "verification_status" => "Pending",
+                    "reference_number"    => 'VER-' . str_pad($existingRecord['verification_id'], 4, '0', STR_PAD_LEFT),
+                    "is_resubmission"     => true,
+                    "id_front_saved"      => !empty($finalIdFront),
+                    "selfie_saved"        => !empty($finalSelfie),
+                    "photo_1x1_saved"     => !empty($finalPhoto1x1),
+                    "signature_saved"     => !empty($finalSignature)
+                ]);
+                exit;
+            }
+        }
+
+        // 4. Fresh Application: Insert new row into citizen_verifications
         $stmt = $pdo->prepare("INSERT INTO citizen_verifications (
             citizen_user_id, first_name, middle_name, last_name, suffix, sex,
             place_of_birth, birth_date, civil_status, employment_status, occupation,
             educational_attainment, district, barangay, street_address, years_resident,
-            valid_id_type, valid_id_number, id_front_photo_url, selfie_photo_url, verification_status
+            valid_id_type, valid_id_number, id_front_photo_url, selfie_photo_url,
+            photo_1x1_url, signature_photo_url, verification_status
         ) VALUES (
             :citizen_user_id, :first_name, :middle_name, :last_name, :suffix, :sex,
             :place_of_birth, :birth_date, :civil_status, :employment_status, :occupation,
             :educational_attainment, :district, :barangay, :street_address, :years_resident,
-            :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url, 'Pending'
+            :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url,
+            :photo_1x1_url, :signature_photo_url, 'Pending'
         )");
 
         $stmt->execute([
@@ -269,11 +387,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':valid_id_number'         => $validIdNumber,
             ':id_front_photo_url'      => $idFrontSavedPath,
             ':selfie_photo_url'        => $selfieSavedPath,
+            ':photo_1x1_url'           => $photo1x1SavedPath,
+            ':signature_photo_url'     => $signatureSavedPath,
         ]);
 
         $verificationId = (int)$pdo->lastInsertId();
 
-        // Check for duplicates
+        // Check for duplicate valid_id_number
         $dupStmt = $pdo->prepare("SELECT COUNT(*) FROM citizen_verifications WHERE valid_id_number = :id_num AND verification_id != :curr_id");
         $dupStmt->execute([
             ':id_num' => $validIdNumber,
@@ -291,18 +411,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         http_response_code(200);
         echo json_encode([
-            "status"             => "success",
-            "message"            => "Citizen verification submitted successfully and is under review.",
-            "verification_id"    => $verificationId,
-            "verification_status"=> "Pending",
-            "reference_number"   => 'VER-' . str_pad($verificationId, 4, '0', STR_PAD_LEFT),
-            "id_front_saved"     => !empty($idFrontSavedPath),
-            "selfie_saved"       => !empty($selfieSavedPath)
+            "success"             => true,
+            "status"              => "success",
+            "message"             => "Citizen verification submitted successfully and is under review.",
+            "verification_id"     => $verificationId,
+            "verification_status" => "Pending",
+            "reference_number"    => 'VER-' . str_pad($verificationId, 4, '0', STR_PAD_LEFT),
+            "id_front_saved"      => !empty($idFrontSavedPath),
+            "selfie_saved"        => !empty($selfieSavedPath),
+            "photo_1x1_saved"     => !empty($photo1x1SavedPath),
+            "signature_saved"     => !empty($signatureSavedPath)
         ]);
         exit;
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
+            "success" => false,
             "status"  => "error",
             "message" => "Database insertion error: " . $e->getMessage()
         ]);

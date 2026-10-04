@@ -105,15 +105,35 @@ try {
 
         $status = ($age >= 60) ? 'Senior Citizen' : 'Active';
 
+        $citizenIdNumber = !empty($r['citizen_id_number']) ? $r['citizen_id_number'] : ('CAL-2026-' . str_pad($r['verification_id'], 6, '0', STR_PAD_LEFT));
+
+        $validUntilDate = (clone $updDate)->modify('+3 years');
+
         $citizens[] = [
-            'id' => 'CIZ-' . str_pad($r['verification_id'], 5, '0', STR_PAD_LEFT),
+            'id' => $citizenIdNumber,
+            'citizen_id_number' => $citizenIdNumber,
             'raw_id' => $r['verification_id'],
+            'citizen_user_id' => $r['citizen_user_id'] ?? null,
             'name' => $fullName,
+            'full_name' => $fullName,
+            'applicant' => $displayApplicant,
+            'first_name' => $r['first_name'] ?? '',
+            'middle_name' => $r['middle_name'] ?? '',
+            'last_name' => $r['last_name'] ?? '',
+            'suffix' => $r['suffix'] ?? '',
             'age' => $age,
+            'birth_date' => $r['birth_date'] ?? '',
             'sex' => $r['sex'] ?? 'Not Specified',
             'district' => $r['district'] ?? 'District 1',
             'barangay' => $r['barangay'] ?? '',
+            'street_address' => $r['street_address'] ?? '',
             'civil_status' => $r['civil_status'] ?? '',
+            'valid_id_type' => $r['valid_id_type'] ?? '',
+            'valid_id_number' => $r['valid_id_number'] ?? '',
+            'photo_1x1_url' => $r['photo_1x1_url'] ?? '',
+            'signature_photo_url' => $r['signature_photo_url'] ?? '',
+            'qr_code_token' => $r['qr_code_token'] ?? '',
+            'qr_code_image_url' => $r['qr_code_image_url'] ?? '',
             'household' => 'HH-' . str_pad($r['citizen_user_id'] ?: $r['verification_id'], 5, '0', STR_PAD_LEFT),
             'occupation' => $r['occupation'] ?? 'Resident',
             'mobile' => '09' . substr(preg_replace('/[^0-9]/', '', $r['valid_id_number'] ?? '123456789'), 0, 9),
@@ -121,7 +141,9 @@ try {
             'tags' => $tags,
             'date' => $subDate->format('M d, Y'),
             'updated' => $updDate->format('M d, Y'),
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($displayApplicant) . '&background=random'
+            'issued_date' => $updDate->format('M d, Y'),
+            'valid_until' => $validUntilDate->format('M d, Y'),
+            'avatar' => !empty($r['photo_1x1_url']) ? $r['photo_1x1_url'] : (!empty($r['selfie_photo_url']) ? $r['selfie_photo_url'] : ('https://ui-avatars.com/api/?name=' . urlencode($displayApplicant) . '&background=random'))
         ];
     }
 } catch (Exception $e) {
@@ -585,15 +607,34 @@ include '../../includes/sidebar.php';
                                 </td>
                             </tr>
                             <?php else: ?>
-                            <?php foreach ($citizens as $index => $c): ?>
-                            <tr onclick="toggleCitizenRow(event, this)" class="hover:bg-slate-50 transition cursor-pointer select-none" data-household="<?php echo htmlspecialchars($c['household']); ?>" data-district="<?php echo htmlspecialchars($c['district']); ?>" data-barangay="<?php echo htmlspecialchars($c['barangay']); ?>" data-sex="<?php echo htmlspecialchars($c['sex']); ?>" data-civil-status="<?php echo htmlspecialchars($c['civil_status']); ?>" data-age="<?php echo htmlspecialchars($c['age']); ?>" data-status="<?php echo htmlspecialchars($c['status']); ?>" data-tags="<?php echo htmlspecialchars(implode(',', $c['tags'])); ?>" data-date="<?php echo htmlspecialchars($c['date']); ?>">
+                            <?php foreach ($citizens as $index => $c): 
+                                $row = $c;
+                                $firstInitial = !empty($row['first_name']) ? strtoupper(substr($row['first_name'], 0, 1)) : '';
+                                $lastInitial  = !empty($row['last_name']) ? strtoupper(substr($row['last_name'], 0, 1)) : '';
+                                $initials     = $firstInitial . $lastInitial;
+                                if (empty($initials) && !empty($row['full_name'])) {
+                                    $parts = explode(' ', trim(str_replace(',', '', $row['full_name'])));
+                                    $initials = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
+                                }
+                                if (empty($initials) && !empty($row['name'])) {
+                                    $parts = explode(' ', trim(str_replace(',', '', $row['name'])));
+                                    $initials = strtoupper(substr($parts[0], 0, 1) . (isset($parts[1]) ? substr($parts[1], 0, 1) : ''));
+                                }
+                                if (empty($initials)) $initials = 'CZ';
+                                $displayName = $row['full_name'] ?? ($row['name'] ?? ($row['last_name'] . ', ' . $row['first_name']));
+                            ?>
+                            <tr onclick="toggleCitizenRow(event, this)" class="hover:bg-slate-50 transition cursor-pointer select-none" data-citizen-id="<?php echo htmlspecialchars($c['id']); ?>" data-full-name="<?php echo htmlspecialchars($displayName); ?>" data-household="<?php echo htmlspecialchars($c['household']); ?>" data-district="<?php echo htmlspecialchars($c['district']); ?>" data-barangay="<?php echo htmlspecialchars($c['barangay']); ?>" data-sex="<?php echo htmlspecialchars($c['sex']); ?>" data-civil-status="<?php echo htmlspecialchars($c['civil_status']); ?>" data-age="<?php echo htmlspecialchars($c['age']); ?>" data-status="<?php echo htmlspecialchars($c['status']); ?>" data-tags="<?php echo htmlspecialchars(implode(',', $c['tags'])); ?>" data-date="<?php echo htmlspecialchars($c['date']); ?>">
                                 <td class="p-4 text-center">
                                     <input type="checkbox" onchange="updateSelectAllState()" class="citizen-row-checkbox w-4 h-4 text-[#0f53d1] bg-slate-100 border-slate-300 rounded focus:ring-[#0f53d1]/50 cursor-pointer">
                                 </td>
                                 <td class="p-4 text-xs font-semibold text-slate-600"><?php echo $c['id']; ?></td>
-                                <td class="p-4 flex items-center gap-3">
-                                    <img src="<?php echo $c['avatar']; ?>" class="w-8 h-8 rounded-full border border-slate-200 shadow-sm" alt="Avatar">
-                                    <span class="text-xs font-bold text-slate-800"><?php echo $c['name']; ?></span>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                                            <?= htmlspecialchars($initials) ?>
+                                        </div>
+                                        <span class="font-semibold text-slate-900"><?= htmlspecialchars($displayName) ?></span>
+                                    </div>
                                 </td>
                                 <td class="p-4 text-xs text-slate-600 font-medium"><?php echo $c['age']; ?></td>
                                 <td class="p-4 text-xs text-slate-600 font-medium"><?php echo $c['sex']; ?></td>
@@ -609,9 +650,15 @@ include '../../includes/sidebar.php';
                                 <td class="p-4 text-[11px] text-slate-500 font-medium"><?php echo $c['date']; ?></td>
                                 <td class="p-4 text-[11px] text-slate-500 font-medium"><?php echo $c['updated']; ?></td>
                                 <td class="p-4 text-center">
-                                    <button onclick="toggleRowActionsMenu(event, this, '<?php echo $c['id']; ?>')" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer mx-auto">
-                                        <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
-                                    </button>
+                                    <div class="flex items-center justify-center gap-1.5">
+                                        <button onclick="event.stopPropagation(); openCitizenCardModal(<?php echo htmlspecialchars(json_encode($c)); ?>)" class="px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1 shadow-xs" title="View Citizen ID Card">
+                                            <i class="fa-solid fa-id-card text-xs"></i>
+                                            <span>View Card</span>
+                                        </button>
+                                        <button onclick="toggleRowActionsMenu(event, this, '<?php echo $c['id']; ?>')" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer">
+                                            <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
@@ -800,6 +847,7 @@ include '../../includes/sidebar.php';
 </main>
 
 <script>
+const registeredCitizens = <?php echo json_encode($citizens); ?>;
 const districtBarangaysMap = {
     'District 1': [1, 2, 3, 4, 77, 78, 79, 80, 81, 82, 83, 84, 85, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177],
     'District 2': [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131],
@@ -1284,7 +1332,15 @@ function handleRowAction(event, action) {
     const citizenId = menu.dataset.activeId;
     menu.classList.add('hidden');
 
-    if (action === 'mark-validation') {
+    if (action === 'view-card') {
+        const found = (typeof registeredCitizens !== 'undefined' ? registeredCitizens : []).find(c => String(c.id) === String(citizenId) || String(c.citizen_id_number) === String(citizenId));
+        if (found && typeof openCitizenCardModal === 'function') {
+            openCitizenCardModal(found);
+        } else {
+            alert('Citizen card details not found for ID: ' + citizenId);
+        }
+        return;
+    } else if (action === 'mark-validation') {
         const rows = document.querySelectorAll('tbody tr[data-district]');
         rows.forEach(row => {
             if (row.children[1] && row.children[1].textContent.trim() === citizenId) {
@@ -1573,6 +1629,8 @@ function archiveSelectedCitizens() {
 
 <!-- Floating Global Row Actions Dropdown Overlay -->
 <div id="globalRowActionsMenu" class="hidden fixed w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[9999] text-xs font-medium text-slate-600 text-left">
+    <a href="#" onclick="handleRowAction(event, 'view-card')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 text-[#0f53d1] font-bold transition"><i class="fa-solid fa-id-card text-[#0f53d1] w-4 text-center"></i> View Citizen ID Card</a>
+    <div class="border-t border-slate-100 my-1"></div>
     <a href="#" onclick="handleRowAction(event, 'view-profile')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition"><i class="fa-regular fa-user text-slate-400 w-4 text-center"></i> View Profile</a>
     <a href="#" onclick="handleRowAction(event, 'edit-citizen')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition"><i class="fa-solid fa-pen text-slate-400 w-4 text-center"></i> Edit Citizen</a>
     <a href="#" onclick="handleRowAction(event, 'view-household')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition"><i class="fa-solid fa-house-user text-slate-400 w-4 text-center"></i> View Household</a>
@@ -1583,4 +1641,5 @@ function archiveSelectedCitizens() {
     <a href="#" onclick="handleRowAction(event, 'archive-record')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition"><i class="fa-solid fa-trash-can opacity-80 w-4 text-center"></i> Archive Record</a>
 </div>
 
+<?php include '../../includes/citizen-card-modal.php'; ?>
 <?php include '../../includes/footer.php'; ?>

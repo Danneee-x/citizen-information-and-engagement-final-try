@@ -14,19 +14,37 @@ $email  = trim($_GET['email'] ?? '');
 $pdo = getDbConnection();
 
 try {
-    // If no userId provided but email is given, resolve userId
-    if ($userId <= 0 && !empty($email)) {
+    // If email is provided, resolve the real user ID from citizen_users
+    if (!empty($email)) {
         $uStmt = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE email = ? LIMIT 1");
         $uStmt->execute([$email]);
         $foundUid = $uStmt->fetchColumn();
         if ($foundUid) {
             $userId = (int)$foundUid;
+        } else {
+            // User does not exist in database -> Return Not_Submitted with null data immediately
+            http_response_code(200);
+            echo json_encode([
+                "status"              => "success",
+                "data"                => null,
+                "verification_status" => "Not_Submitted",
+                "is_verified"         => false,
+                "message"             => "No verification record found for this citizen."
+            ]);
+            exit;
         }
     }
 
-    if ($userId <= 0 && empty($email)) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Please provide a valid citizen_user_id or email."]);
+    // If citizen_user_id is missing, empty, or <= 0, DO NOT fall back to 1001 or any default test ID
+    if ($userId <= 0) {
+        http_response_code(200);
+        echo json_encode([
+            "status"              => "success",
+            "data"                => null,
+            "verification_status" => "Not_Submitted",
+            "is_verified"         => false,
+            "message"             => "Please provide a valid citizen_user_id or email."
+        ]);
         exit;
     }
 
@@ -111,8 +129,9 @@ try {
         http_response_code(200);
         echo json_encode([
             "status"              => "success",
-            "is_verified"         => false,
+            "data"                => null,
             "verification_status" => "Not_Submitted",
+            "is_verified"         => false,
             "message"             => "No verification record found for this citizen."
         ]);
     }

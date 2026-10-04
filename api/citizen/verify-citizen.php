@@ -178,25 +178,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    $email = !empty($data['email']) ? trim($data['email']) : '';
+    $phone = !empty($data['phone']) ? trim($data['phone']) : (!empty($data['mobile_number']) ? trim($data['mobile_number']) : '');
+
     try {
-        // Ensure user exists in citizen_users if citizenUserId > 0
-        if ($citizenUserId > 0) {
+        // 1. If email is provided, resolve the real user ID from citizen_users
+        if (!empty($email)) {
+            $emailStmt = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE email = ? LIMIT 1");
+            $emailStmt->execute([$email]);
+            $foundUid = $emailStmt->fetchColumn();
+            if ($foundUid) {
+                $citizenUserId = (int)$foundUid;
+            } else {
+                // Register user in citizen_users first
+                if (empty($phone)) {
+                    $phone = '09' . substr(str_shuffle('0123456789'), 0, 9);
+                }
+                $insUser = $pdo->prepare("INSERT INTO citizen_users (
+                    first_name, middle_name, last_name, suffix, email, mobile_number, status, registry_completed
+                ) VALUES (?, ?, ?, ?, ?, ?, 'Active', 0)");
+                $insUser->execute([$firstName, $middleName, $lastName, $suffix, $email, $phone]);
+                $citizenUserId = (int)$pdo->lastInsertId();
+            }
+        } elseif ($citizenUserId > 0) {
+            // Ensure user exists in citizen_users if citizenUserId > 0
             $userCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE citizen_user_id = ?");
             $userCheck->execute([$citizenUserId]);
             if (!$userCheck->fetch()) {
-                $email = !empty($data['email']) ? trim($data['email']) : (strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . $citizenUserId . '@citizen.local');
-                $phone = !empty($data['phone']) ? trim($data['phone']) : ('09' . str_pad($citizenUserId, 9, '0', STR_PAD_LEFT));
+                $fallbackEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . $citizenUserId . '@citizen.local';
+                $fallbackPhone = '09' . str_pad($citizenUserId, 9, '0', STR_PAD_LEFT);
 
                 $emailCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE email = ?");
-                $emailCheck->execute([$email]);
+                $emailCheck->execute([$fallbackEmail]);
                 if ($emailCheck->fetch()) {
-                    $email = 'user_' . $citizenUserId . '_' . time() . '@citizen.local';
+                    $fallbackEmail = 'user_' . $citizenUserId . '_' . time() . '@citizen.local';
                 }
 
                 $phoneCheck = $pdo->prepare("SELECT citizen_user_id FROM citizen_users WHERE mobile_number = ?");
-                $phoneCheck->execute([$phone]);
+                $phoneCheck->execute([$fallbackPhone]);
                 if ($phoneCheck->fetch()) {
-                    $phone = '09' . substr(str_shuffle('0123456789'), 0, 9);
+                    $fallbackPhone = '09' . substr(str_shuffle('0123456789'), 0, 9);
                 }
 
                 $insUser = $pdo->prepare("INSERT INTO citizen_users (
@@ -208,8 +229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $middleName,
                     $lastName,
                     $suffix,
-                    $email,
-                    $phone
+                    $fallbackEmail,
+                    $fallbackPhone
                 ]);
             }
         } else {
@@ -220,12 +241,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($existing) {
                 $citizenUserId = (int)$existing['citizen_user_id'];
             } else {
-                $email = !empty($data['email']) ? trim($data['email']) : (strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . time() . '@citizen.local');
-                $phone = !empty($data['phone']) ? trim($data['phone']) : ('09' . substr(str_shuffle('0123456789'), 0, 9));
+                $fallbackEmail = strtolower(preg_replace('/[^a-z0-9]/', '', $firstName . '.' . $lastName)) . '_' . time() . '@citizen.local';
+                $fallbackPhone = !empty($phone) ? $phone : ('09' . substr(str_shuffle('0123456789'), 0, 9));
                 $insUser = $pdo->prepare("INSERT INTO citizen_users (
                     first_name, middle_name, last_name, suffix, email, mobile_number, status, registry_completed
                 ) VALUES (?, ?, ?, ?, ?, ?, 'Active', 0)");
-                $insUser->execute([$firstName, $middleName, $lastName, $suffix, $email, $phone]);
+                $insUser->execute([$firstName, $middleName, $lastName, $suffix, $fallbackEmail, $fallbackPhone]);
                 $citizenUserId = (int)$pdo->lastInsertId();
             }
         }

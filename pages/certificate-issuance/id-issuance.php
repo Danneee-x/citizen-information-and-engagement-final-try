@@ -707,35 +707,38 @@ include '../../includes/sidebar.php';
 <!-- MASTER MODAL: CITIZEN APPLICATION DETAILS & ACTION MANAGEMENT MODAL           -->
 <!-- (Opens when any citizen row is clicked and contains all action buttons)        -->
 <!-- ============================================================================== -->
-<div id="citizenDetailsModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150">
+<div id="citizenDetailsModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150">
         
-        <!-- Header -->
-        <div class="bg-slate-900 px-6 py-5 flex items-center justify-between text-white border-b border-slate-800">
+        <!-- Light Header with Back Button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg border border-indigo-400/30">
+                <button type="button" onclick="closeCitizenDetailsModal()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Registry">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg border border-indigo-100 shadow-xs">
                     <i class="fa-solid fa-address-card"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h3 class="font-extrabold text-base tracking-tight text-white">Resident Application Details</h3>
-                        <span id="cdmCatTag" class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">BARANGAY</span>
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Resident Application Details</h3>
+                        <span id="cdmCatTag" class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200/80">BARANGAY</span>
                     </div>
                     <p class="text-xs text-slate-400 font-mono font-bold mt-0.5" id="cdmRef">CAL-BRGY-2026-0000</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2.5">
                 <span id="cdmStatusBadge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
                     PENDING REVIEW
                 </span>
-                <button onclick="closeCitizenDetailsModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center transition cursor-pointer text-sm">
+                <button onclick="closeCitizenDetailsModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
         </div>
 
-        <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div class="p-6 space-y-5 max-h-[78vh] overflow-y-auto custom-scrollbar">
 
             <!-- Section 1: Citizen Profile Summary -->
             <div class="bg-slate-50/80 rounded-2xl p-4.5 border border-slate-200/80 space-y-3">
@@ -821,14 +824,14 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-            <!-- Section 3: UNIFIED ACTION BUTTONS BAR (All 5 Actions Inside Modal) -->
-            <div class="bg-gradient-to-br from-slate-900 to-indigo-950 p-5 rounded-3xl text-white space-y-3.5 shadow-lg border border-indigo-900/50">
+            <!-- Section 3: UNIFIED ACTION BUTTONS BAR (Clean Light UI) -->
+            <div class="bg-slate-50/90 p-5 rounded-2xl border border-slate-200/90 space-y-3.5 shadow-xs">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg bg-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs">
+                        <div class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">
                             <i class="fa-solid fa-bolt"></i>
                         </div>
-                        <span class="text-xs font-black uppercase tracking-wider text-indigo-200">Management & Processing Actions</span>
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-800">Management & Processing Actions</span>
                     </div>
                     <span class="text-[10px] text-slate-400">Select an action for this citizen</span>
                 </div>
@@ -836,56 +839,70 @@ include '../../includes/sidebar.php';
                 <!-- Buttons Grid -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <!-- Action 1: Review & Progress Status -->
-                    <button type="button" onclick="openReviewFromDetails()" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-indigo-400/30">
+                    <button type="button" onclick="openReviewFromDetails()" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-sliders text-sm"></i>
                         <span>Review & Change Status</span>
                     </button>
 
                     <!-- Action 2: Edit Details -->
-                    <button type="button" onclick="openEditFromDetails()" class="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-amber-300">
+                    <button type="button" onclick="openEditFromDetails()" class="px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-pen-to-square text-sm"></i>
                         <span>Edit Resident Info</span>
                     </button>
 
                     <!-- Action 3: Go to Release Desk -->
-                    <button type="button" id="cdmReleaseBtn" onclick="goToReleaseFromDetails()" class="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30">
+                    <button type="button" id="cdmReleaseBtn" onclick="goToReleaseFromDetails()" class="px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-hand-holding-hand text-sm"></i>
                         <span>ID Release Desk</span>
                     </button>
 
                     <!-- Action 4: View ID Card & Voucher -->
-                    <button type="button" onclick="openCardFromDetails()" class="px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer border border-white/10">
-                        <i class="fa-solid fa-eye text-sm"></i>
+                    <button type="button" onclick="openCardFromDetails()" class="px-4 py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-eye text-sm text-indigo-600"></i>
                         <span>Card & Claim Voucher</span>
                     </button>
                 </div>
 
                 <!-- Action 5: Delete Option -->
-                <div class="pt-2 border-t border-white/10 flex items-center justify-between">
-                    <span class="text-[10px] text-slate-400">Need to cancel or discard this application?</span>
-                    <button type="button" onclick="deleteFromDetails()" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-200 font-bold text-[11px] rounded-lg transition flex items-center gap-1.5 cursor-pointer border border-rose-500/30">
+                <div class="pt-2.5 border-t border-slate-200 flex items-center justify-between">
+                    <span class="text-[11px] text-slate-500">Need to cancel or discard this application?</span>
+                    <button type="button" onclick="deleteFromDetails()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold text-[11px] rounded-lg transition flex items-center gap-1.5 cursor-pointer border border-rose-200">
                         <i class="fa-solid fa-trash-can text-[10px]"></i>
                         <span>Delete Record</span>
                     </button>
                 </div>
             </div>
 
+            <!-- Modal Bottom Navigation (Back Button) -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="closeCitizenDetailsModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                    <span>Back to Registry</span>
+                </button>
+                <button type="button" onclick="closeCitizenDetailsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close
+                </button>
+            </div>
+
         </div>
     </div>
 </div>
-<div id="reviewModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+<div id="reviewModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
-        <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm border border-indigo-400/30">
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="backToCitizenDetailsFromReview()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Citizen Details">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </button>
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm border border-indigo-100">
                     <i class="fa-solid fa-id-card"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-sm tracking-tight" id="reviewModalTitle">Review ID Application</h3>
-                    <p class="text-[11px] text-slate-400 font-mono" id="reviewModalRef">CAL-CIT-2026-0000</p>
+                    <h3 class="font-bold text-sm tracking-tight text-slate-900" id="reviewModalTitle">Review ID Application</h3>
+                    <p class="text-[11px] text-slate-400 font-mono font-bold" id="reviewModalRef">CAL-CIT-2026-0000</p>
                 </div>
             </div>
-            <button onclick="closeReviewModal()" class="text-slate-400 hover:text-white transition cursor-pointer text-sm">
+            <button type="button" onclick="closeReviewModal()" class="text-slate-400 hover:text-slate-600 transition cursor-pointer text-sm">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -935,31 +952,44 @@ include '../../includes/sidebar.php';
             </div>
 
             <!-- Action Buttons -->
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onclick="closeReviewModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
-                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-check"></i>
-                    <span>Save & Update</span>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="backToCitizenDetailsFromReview()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                    <span>Back to Details</span>
                 </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeReviewModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Save & Update</span>
+                    </button>
+                </div>
             </div>
         </form>
     </div>
 </div>
 
 <!-- MODAL 2: ID CARD & CLAIM VOUCHER PREVIEW (PRINTABLE) -->
-<div id="previewModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+<div id="previewModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
-        <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-address-card text-indigo-400 text-sm"></i>
-                <h3 class="font-bold text-sm tracking-tight">Official ID Card & Claim Voucher Preview</h3>
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="backToCitizenDetailsFromPreview()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Citizen Details">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm border border-indigo-100">
+                        <i class="fa-solid fa-address-card"></i>
+                    </div>
+                    <h3 class="font-bold text-sm tracking-tight text-slate-900">Official ID Card & Claim Voucher Preview</h3>
+                </div>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="window.print()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center gap-1 cursor-pointer">
+                <button onclick="window.print()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
                     <i class="fa-solid fa-print"></i>
                     <span>Print Voucher</span>
                 </button>
-                <button onclick="closePreviewModal()" class="text-slate-400 hover:text-white transition cursor-pointer text-sm">
+                <button onclick="closePreviewModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -1055,21 +1085,27 @@ include '../../includes/sidebar.php';
             </div>
         </div>
 
-        <div class="bg-slate-50 px-6 py-3 border-t border-slate-100 flex items-center justify-end">
+        <div class="bg-slate-50 px-6 py-3.5 border-t border-slate-100 flex items-center justify-between">
+            <button type="button" onclick="backToCitizenDetailsFromPreview()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Details</span>
+            </button>
             <button onclick="closePreviewModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition cursor-pointer">Close</button>
         </div>
     </div>
 </div>
 
 <!-- MODAL 3: MANUAL WALK-IN APPLICATION MODAL -->
-<div id="walkinModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+<div id="walkinModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
-        <div class="bg-indigo-900 px-6 py-4 flex items-center justify-between text-white">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-user-plus text-indigo-300 text-sm"></i>
-                <h3 class="font-bold text-sm tracking-tight">Manual Walk-in ID Registration</h3>
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm border border-indigo-100">
+                    <i class="fa-solid fa-user-plus"></i>
+                </div>
+                <h3 class="font-bold text-sm tracking-tight text-slate-900">Manual Walk-in ID Registration</h3>
             </div>
-            <button onclick="closeWalkinModal()" class="text-indigo-300 hover:text-white transition cursor-pointer text-sm">
+            <button onclick="closeWalkinModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -1156,19 +1192,22 @@ include '../../includes/sidebar.php';
 </div>
 
 <!-- MODAL: EDIT RESIDENT APPLICATION DETAILS -->
-<div id="editModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+<div id="editModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
-        <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm border border-amber-400/30">
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="backToCitizenDetailsFromEdit()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Citizen Details">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                </button>
+                <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm border border-amber-100">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </div>
                 <div>
-                    <h3 class="font-bold text-sm tracking-tight">Edit Resident ID Application</h3>
-                    <p class="text-[11px] text-slate-400 font-mono" id="editModalRef">CAL-BRGY-2026-0000</p>
+                    <h3 class="font-bold text-sm tracking-tight text-slate-900">Edit Resident ID Application</h3>
+                    <p class="text-[11px] text-slate-400 font-mono font-bold" id="editModalRef">CAL-BRGY-2026-0000</p>
                 </div>
             </div>
-            <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition cursor-pointer text-sm">
+            <button onclick="closeEditModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -1241,12 +1280,18 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
-                <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span>Save Changes</span>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="backToCitizenDetailsFromEdit()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                    <span>Back to Details</span>
                 </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Save Changes</span>
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -1345,6 +1390,27 @@ function goToReleaseFromDetails() {
 function deleteFromDetails() {
     if (selectedAppForModal) {
         confirmDeleteApp(selectedAppForModal.id, selectedAppForModal.reference_no);
+    }
+}
+
+function backToCitizenDetailsFromReview() {
+    closeReviewModal();
+    if (selectedAppForModal) {
+        openCitizenDetailsModal(selectedAppForModal);
+    }
+}
+
+function backToCitizenDetailsFromEdit() {
+    closeEditModal();
+    if (selectedAppForModal) {
+        openCitizenDetailsModal(selectedAppForModal);
+    }
+}
+
+function backToCitizenDetailsFromPreview() {
+    closePreviewModal();
+    if (selectedAppForModal) {
+        openCitizenDetailsModal(selectedAppForModal);
     }
 }
 

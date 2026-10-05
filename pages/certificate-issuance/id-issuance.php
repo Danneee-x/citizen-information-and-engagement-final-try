@@ -562,7 +562,7 @@ include '../../includes/sidebar.php';
                 <span class="text-xs font-black text-slate-800 uppercase tracking-wider">ID Applications Registry</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200/80"><?php echo count($applications); ?> Records</span>
             </div>
-            <span class="text-[11px] text-slate-400 font-medium">Click "Review" to verify documents & change production status</span>
+            <span class="text-[11px] text-slate-400 font-medium">Click any citizen row to open full application details & management actions</span>
         </div>
 
         <div class="overflow-x-auto custom-scrollbar">
@@ -614,10 +614,11 @@ include '../../includes/sidebar.php';
 
                         $avatarInitials = strtoupper(substr($app['first_name'], 0, 1) . substr($app['last_name'], 0, 1));
                     ?>
-                    <tr class="hover:bg-slate-50/70 transition">
+                    <tr onclick='openCitizenDetailsModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
+                        class="hover:bg-indigo-50/60 cursor-pointer transition group" title="Click to view details and actions">
                         <!-- Reference No -->
                         <td class="py-3.5 px-4 font-mono font-bold text-slate-900 whitespace-nowrap">
-                            <span class="text-xs"><?php echo htmlspecialchars($app['reference_no']); ?></span>
+                            <span class="text-xs group-hover:text-indigo-600 transition"><?php echo htmlspecialchars($app['reference_no']); ?></span>
                             <div class="mt-0.5">
                                 <span class="px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border <?php echo $catMeta['badge']; ?>">
                                     <?php echo $catMeta['tag']; ?>
@@ -633,7 +634,7 @@ include '../../includes/sidebar.php';
                                 </div>
                                 <div>
                                     <div class="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                                        <span><?php echo htmlspecialchars($fullName); ?></span>
+                                        <span class="group-hover:text-indigo-600 transition"><?php echo htmlspecialchars($fullName); ?></span>
                                         <span class="text-[10px] text-slate-400 font-normal">(<?php echo htmlspecialchars($app['gender']); ?>)</span>
                                     </div>
                                     <div class="text-[11px] text-slate-500 font-medium">
@@ -685,45 +686,13 @@ include '../../includes/sidebar.php';
                             <?php echo date('M j, Y • h:i A', strtotime($app['created_at'])); ?>
                         </td>
 
-                        <!-- Actions -->
+                        <!-- Actions Indicator -->
                         <td class="py-3.5 px-4 text-right whitespace-nowrap">
-                            <div class="flex items-center justify-end gap-1.5">
-                                <?php if (in_array($stat, ['Ready for Release', 'Approved', 'Claimed'])): ?>
-                                <a href="id-releases.php?ref=<?php echo urlencode($app['reference_no']); ?>" 
-                                   class="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
-                                   title="Process in ID Release Desk">
-                                    <i class="fa-solid fa-hand-holding-hand text-[10px]"></i>
-                                    <span>Release</span>
-                                </a>
-                                <?php endif; ?>
-
-                                <button onclick='openEditModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
-                                        class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
-                                        title="Edit Resident Details">
-                                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                                    <span>Edit</span>
-                                </button>
-
-                                <button onclick='openReviewModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
-                                        class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
-                                        title="Review Application & Documents">
-                                    <i class="fa-solid fa-sliders text-[10px]"></i>
-                                    <span>Review</span>
-                                </button>
-
-                                <button onclick='openPreviewModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
-                                        class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
-                                        title="View ID Card & Claim Voucher">
-                                    <i class="fa-solid fa-eye text-[10px]"></i>
-                                    <span>Card</span>
-                                </button>
-
-                                <button onclick="confirmDeleteApp(<?php echo (int)$app['id']; ?>, '<?php echo addslashes($app['reference_no']); ?>')" 
-                                        class="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
-                                        title="Delete Record">
-                                    <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                </button>
-                            </div>
+                            <span class="px-3 py-1.5 rounded-xl bg-slate-100 group-hover:bg-indigo-600 group-hover:text-white text-slate-700 font-bold text-xs transition inline-flex items-center gap-1.5 shadow-xs">
+                                <i class="fa-solid fa-sliders text-[10px]"></i>
+                                <span>Manage</span>
+                                <i class="fa-solid fa-chevron-right text-[9px] opacity-70"></i>
+                            </span>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -734,7 +703,176 @@ include '../../includes/sidebar.php';
     </div>
 </main>
 
-<!-- MODAL 1: REVIEW & VERIFICATION ACTION MODAL -->
+<!-- ============================================================================== -->
+<!-- MASTER MODAL: CITIZEN APPLICATION DETAILS & ACTION MANAGEMENT MODAL           -->
+<!-- (Opens when any citizen row is clicked and contains all action buttons)        -->
+<!-- ============================================================================== -->
+<div id="citizenDetailsModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150">
+        
+        <!-- Header -->
+        <div class="bg-slate-900 px-6 py-5 flex items-center justify-between text-white border-b border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg border border-indigo-400/30">
+                    <i class="fa-solid fa-address-card"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-white">Resident Application Details</h3>
+                        <span id="cdmCatTag" class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">BARANGAY</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-mono font-bold mt-0.5" id="cdmRef">CAL-BRGY-2026-0000</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span id="cdmStatusBadge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                    PENDING REVIEW
+                </span>
+                <button onclick="closeCitizenDetailsModal()" class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 flex items-center justify-center transition cursor-pointer text-sm">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+
+            <!-- Section 1: Citizen Profile Summary -->
+            <div class="bg-slate-50/80 rounded-2xl p-4.5 border border-slate-200/80 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-200 to-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center shrink-0 border border-indigo-200 shadow-xs" id="cdmAvatar">
+                            DE
+                        </div>
+                        <div>
+                            <h4 class="font-black text-slate-900 text-sm" id="cdmApplicantName">Danny Espelita Jr.</h4>
+                            <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
+                                <span id="cdmGender">Male</span> • 
+                                <span id="cdmCivilStatus">Single</span> • 
+                                <span>Born: <strong class="text-slate-700" id="cdmBirthdate">2003-12-07</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right text-[11px] text-slate-500 font-semibold">
+                        <span class="text-slate-400 block text-[9px] uppercase tracking-wider font-bold">Resident Status</span>
+                        <span class="text-emerald-700 font-bold" id="cdmResidentSince">Resident Since 2015</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Contact Mobile</span>
+                        <span class="font-bold text-slate-800 flex items-center gap-1.5" id="cdmPhone">
+                            <i class="fa-solid fa-phone text-indigo-500 text-xs"></i> 09630902025
+                        </span>
+                    </div>
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Email Address</span>
+                        <span class="font-semibold text-slate-800 flex items-center gap-1.5 truncate" id="cdmEmail">
+                            <i class="fa-solid fa-envelope text-indigo-500 text-xs"></i> espelitadanny@gmail.com
+                        </span>
+                    </div>
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Barangay & District</span>
+                        <span class="font-semibold text-slate-800 flex items-center gap-1.5" id="cdmBarangayDistrict">
+                            <i class="fa-solid fa-location-dot text-rose-500 text-xs"></i> Barangay 171 • District 2
+                        </span>
+                    </div>
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Residential Address</span>
+                        <span class="font-semibold text-slate-800 truncate" id="cdmAddress">121 Sampaguita St.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 2: ID Application & Requirements Specifications -->
+            <div class="bg-white rounded-2xl p-4.5 border border-slate-200/90 shadow-xs space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Card Type & Authority</span>
+                        <h4 class="font-bold text-xs text-slate-900" id="cdmIdTitle">Barangay Resident Identification Card</h4>
+                        <p class="text-[10px] text-slate-500 truncate" id="cdmBureau">Respective Barangay Executive Office & Secretariat</p>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200" id="cdmAppType">
+                        New Application
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Designated Pick-up Desk</span>
+                        <strong class="text-slate-800 text-xs block" id="cdmClaimOffice">Local Barangay Hall - Administrative Records Desk</strong>
+                        <span class="text-[10px] text-emerald-600 font-bold">Turnaround: <span id="cdmTurnaround">1 to 2 Business Days</span></span>
+                    </div>
+                    <div class="space-y-0.5">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Primary Requirement</span>
+                        <div class="flex items-center gap-1.5 text-slate-800 font-semibold text-xs">
+                            <i class="fa-solid fa-file-circle-check text-emerald-600"></i>
+                            <span id="cdmDocName">Proof of Residency (Min 6 Months)</span>
+                        </div>
+                        <span class="text-[10px] text-emerald-600 font-bold block">&check; Attached & Verified on file</span>
+                    </div>
+                </div>
+
+                <!-- Review Notes Alert Box (If present) -->
+                <div id="cdmNotesBox" class="hidden bg-amber-50/70 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800">
+                    <strong class="font-bold block text-amber-900 mb-0.5">Officer Review Remarks:</strong>
+                    <span id="cdmNotesText">No remarks</span>
+                </div>
+            </div>
+
+            <!-- Section 3: UNIFIED ACTION BUTTONS BAR (All 5 Actions Inside Modal) -->
+            <div class="bg-gradient-to-br from-slate-900 to-indigo-950 p-5 rounded-3xl text-white space-y-3.5 shadow-lg border border-indigo-900/50">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-lg bg-indigo-500/30 text-indigo-400 flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <span class="text-xs font-black uppercase tracking-wider text-indigo-200">Management & Processing Actions</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400">Select an action for this citizen</span>
+                </div>
+
+                <!-- Buttons Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <!-- Action 1: Review & Progress Status -->
+                    <button type="button" onclick="openReviewFromDetails()" class="px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-indigo-400/30">
+                        <i class="fa-solid fa-sliders text-sm"></i>
+                        <span>Review & Change Status</span>
+                    </button>
+
+                    <!-- Action 2: Edit Details -->
+                    <button type="button" onclick="openEditFromDetails()" class="px-4 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-amber-300">
+                        <i class="fa-solid fa-pen-to-square text-sm"></i>
+                        <span>Edit Resident Info</span>
+                    </button>
+
+                    <!-- Action 3: Go to Release Desk -->
+                    <button type="button" id="cdmReleaseBtn" onclick="goToReleaseFromDetails()" class="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30">
+                        <i class="fa-solid fa-hand-holding-hand text-sm"></i>
+                        <span>ID Release Desk</span>
+                    </button>
+
+                    <!-- Action 4: View ID Card & Voucher -->
+                    <button type="button" onclick="openCardFromDetails()" class="px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 cursor-pointer border border-white/10">
+                        <i class="fa-solid fa-eye text-sm"></i>
+                        <span>Card & Claim Voucher</span>
+                    </button>
+                </div>
+
+                <!-- Action 5: Delete Option -->
+                <div class="pt-2 border-t border-white/10 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Need to cancel or discard this application?</span>
+                    <button type="button" onclick="deleteFromDetails()" class="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 hover:text-rose-200 font-bold text-[11px] rounded-lg transition flex items-center gap-1.5 cursor-pointer border border-rose-500/30">
+                        <i class="fa-solid fa-trash-can text-[10px]"></i>
+                        <span>Delete Record</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 <div id="reviewModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
         <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
@@ -1006,6 +1144,17 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeWalkinModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Register Application</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL: EDIT RESIDENT APPLICATION DETAILS -->
 <div id="editModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
@@ -1110,6 +1259,95 @@ include '../../includes/sidebar.php';
 </form>
 
 <script>
+let selectedAppForModal = null;
+
+function openCitizenDetailsModal(app) {
+    selectedAppForModal = app;
+    const fullName = `${app.first_name || ''} ${app.middle_name || ''} ${app.last_name || ''} ${app.suffix || ''}`.replace(/\s+/g, ' ').trim();
+    const avatarInitials = ((app.first_name ? app.first_name[0] : '') + (app.last_name ? app.last_name[0] : '')).toUpperCase() || 'ID';
+
+    document.getElementById('cdmRef').innerText = app.reference_no;
+    document.getElementById('cdmCatTag').innerText = (app.id_category || 'ID').toUpperCase().replace('_', ' ');
+    document.getElementById('cdmApplicantName').innerText = fullName;
+    document.getElementById('cdmAvatar').innerText = avatarInitials;
+    document.getElementById('cdmGender').innerText = app.gender || 'Not specified';
+    document.getElementById('cdmCivilStatus').innerText = app.civil_status || 'Single';
+    document.getElementById('cdmBirthdate').innerText = app.birthdate || 'Not specified';
+    document.getElementById('cdmResidentSince').innerText = 'Resident Since ' + (app.resident_since || '2015');
+    
+    document.getElementById('cdmPhone').innerHTML = `<i class="fa-solid fa-phone text-indigo-500 text-xs"></i> ${app.contact_number || 'No contact'}`;
+    document.getElementById('cdmEmail').innerHTML = `<i class="fa-solid fa-envelope text-indigo-500 text-xs"></i> ${app.email || 'No email'}`;
+    document.getElementById('cdmBarangayDistrict').innerHTML = `<i class="fa-solid fa-location-dot text-rose-500 text-xs"></i> ${app.barangay || 'Barangay'} • ${app.district || 'District 1'}`;
+    document.getElementById('cdmAddress').innerText = app.street_address || 'Address on file';
+
+    document.getElementById('cdmIdTitle').innerText = app.id_title || 'Resident ID';
+    document.getElementById('cdmBureau').innerText = app.issuing_bureau || 'City Registry';
+    document.getElementById('cdmAppType').innerText = app.application_type || 'New Application';
+    document.getElementById('cdmClaimOffice').innerText = app.claim_office || 'Local Barangay Hall - Administrative Records Desk';
+    document.getElementById('cdmTurnaround').innerText = app.estimated_turnaround || '1 to 2 Business Days';
+    document.getElementById('cdmDocName').innerText = app.primary_doc_name || 'Proof of Residency (Min 6 Months)';
+
+    const statBadgeEl = document.getElementById('cdmStatusBadge');
+    statBadgeEl.innerText = app.status;
+    let badgeClass = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ';
+    if (app.status === 'Pending Review') badgeClass += 'bg-amber-50 text-amber-700 border-amber-200';
+    else if (app.status === 'Under Review') badgeClass += 'bg-blue-50 text-blue-700 border-blue-200';
+    else if (app.status === 'Approved') badgeClass += 'bg-indigo-50 text-indigo-700 border-indigo-200';
+    else if (app.status === 'Ready for Release') badgeClass += 'bg-purple-50 text-purple-700 border-purple-200';
+    else if (app.status === 'Claimed') badgeClass += 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    else if (app.status === 'Rejected') badgeClass += 'bg-rose-50 text-rose-700 border-rose-200';
+    else badgeClass += 'bg-slate-100 text-slate-700 border-slate-200';
+    statBadgeEl.className = badgeClass;
+
+    const notesBox = document.getElementById('cdmNotesBox');
+    if (app.review_notes || app.rejection_reason) {
+        notesBox.classList.remove('hidden');
+        document.getElementById('cdmNotesText').innerText = app.review_notes || app.rejection_reason;
+    } else {
+        notesBox.classList.add('hidden');
+    }
+
+    const releaseBtn = document.getElementById('cdmReleaseBtn');
+    if (['Ready for Release', 'Approved', 'Claimed'].includes(app.status)) {
+        releaseBtn.classList.remove('opacity-40', 'pointer-events-none');
+    } else {
+        releaseBtn.classList.add('opacity-40', 'pointer-events-none');
+    }
+
+    document.getElementById('citizenDetailsModal').classList.remove('hidden');
+}
+
+function closeCitizenDetailsModal() {
+    document.getElementById('citizenDetailsModal').classList.add('hidden');
+}
+
+function openReviewFromDetails() {
+    closeCitizenDetailsModal();
+    if (selectedAppForModal) openReviewModal(selectedAppForModal);
+}
+
+function openEditFromDetails() {
+    closeCitizenDetailsModal();
+    if (selectedAppForModal) openEditModal(selectedAppForModal);
+}
+
+function openCardFromDetails() {
+    closeCitizenDetailsModal();
+    if (selectedAppForModal) openPreviewModal(selectedAppForModal);
+}
+
+function goToReleaseFromDetails() {
+    if (selectedAppForModal) {
+        window.location.href = `id-releases.php?ref=${encodeURIComponent(selectedAppForModal.reference_no)}`;
+    }
+}
+
+function deleteFromDetails() {
+    if (selectedAppForModal) {
+        confirmDeleteApp(selectedAppForModal.id, selectedAppForModal.reference_no);
+    }
+}
+
 function openEditModal(app) {
     document.getElementById('editAppId').value = app.id;
     document.getElementById('editModalRef').innerText = app.reference_no;

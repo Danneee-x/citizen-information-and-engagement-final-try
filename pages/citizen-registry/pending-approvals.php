@@ -63,6 +63,26 @@ try {
         `submitted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
+    // Auto-migrate newly added columns if they don't exist yet
+    $verifColumns = [
+        'citizen_id_number' => "VARCHAR(30) NULL",
+        'photo_1x1_url' => "VARCHAR(500) NULL",
+        'signature_photo_url' => "VARCHAR(500) NULL",
+        'qr_code_token' => "VARCHAR(255) NULL",
+        'qr_code_image_url' => "VARCHAR(500) NULL",
+        'admin_action_notes' => "TEXT NULL"
+    ];
+    foreach ($verifColumns as $col => $colDef) {
+        try {
+            $checkCol = $pdo->query("SHOW COLUMNS FROM `citizen_verifications` LIKE '$col'")->fetch();
+            if (!$checkCol) {
+                $pdo->exec("ALTER TABLE `citizen_verifications` ADD COLUMN `$col` $colDef");
+            }
+        } catch (Exception $e) {
+            // Ignore if column exists
+        }
+    }
+
     // Fetch counts
     $statsStmt = $pdo->query("SELECT 
         COUNT(*) as total_all,
@@ -165,7 +185,7 @@ try {
             'barangay' => $row['barangay'] ?? '',
             'reviewer' => !empty($row['reviewed_by']) ? $row['reviewed_by'] : 'Unassigned',
             'reviewer_avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($row['reviewed_by'] ?? 'Admin') . '&background=random',
-            'docs_count' => ($row['photo_1x1_url'] || $row['signature_photo_url']) ? '+4' : '+2',
+            'docs_count' => (!empty($row['photo_1x1_url']) || !empty($row['signature_photo_url'])) ? '+4' : '+2',
             'status' => $statusDisplay,
             'priority' => ($row['years_resident'] ?? 0) >= 5 ? 'High' : 'Medium',
             'selected' => false

@@ -105,7 +105,32 @@ try {
         SELECT * FROM `broadcast_alerts` 
         ORDER BY `created_at` DESC
     ");
-    $broadcasts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $broadcasts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fallback to Certificate DB if primary verification DB has no alerts
+    if (empty($broadcasts) && function_exists('getCertificateDbConnection')) {
+        try {
+            $certPdo = getCertificateDbConnection();
+            $certStats = $certPdo->query("
+                SELECT 
+                    COUNT(*) AS total_broadcasts,
+                    COALESCE(SUM(recipients_count), 0) AS total_recipients,
+                    COALESCE(SUM(delivered_count), 0) AS total_delivered,
+                    COALESCE(SUM(CASE WHEN status = 'Scheduled' THEN 1 ELSE 0 END), 0) AS total_scheduled
+                FROM `broadcast_alerts`
+            ")->fetch(PDO::FETCH_ASSOC);
+            if ($certStats && (int)$certStats['total_broadcasts'] > 0) {
+                $totalBroadcasts = (int)$certStats['total_broadcasts'];
+                $totalRecipients = (int)$certStats['total_recipients'];
+                $totalDelivered = (int)$certStats['total_delivered'];
+                $scheduledCount = (int)$certStats['total_scheduled'];
+                if ($totalRecipients > 0) {
+                    $deliveryRate = number_format(($totalDelivered / $totalRecipients) * 100, 1) . '%';
+                }
+                $broadcasts = $certPdo->query("SELECT * FROM `broadcast_alerts` ORDER BY `created_at` DESC")->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (Exception $eCert) {}
+    }
 
     // Build client json map for quick drawer display
     foreach ($broadcasts as $b) {
@@ -129,7 +154,7 @@ try {
             'categoryBadgeClass' => $catMeta['badgeClass'],
             'iconClass' => $catMeta['iconBg'] . ' ' . $catMeta['icon'],
             'sender' => ($b['sender_name'] ?: 'Barangay Information Office') . ' (' . ($b['sender_role'] ?: 'Public Information Officer') . ')',
-            'timestamp' => date('M j, Y • g:i A', strtotime($b['created_at'])),
+            'timestamp' => date('M j, Y â€¢ g:i A', strtotime($b['created_at'])),
             'status' => $statusMeta['label'],
             'statusClass' => $statusMeta['badgeClass'],
             'targetRecipients' => $b['target_audience'] ?: 'All Residents',
@@ -375,7 +400,7 @@ include '../../includes/sidebar.php';
                                     <?php echo htmlspecialchars($b['sender_name'] ?: 'Barangay Admin'); ?>
                                 </td>
                                 <td class="py-3.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">
-                                    <?php echo date('M j, Y • g:i A', strtotime($b['created_at'])); ?>
+                                    <?php echo date('M j, Y â€¢ g:i A', strtotime($b['created_at'])); ?>
                                 </td>
                                 <td class="py-3.5 px-3 text-center font-bold text-slate-800">
                                     <?php echo number_format((int)$b['recipients_count']); ?>

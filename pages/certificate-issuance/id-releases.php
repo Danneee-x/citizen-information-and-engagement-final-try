@@ -150,8 +150,13 @@ if ($activeTab === 'ready') {
 }
 
 if (!empty($searchQuery)) {
-    $sql .= " AND (`reference_no` LIKE :q OR `first_name` LIKE :q OR `last_name` LIKE :q OR `barangay` LIKE :q OR `card_serial_number` LIKE :q)";
-    $params[':q'] = "%{$searchQuery}%";
+    $sql .= " AND (`reference_no` LIKE :q1 OR `first_name` LIKE :q2 OR `last_name` LIKE :q3 OR `barangay` LIKE :q4 OR `card_serial_number` LIKE :q5)";
+    $likeTerm = "%{$searchQuery}%";
+    $params[':q1'] = $likeTerm;
+    $params[':q2'] = $likeTerm;
+    $params[':q3'] = $likeTerm;
+    $params[':q4'] = $likeTerm;
+    $params[':q5'] = $likeTerm;
 }
 
 $sql .= " ORDER BY CASE WHEN `status` IN ('Ready for Release', 'Approved') THEN 0 ELSE 1 END, `id` DESC";

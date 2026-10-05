@@ -300,8 +300,12 @@ if ($selectedType !== 'all') {
     $params[':app_type'] = $selectedType;
 }
 if (!empty($searchQuery)) {
-    $sql .= " AND (`reference_no` LIKE :q OR `first_name` LIKE :q OR `last_name` LIKE :q OR `barangay` LIKE :q)";
-    $params[':q'] = "%{$searchQuery}%";
+    $sql .= " AND (`reference_no` LIKE :q1 OR `first_name` LIKE :q2 OR `last_name` LIKE :q3 OR `barangay` LIKE :q4)";
+    $likeTerm = "%{$searchQuery}%";
+    $params[':q1'] = $likeTerm;
+    $params[':q2'] = $likeTerm;
+    $params[':q3'] = $likeTerm;
+    $params[':q4'] = $likeTerm;
 }
 
 $sql .= " ORDER BY `id` DESC";

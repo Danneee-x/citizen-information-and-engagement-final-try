@@ -90,7 +90,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':reviewer' => $reviewer,
                 ':id' => $appId
             ]);
-            $alertMessage = "Application status successfully updated to '{$newStatus}'.";
+
+            // Fetch reference no for direct release link
+            $refStmt = $pdo->prepare("SELECT `reference_no` FROM `id_issuance_applications` WHERE `id` = :id");
+            $refStmt->execute([':id' => $appId]);
+            $updatedRef = $refStmt->fetchColumn() ?: '';
+
+            if (in_array($newStatus, ['Ready for Release', 'Approved'])) {
+                $alertMessage = "Application status updated to '{$newStatus}'. <a href='id-releases.php?ref=" . urlencode($updatedRef) . "' class='underline font-bold ml-2 text-indigo-700 hover:text-indigo-900'><i class='fa-solid fa-hand-holding-hand mr-1'></i>Open in ID Release Desk &rarr;</a>";
+            } else {
+                $alertMessage = "Application status successfully updated to '{$newStatus}'.";
+            }
+            $alertType = 'success';
+        }
+    } elseif ($action === 'edit_application') {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        $firstName = trim($_POST['first_name'] ?? '');
+        $middleName = trim($_POST['middle_name'] ?? '');
+        $lastName = trim($_POST['last_name'] ?? '');
+        $suffix = trim($_POST['suffix'] ?? '');
+        $gender = $_POST['gender'] ?? 'Male';
+        $birthdate = !empty($_POST['birthdate']) ? $_POST['birthdate'] : null;
+        $civilStatus = $_POST['civil_status'] ?? 'Single';
+        $contactNumber = trim($_POST['contact_number'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $street = trim($_POST['street_address'] ?? '');
+        $barangay = trim($_POST['barangay'] ?? '');
+        $district = $_POST['district'] ?? 'District 1';
+        $residentSince = trim($_POST['resident_since'] ?? '2015');
+
+        if ($appId > 0 && !empty($firstName) && !empty($lastName) && !empty($contactNumber)) {
+            $stmt = $pdo->prepare("
+                UPDATE `id_issuance_applications`
+                SET `first_name` = :first,
+                    `middle_name` = :middle,
+                    `last_name` = :last,
+                    `suffix` = :suffix,
+                    `gender` = :gender,
+                    `birthdate` = :bday,
+                    `civil_status` = :civil,
+                    `contact_number` = :contact,
+                    `email` = :email,
+                    `street_address` = :street,
+                    `barangay` = :brgy,
+                    `district` = :dist,
+                    `resident_since` = :res_since
+                WHERE `id` = :id
+            ");
+            $stmt->execute([
+                ':first' => $firstName,
+                ':middle' => $middleName,
+                ':last' => $lastName,
+                ':suffix' => $suffix,
+                ':gender' => $gender,
+                ':bday' => $birthdate,
+                ':civil' => $civilStatus,
+                ':contact' => $contactNumber,
+                ':email' => $email,
+                ':street' => $street,
+                ':brgy' => $barangay,
+                ':dist' => $district,
+                ':res_since' => $residentSince,
+                ':id' => $appId
+            ]);
+            $alertMessage = "Resident information updated successfully for application #{$appId}.";
+            $alertType = 'success';
+        } else {
+            $alertMessage = "Please provide required name and contact information.";
+            $alertType = 'error';
+        }
+    } elseif ($action === 'delete_application') {
+        $appId = (int)($_POST['application_id'] ?? 0);
+        if ($appId > 0) {
+            $stmt = $pdo->prepare("DELETE FROM `id_issuance_applications` WHERE `id` = :id");
+            $stmt->execute([':id' => $appId]);
+            $alertMessage = "Application record #{$appId} has been successfully deleted.";
             $alertType = 'success';
         }
     } elseif ($action === 'create_walkin') {
@@ -614,6 +688,22 @@ include '../../includes/sidebar.php';
                         <!-- Actions -->
                         <td class="py-3.5 px-4 text-right whitespace-nowrap">
                             <div class="flex items-center justify-end gap-1.5">
+                                <?php if (in_array($stat, ['Ready for Release', 'Approved', 'Claimed'])): ?>
+                                <a href="id-releases.php?ref=<?php echo urlencode($app['reference_no']); ?>" 
+                                   class="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
+                                   title="Process in ID Release Desk">
+                                    <i class="fa-solid fa-hand-holding-hand text-[10px]"></i>
+                                    <span>Release</span>
+                                </a>
+                                <?php endif; ?>
+
+                                <button onclick='openEditModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
+                                        class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
+                                        title="Edit Resident Details">
+                                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                                    <span>Edit</span>
+                                </button>
+
                                 <button onclick='openReviewModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
                                         class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
                                         title="Review Application & Documents">
@@ -626,6 +716,12 @@ include '../../includes/sidebar.php';
                                         title="View ID Card & Claim Voucher">
                                     <i class="fa-solid fa-eye text-[10px]"></i>
                                     <span>Card</span>
+                                </button>
+
+                                <button onclick="confirmDeleteApp(<?php echo (int)$app['id']; ?>, '<?php echo addslashes($app['reference_no']); ?>')" 
+                                        class="px-2 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[11px] transition flex items-center gap-1 cursor-pointer" 
+                                        title="Delete Record">
+                                    <i class="fa-solid fa-trash-can text-[10px]"></i>
                                 </button>
                             </div>
                         </td>
@@ -910,15 +1006,137 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
+<!-- MODAL: EDIT RESIDENT APPLICATION DETAILS -->
+<div id="editModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8">
+        <div class="bg-slate-900 px-6 py-4 flex items-center justify-between text-white">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm border border-amber-400/30">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm tracking-tight">Edit Resident ID Application</h3>
+                    <p class="text-[11px] text-slate-400 font-mono" id="editModalRef">CAL-BRGY-2026-0000</p>
+                </div>
+            </div>
+            <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition cursor-pointer text-sm">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form method="POST" class="p-6 space-y-4">
+            <input type="hidden" name="action" value="edit_application">
+            <input type="hidden" name="application_id" id="editAppId" value="0">
+
+            <div class="grid grid-cols-2 gap-3 text-xs">
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">First Name *</label>
+                    <input type="text" name="first_name" id="editFirstName" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Last Name *</label>
+                    <input type="text" name="last_name" id="editLastName" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Middle Name</label>
+                    <input type="text" name="middle_name" id="editMiddleName" class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Suffix</label>
+                    <input type="text" name="suffix" id="editSuffix" placeholder="Jr, Sr, III" class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Gender</label>
+                    <select name="gender" id="editGender" class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Civil Status</label>
+                    <select name="civil_status" id="editCivilStatus" class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                        <option value="Single">Single</option>
+                        <option value="Married">Married</option>
+                        <option value="Widowed">Widowed</option>
+                        <option value="Separated">Separated</option>
+                    </select>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Contact Number *</label>
+                    <input type="text" name="contact_number" id="editContact" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Email Address</label>
+                    <input type="email" name="email" id="editEmail" class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+
+                <div class="col-span-2 space-y-1">
+                    <label class="font-bold text-slate-700">Street Address *</label>
+                    <input type="text" name="street_address" id="editAddress" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Barangay *</label>
+                    <input type="text" name="barangay" id="editBarangay" required class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">District</label>
+                    <select name="district" id="editDistrict" class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                        <option value="District 1">District 1</option>
+                        <option value="District 2">District 2</option>
+                        <option value="District 3">District 3</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button type="button" onclick="closeWalkinModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
-                <button type="submit" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer">Register Application</button>
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span>Save Changes</span>
+                </button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- Hidden Delete Form -->
+<form id="deleteAppForm" method="POST" style="display: none;">
+    <input type="hidden" name="action" value="delete_application">
+    <input type="hidden" name="application_id" id="deleteAppId" value="0">
+</form>
+
 <script>
+function openEditModal(app) {
+    document.getElementById('editAppId').value = app.id;
+    document.getElementById('editModalRef').innerText = app.reference_no;
+    document.getElementById('editFirstName').value = app.first_name || '';
+    document.getElementById('editMiddleName').value = app.middle_name || '';
+    document.getElementById('editLastName').value = app.last_name || '';
+    document.getElementById('editSuffix').value = app.suffix || '';
+    document.getElementById('editGender').value = app.gender || 'Male';
+    document.getElementById('editCivilStatus').value = app.civil_status || 'Single';
+    document.getElementById('editContact').value = app.contact_number || '';
+    document.getElementById('editEmail').value = app.email || '';
+    document.getElementById('editAddress').value = app.street_address || '';
+    document.getElementById('editBarangay').value = app.barangay || '';
+    document.getElementById('editDistrict').value = app.district || 'District 1';
+    document.getElementById('editModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
+
+function confirmDeleteApp(id, ref) {
+    if (confirm(`Are you sure you want to permanently delete application ${ref}? This action cannot be undone.`)) {
+        document.getElementById('deleteAppId').value = id;
+        document.getElementById('deleteAppForm').submit();
+    }
+}
 function openReviewModal(app) {
     document.getElementById('reviewAppId').value = app.id;
     document.getElementById('reviewModalRef').innerText = app.reference_no;

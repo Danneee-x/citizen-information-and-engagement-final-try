@@ -265,11 +265,8 @@ include '../../includes/sidebar.php';
         </div>
     </div>
 
-    <!-- Main Content Layout (Table + Slide-in Drawer) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-        <!-- Table Container -->
-        <div id="surveyTableWrapper" class="lg:col-span-12 transition-all duration-300">
+    <!-- Main Content Layout (Full Width Table) -->
+    <div id="surveyTableWrapper" class="w-full">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
 
                 <?php if (empty($surveys)): ?>
@@ -405,61 +402,107 @@ include '../../includes/sidebar.php';
 
             </div>
         </div>
+</main>
 
-        <!-- Right Side Slide-in Inspector Drawer -->
-        <div id="surveyDetailsDrawer" class="hidden lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5 sticky top-6">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center gap-2">
-                    <span id="drawerSurveyCode" class="text-xs font-bold text-slate-400">SRV-2026-001</span>
-                    <span id="drawerSurveyStatusBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Open</span>
+<!-- ============================================================================== -->
+<!-- SURVEY DETAILS & QUESTION BREAKDOWN MODAL                                      -->
+<!-- ============================================================================== -->
+<div id="surveyDetailsDrawer" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        
+        <!-- Modal Light Header with Back button, Code, Status, Close button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeSurveyDrawer()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Surveys Queue">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-square-poll-vertical"></i>
                 </div>
-                <button onclick="closeSurveyDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Survey Overview</h3>
+                        <span id="drawerSurveyCode" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">SRV-2026-001</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Public Consultation & Citizen Opinion Poll</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+                <span id="drawerSurveyStatusBadge" class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Open</span>
+                <button type="button" onclick="closeSurveyDrawer()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+        </div>
 
-            <div class="space-y-2">
-                <h3 id="drawerSurveyTitle" class="text-sm font-black text-slate-900 leading-snug">Survey Title</h3>
-                <p id="drawerSurveyDescription" class="text-xs text-slate-600 font-medium leading-relaxed">Description...</p>
+        <!-- Scrollable Modal Body -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            
+            <!-- Survey Narrative Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2.5 shadow-xs">
+                <h3 id="drawerSurveyTitle" class="text-base font-black text-slate-900 leading-snug">Survey Title</h3>
+                <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-700 font-medium leading-relaxed">
+                    <p id="drawerSurveyDescription">Description...</p>
+                </div>
                 <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 pt-1">
-                    <span id="drawerSurveyCategory" class="px-2.5 py-0.5 rounded-md bg-blue-50 text-[#0f53d1] font-bold text-[10px] border border-blue-100">Category</span>
+                    <span id="drawerSurveyCategory" class="px-2.5 py-1 rounded-lg bg-blue-50 text-[#0f53d1] font-bold text-[10px] border border-blue-100">Category</span>
                     <span class="text-slate-300">&bull;</span>
-                    <span id="drawerSurveyPrivacy" class="px-2 py-0.5 rounded-full font-bold text-[10px] bg-slate-100 text-slate-700">Identified</span>
+                    <span id="drawerSurveyPrivacy" class="px-2.5 py-1 rounded-full font-bold text-[10px] bg-slate-100 text-slate-700">Identified</span>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-2.5">
-                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
-                    <span class="text-[10px] text-slate-400 font-bold uppercase">Total Responses</span>
-                    <h4 id="drawerTotalResponses" class="text-lg font-black text-slate-900">0</h4>
-                    <span class="text-[9px] text-emerald-600 font-bold">Live Sync with Mobile App</span>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-3">
+                <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Responses</span>
+                    <h4 id="drawerTotalResponses" class="text-2xl font-black text-slate-900">0</h4>
+                    <span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-circle-check text-[9px]"></i>
+                        <span>Live Sync with Mobile App</span>
+                    </span>
                 </div>
-                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-0.5">
-                    <span class="text-[10px] text-slate-400 font-bold uppercase">Target Audience</span>
-                    <h4 id="drawerSurveyTarget" class="text-xs font-black text-slate-900 truncate">All Residents</h4>
-                    <span class="text-[9px] text-slate-400 font-medium">Caloocan Citizens</span>
+                <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Target Audience</span>
+                    <h4 id="drawerSurveyTarget" class="text-sm font-black text-slate-900 truncate">All Residents</h4>
+                    <span class="text-[10px] text-slate-400 font-medium">Caloocan Citizens</span>
                 </div>
             </div>
 
-            <!-- Question Breakdown List in Drawer -->
-            <div class="space-y-2 border-t border-slate-100 pt-3">
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Question Architecture</h4>
+            <!-- Question Architecture Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-list-check text-indigo-600"></i>
+                    <span>Question Architecture</span>
+                </span>
                 <div id="drawerQuestionsList" class="space-y-2 text-xs max-h-60 overflow-y-auto custom-scrollbar">
                     <!-- Populated dynamically via JS -->
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 border-t border-slate-100 pt-4">
-                <a id="drawerLiveResultsLink" href="live-results.php" class="flex-1 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-chart-line text-xs"></i>
-                    <span>Live Results</span>
+            <!-- Action Link -->
+            <div class="pt-1">
+                <a id="drawerLiveResultsLink" href="live-results.php" class="w-full py-3 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-xs"></i>
+                    <span>View Live Analytics & Results Breakdown</span>
                 </a>
             </div>
+
+        </div>
+
+        <!-- Modal Bottom Navigation (Back & Close Buttons) -->
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" onclick="closeSurveyDrawer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Surveys Queue</span>
+            </button>
+            <button type="button" onclick="closeSurveyDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
+            </button>
         </div>
 
     </div>
-
-</main>
+</div>
 
 <!-- SURVEY BUILDER MODAL (z-[9999] Frosted Backdrop covers sticky header) -->
 <div id="createSurveyModal" onclick="if(event.target === this) closeCreateSurveyModal()" class="hidden fixed inset-0 z-[9999] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
@@ -650,18 +693,18 @@ function selectSurveyRow(rowElement, id) {
 
     document.getElementById('drawerLiveResultsLink').href = 'live-results.php?survey_id=' + data.id;
 
-    // Show Drawer
+    // Show Modal
     const drawer = document.getElementById('surveyDetailsDrawer');
-    drawer.classList.remove('hidden');
-    document.getElementById('surveyTableWrapper').classList.remove('lg:col-span-12');
-    document.getElementById('surveyTableWrapper').classList.add('lg:col-span-8');
+    if (drawer) {
+        drawer.classList.remove('hidden');
+    }
 }
 
 function closeSurveyDrawer() {
     const drawer = document.getElementById('surveyDetailsDrawer');
-    drawer.classList.add('hidden');
-    document.getElementById('surveyTableWrapper').classList.remove('lg:col-span-8');
-    document.getElementById('surveyTableWrapper').classList.add('lg:col-span-12');
+    if (drawer) {
+        drawer.classList.add('hidden');
+    }
     document.querySelectorAll('.survey-row').forEach(r => r.classList.remove('bg-blue-50/50', 'border-l-4', 'border-l-[#0f53d1]'));
 }
 
@@ -756,6 +799,23 @@ function addQuestionField() {
     `;
     container.appendChild(div);
 }
+
+// Dismiss modal when clicking backdrop
+document.getElementById('surveyDetailsDrawer')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeSurveyDrawer();
+    }
+});
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const drawer = document.getElementById('surveyDetailsDrawer');
+        if (drawer && !drawer.classList.contains('hidden')) {
+            closeSurveyDrawer();
+        }
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

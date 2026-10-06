@@ -83,17 +83,49 @@ try {
         }
     }
 
+    // Ensure ENUM includes Returned_For_Correction and Superseded
+    try {
+        $pdo->exec("ALTER TABLE `citizen_verifications` MODIFY COLUMN `verification_status` ENUM('Pending','Under_Review','Returned_For_Correction','Approved','Rejected','Superseded') NOT NULL DEFAULT 'Pending'");
+    } catch (Exception $e) {}
+
+    // Auto-resolve: If a citizen now has an Approved verification, automatically supersede any older Rejected or Returned_For_Correction records
+    try {
+        $pdo->exec("UPDATE citizen_verifications v_old
+            JOIN citizen_verifications v_app ON (
+                (v_old.citizen_user_id = v_app.citizen_user_id AND v_old.citizen_user_id > 0)
+                OR (LOWER(TRIM(CONCAT(v_old.first_name, ' ', v_old.last_name))) = LOWER(TRIM(CONCAT(v_app.first_name, ' ', v_app.last_name))) AND v_old.barangay = v_app.barangay)
+            )
+            SET v_old.verification_status = 'Superseded', v_old.is_archived = 1
+            WHERE v_app.verification_status = 'Approved'
+              AND v_old.verification_id != v_app.verification_id
+              AND v_old.verification_status IN ('Rejected', 'Returned_For_Correction')");
+    } catch (Exception $e) {}
+
     // Fetch counts
+    // Note: Rejected applications are superseded and excluded from Total Rejected if the citizen now has an Approved application
     $statsStmt = $pdo->query("SELECT 
-        COUNT(*) as total_all,
+        COUNT(CASE WHEN verification_status != 'Superseded' AND COALESCE(is_archived, 0) = 0 THEN 1 ELSE NULL END) as total_all,
         SUM(CASE WHEN verification_status IN ('Pending', 'Under_Review') THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN verification_status = 'Under_Review' THEN 1 ELSE 0 END) as under_review,
-        SUM(CASE WHEN verification_status = 'Returned_For_Correction' THEN 1 ELSE 0 END) as returned,
+        SUM(CASE WHEN verification_status = 'Returned_For_Correction' AND COALESCE(is_archived, 0) = 0 THEN 1 ELSE 0 END) as returned,
         SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN verification_status = 'Rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN verification_status = 'Rejected' AND COALESCE(is_archived, 0) = 0 
+            AND NOT EXISTS (
+                SELECT 1 FROM citizen_verifications v_app 
+                WHERE v_app.verification_status = 'Approved' 
+                AND ((v_app.citizen_user_id = citizen_verifications.citizen_user_id AND citizen_verifications.citizen_user_id > 0)
+                     OR (LOWER(TRIM(CONCAT(v_app.first_name, ' ', v_app.last_name))) = LOWER(TRIM(CONCAT(citizen_verifications.first_name, ' ', citizen_verifications.last_name))) AND v_app.barangay = citizen_verifications.barangay))
+            ) THEN 1 ELSE 0 END) as rejected,
         SUM(CASE WHEN reviewed_by IS NOT NULL AND reviewed_by != '' AND reviewed_by != 'Unassigned' AND verification_status IN ('Pending', 'Under_Review') THEN 1 ELSE 0 END) as assigned_to_me,
         SUM(CASE WHEN verification_status = 'Approved' AND DATE(reviewed_at) = CURDATE() THEN 1 ELSE 0 END) as today_approved,
-        SUM(CASE WHEN verification_status = 'Rejected' AND DATE(reviewed_at) = CURDATE() THEN 1 ELSE 0 END) as today_rejected,
+        SUM(CASE WHEN verification_status = 'Rejected' AND COALESCE(is_archived, 0) = 0 
+            AND DATE(reviewed_at) = CURDATE()
+            AND NOT EXISTS (
+                SELECT 1 FROM citizen_verifications v_app 
+                WHERE v_app.verification_status = 'Approved' 
+                AND ((v_app.citizen_user_id = citizen_verifications.citizen_user_id AND citizen_verifications.citizen_user_id > 0)
+                     OR (LOWER(TRIM(CONCAT(v_app.first_name, ' ', v_app.last_name))) = LOWER(TRIM(CONCAT(citizen_verifications.first_name, ' ', citizen_verifications.last_name))) AND v_app.barangay = citizen_verifications.barangay))
+            ) THEN 1 ELSE 0 END) as today_rejected,
         AVG(CASE WHEN reviewed_at IS NOT NULL AND submitted_at IS NOT NULL THEN TIMESTAMPDIFF(MINUTE, submitted_at, reviewed_at) ELSE NULL END) as avg_proc_minutes
         FROM citizen_verifications");
     $dbStats = $statsStmt->fetch(PDO::FETCH_ASSOC);
@@ -123,13 +155,23 @@ try {
 
     // Tab-based Application Query
     if ($currentTab === 'returned') {
-        $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Returned_For_Correction' ORDER BY updated_at DESC LIMIT 100");
+        $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Returned_For_Correction' AND COALESCE(is_archived, 0) = 0 ORDER BY updated_at DESC LIMIT 100");
     } elseif ($currentTab === 'approved') {
         $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Approved' ORDER BY reviewed_at DESC LIMIT 100");
     } elseif ($currentTab === 'rejected') {
-        $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Rejected' ORDER BY reviewed_at DESC LIMIT 100");
+        // Exclude applications where the citizen has already been accepted/approved in another registration
+        $stmt = $pdo->query("SELECT v.* FROM citizen_verifications v 
+            WHERE v.verification_status = 'Rejected' 
+              AND COALESCE(v.is_archived, 0) = 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM citizen_verifications v_app 
+                  WHERE v_app.verification_status = 'Approved' 
+                  AND ((v_app.citizen_user_id = v.citizen_user_id AND v.citizen_user_id > 0)
+                       OR (LOWER(TRIM(CONCAT(v_app.first_name, ' ', v_app.last_name))) = LOWER(TRIM(CONCAT(v.first_name, ' ', v.last_name))) AND v_app.barangay = v.barangay))
+              )
+            ORDER BY v.reviewed_at DESC LIMIT 100");
     } elseif ($currentTab === 'all') {
-        $stmt = $pdo->query("SELECT * FROM citizen_verifications ORDER BY submitted_at DESC LIMIT 100");
+        $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status != 'Superseded' ORDER BY submitted_at DESC LIMIT 100");
     } else {
         // Default: Pending review queue
         $currentTab = 'pending';
@@ -185,6 +227,8 @@ try {
             'barangay' => $row['barangay'] ?? '',
             'reviewer' => !empty($row['reviewed_by']) ? $row['reviewed_by'] : 'Unassigned',
             'reviewer_avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($row['reviewed_by'] ?? 'Admin') . '&background=random',
+            'reviewed_at' => !empty($row['reviewed_at']) ? (new DateTime($row['reviewed_at']))->format('M d, Y h:i A') : '',
+            'reviewed_by' => $row['reviewed_by'] ?? '',
             'docs_count' => (!empty($row['photo_1x1_url']) || !empty($row['signature_photo_url'])) ? '+4' : '+2',
             'status' => $statusDisplay,
             'priority' => ($row['years_resident'] ?? 0) >= 5 ? 'High' : 'Medium',
@@ -204,6 +248,7 @@ function getAppStatusBadge($status) {
         case 'Returned_For_Correction': return 'bg-orange-50 text-orange-600 border-orange-200/80';
         case 'Approved': return 'bg-emerald-50 text-emerald-600 border-emerald-200/80';
         case 'Rejected': return 'bg-red-50 text-red-600 border-red-200/80';
+        case 'Superseded': return 'bg-slate-100 text-slate-500 border-slate-300';
         default: return 'bg-slate-50 text-slate-600 border-slate-200';
     }
 }
@@ -388,215 +433,237 @@ include '../../includes/sidebar.php';
         </a>
     </div>
 
-    <!-- Main Content Area: Table (Left) + Detail Panel (Right) -->
-    <div class="flex flex-col xl:flex-row gap-6 items-start">
+    <!-- Main Content Area: Full-Width Search, Filters & Table -->
+    <div class="w-full flex flex-col gap-5">
 
-        <!-- Left Column: Search, Filters & Table -->
-        <div class="flex-1 w-full min-w-0 flex flex-col gap-5">
-
-            <!-- Filter Card -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                <!-- Top Search & Toggle -->
-                <div id="filterSearchRow" class="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
-                    <div class="flex-1 w-full flex items-center gap-2">
-                        <div class="relative w-full">
-                            <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                            <input id="searchInputPending" type="text" placeholder="Search by Applicant Name, ID, Barangay, or Document Number..." class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl focus:ring-2 focus:ring-[#0f53d1]/40 focus:border-[#0f53d1] block pl-10 pr-4 py-2.5 outline-none font-medium placeholder-slate-400">
-                        </div>
-                        <button id="searchBtnPending" class="shrink-0 px-4 py-2.5 text-xs font-bold text-white bg-[#0f53d1] hover:bg-[#0d46b0] rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-search text-[10px]"></i>
-                            <span>Search</span>
-                        </button>
+        <!-- Filter Card -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <!-- Top Search & Toggle -->
+            <div id="filterSearchRow" class="flex flex-col md:flex-row gap-3 justify-between items-start md:items-center">
+                <div class="flex-1 w-full flex items-center gap-2">
+                    <div class="relative w-full">
+                        <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        <input id="searchInputPending" type="text" placeholder="Search by Applicant Name, ID, Barangay, or Document Number..." class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl focus:ring-2 focus:ring-[#0f53d1]/40 focus:border-[#0f53d1] block pl-10 pr-4 py-2.5 outline-none font-medium placeholder-slate-400">
                     </div>
-                    <button id="toggleFilterBtn" onclick="togglePendingFilterGrid()" class="shrink-0 flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-100/70 hover:bg-slate-200/70 rounded-xl transition cursor-pointer">
-                        <i class="fa-solid fa-sliders text-xs"></i>
-                        <span id="toggleFilterBtnText">Show Filters</span>
-                        <i id="toggleFilterBtnChevron" class="fa-solid fa-chevron-down text-[9px] ml-0.5"></i>
+                    <button id="searchBtnPending" class="shrink-0 px-4 py-2.5 text-xs font-bold text-white bg-[#0f53d1] hover:bg-[#0d46b0] rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-search text-[10px]"></i>
+                        <span>Search</span>
                     </button>
                 </div>
+                <button id="toggleFilterBtn" onclick="togglePendingFilterGrid()" class="shrink-0 flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-100/70 hover:bg-slate-200/70 rounded-xl transition cursor-pointer">
+                    <i class="fa-solid fa-sliders text-xs"></i>
+                    <span id="toggleFilterBtnText">Show Filters</span>
+                    <i id="toggleFilterBtnChevron" class="fa-solid fa-chevron-down text-[9px] ml-0.5"></i>
+                </button>
+            </div>
 
-                <!-- Filters Grid (Hidden by Default) -->
-                <div id="filterGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">District</label>
-                        <select id="districtFilterPending" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium cursor-pointer">
-                            <option value="">All Districts</option>
-                            <option value="District 1">District 1</option>
-                            <option value="District 2">District 2</option>
-                            <option value="District 3">District 3</option>
-                        </select>
-                    </div>
+            <!-- Filters Grid (Hidden by Default) -->
+            <div id="filterGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">District</label>
+                    <select id="districtFilterPending" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium cursor-pointer">
+                        <option value="">All Districts</option>
+                        <option value="District 1">District 1</option>
+                        <option value="District 2">District 2</option>
+                        <option value="District 3">District 3</option>
+                    </select>
+                </div>
 
-                    <div class="space-y-1">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase">Valid ID Type</label>
-                        <select id="idTypeFilterPending" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium">
-                            <option value="">All Document Types</option>
-                            <option value="PhilSys National ID">PhilSys National ID</option>
-                            <option value="Driver's License">Driver's License</option>
-                            <option value="UMID">UMID</option>
-                            <option value="Passport">Passport</option>
-                        </select>
-                    </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase">Valid ID Type</label>
+                    <select id="idTypeFilterPending" class="w-full bg-white border border-slate-200 text-slate-700 text-xs rounded-lg p-2.5 outline-none font-medium">
+                        <option value="">All Document Types</option>
+                        <option value="PhilSys National ID">PhilSys National ID</option>
+                        <option value="Driver's License">Driver's License</option>
+                        <option value="UMID">UMID</option>
+                        <option value="Passport">Passport</option>
+                    </select>
+                </div>
 
-                    <div class="flex items-end justify-end">
-                        <button id="clearFiltersBtnPending" onclick="clearFilters()" class="w-full py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer">
-                            Clear Filters
-                        </button>
-                    </div>
+                <div class="flex items-end justify-end">
+                    <button id="clearFiltersBtnPending" onclick="clearFilters()" class="w-full py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer">
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            
+            <!-- Table Header Actions Bar -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-slate-100 gap-3">
+                <span id="applicationsFoundText" class="text-xs font-bold text-slate-800"><?php echo count($applications); ?> applications in <?php echo ucfirst($currentTab); ?></span>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400 font-medium">Viewing queue for:</span>
+                    <span class="text-xs font-bold text-[#0f53d1] uppercase"><?php echo htmlspecialchars($currentTab); ?></span>
                 </div>
             </div>
 
-            <!-- Table Card -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
-                
-                <!-- Table Header Actions Bar -->
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-slate-100 gap-3">
-                    <span id="applicationsFoundText" class="text-xs font-bold text-slate-800"><?php echo count($applications); ?> applications in <?php echo ucfirst($currentTab); ?></span>
-
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-400 font-medium">Viewing queue for:</span>
-                        <span class="text-xs font-bold text-[#0f53d1] uppercase"><?php echo htmlspecialchars($currentTab); ?></span>
-                    </div>
-                </div>
-
-                <!-- Table Wrapper -->
-                <div class="overflow-x-auto w-full custom-scrollbar">
-                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[950px]">
-                        <thead>
-                            <tr class="border-b border-slate-100 bg-slate-50/50">
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref ID</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Citizen ID</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Applicant Name</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date Submitted</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">District / Barangay</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assets</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                                <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Inspect</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100" id="pendingTableBody">
-                            <?php if (empty($applications)): ?>
-                            <tr>
-                                <td colspan="8" class="p-12 text-center text-slate-400">
-                                    <div class="flex flex-col items-center justify-center gap-2">
-                                        <i class="fa-regular fa-folder-open text-4xl text-slate-300"></i>
-                                        <p class="font-bold text-slate-700 text-sm">No records found in "<?php echo ucfirst($currentTab); ?>"</p>
-                                        <p class="text-xs text-slate-400">Applications submitted from the citizen mobile app will appear here.</p>
+            <!-- Table Wrapper -->
+            <div class="overflow-x-auto w-full custom-scrollbar">
+                <table class="w-full text-left border-collapse whitespace-nowrap min-w-[950px]">
+                    <thead>
+                        <tr class="border-b border-slate-100 bg-slate-50/50">
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref ID</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Citizen ID</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Applicant Name</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date Submitted</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">District / Barangay</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assets</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Inspect</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100" id="pendingTableBody">
+                        <?php if (empty($applications)): ?>
+                        <tr>
+                            <td colspan="8" class="p-12 text-center text-slate-400">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <i class="fa-regular fa-folder-open text-4xl text-slate-300"></i>
+                                    <p class="font-bold text-slate-700 text-sm">No records found in "<?php echo ucfirst($currentTab); ?>"</p>
+                                    <p class="text-xs text-slate-400">Applications submitted from the citizen mobile app will appear here.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php else: ?>
+                        <?php foreach ($applications as $app): ?>
+                        <tr onclick="selectPendingApplication(this)" 
+                            class="pending-app-row hover:bg-slate-50/80 transition cursor-pointer" 
+                            data-district="<?php echo htmlspecialchars($app['district']); ?>"
+                            data-app='<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, "UTF-8"); ?>'
+                            id="row-<?php echo $app['raw_id']; ?>">
+                            <td class="p-3.5 text-xs font-bold text-slate-700"><?php echo $app['id']; ?></td>
+                            <td class="p-3.5 text-xs font-bold font-mono text-[#0f53d1]">
+                                <?php echo !empty($app['citizen_id_number']) ? $app['citizen_id_number'] : '<span class="text-slate-400 font-sans font-normal text-[11px]">—</span>'; ?>
+                            </td>
+                            <td class="p-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <img src="<?php echo $app['avatar']; ?>" class="w-7 h-7 rounded-full border border-slate-200 shrink-0" alt="Avatar">
+                                    <div>
+                                        <span class="text-xs font-bold text-slate-900 block"><?php echo htmlspecialchars($app['applicant']); ?></span>
+                                        <span class="text-[10px] text-slate-400"><?php echo htmlspecialchars($app['valid_id_type']); ?></span>
                                     </div>
-                                </td>
-                            </tr>
-                            <?php else: ?>
-                            <?php foreach ($applications as $app): ?>
-                            <tr onclick="selectPendingApplication(this)" 
-                                class="pending-app-row hover:bg-slate-50/80 transition cursor-pointer" 
-                                data-district="<?php echo htmlspecialchars($app['district']); ?>"
-                                data-app='<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, "UTF-8"); ?>'
-                                id="row-<?php echo $app['raw_id']; ?>">
-                                <td class="p-3.5 text-xs font-bold text-slate-700"><?php echo $app['id']; ?></td>
-                                <td class="p-3.5 text-xs font-bold font-mono text-[#0f53d1]">
-                                    <?php echo !empty($app['citizen_id_number']) ? $app['citizen_id_number'] : '<span class="text-slate-400 font-sans font-normal text-[11px]">—</span>'; ?>
-                                </td>
-                                <td class="p-3.5">
-                                    <div class="flex items-center gap-2.5">
-                                        <img src="<?php echo $app['avatar']; ?>" class="w-7 h-7 rounded-full border border-slate-200 shrink-0" alt="Avatar">
-                                        <div>
-                                            <span class="text-xs font-bold text-slate-900 block"><?php echo htmlspecialchars($app['applicant']); ?></span>
-                                            <span class="text-[10px] text-slate-400"><?php echo htmlspecialchars($app['valid_id_type']); ?></span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="p-3.5">
-                                    <div class="text-xs font-medium text-slate-700"><?php echo $app['date']; ?></div>
-                                    <div class="text-[10px] text-slate-400"><?php echo $app['time']; ?></div>
-                                </td>
-                                <td class="p-3.5 text-xs text-slate-600 font-medium">
-                                    <span class="font-bold text-slate-800"><?php echo htmlspecialchars($app['district']); ?></span>
-                                    <span class="block text-[10px] text-slate-400"><?php echo htmlspecialchars($app['barangay']); ?></span>
-                                </td>
-                                <td class="p-3.5">
-                                    <div class="flex items-center gap-1">
-                                        <div class="w-6 h-6 rounded bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-500" title="Valid ID"><i class="fa-solid fa-id-card text-[10px]"></i></div>
-                                        <div class="w-6 h-6 rounded bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-500" title="Selfie Photo"><i class="fa-solid fa-camera text-[10px]"></i></div>
-                                        <?php if (!empty($app['photo_1x1_url'])): ?>
-                                        <div class="w-6 h-6 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600" title="1x1 Photo"><i class="fa-regular fa-image text-[10px]"></i></div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($app['signature_photo_url'])): ?>
-                                        <div class="w-6 h-6 rounded bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600" title="Digital Signature"><i class="fa-solid fa-signature text-[10px]"></i></div>
-                                        <?php endif; ?>
-                                    </div>
-                                </td>
-                                <td class="p-3.5">
-                                    <span id="badge-<?php echo $app['raw_id']; ?>" class="px-2 py-0.5 text-[10px] font-bold rounded-md border <?php echo getAppStatusBadge($app['status']); ?>">
-                                        <?php echo $app['status']; ?>
-                                    </span>
-                                </td>
-                                <td class="p-3.5 text-center">
-                                    <div class="flex items-center justify-center gap-1.5">
-                                        <?php if (!empty($app['citizen_id_number']) || $app['status'] === 'Approved'): ?>
-                                        <button onclick="event.stopPropagation(); openCitizenCardModal(<?php echo htmlspecialchars(json_encode($app)); ?>)" class="px-2 py-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1 shadow-xs" title="View Official Citizen Card">
-                                            <i class="fa-solid fa-id-card text-[10px]"></i>
-                                            <span>Card</span>
-                                        </button>
-                                        <?php endif; ?>
-                                        <button class="w-6 h-6 rounded hover:bg-slate-200/60 flex items-center justify-center text-slate-400 hover:text-slate-700 transition" title="Inspect Application">
-                                            <i class="fa-regular fa-eye text-xs"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                </div>
+                            </td>
+                            <td class="p-3.5">
+                                <div class="text-xs font-medium text-slate-700"><?php echo $app['date']; ?></div>
+                                <div class="text-[10px] text-slate-400"><?php echo $app['time']; ?></div>
+                            </td>
+                            <td class="p-3.5 text-xs text-slate-600 font-medium">
+                                <span class="font-bold text-slate-800"><?php echo htmlspecialchars($app['district']); ?></span>
+                                <span class="block text-[10px] text-slate-400"><?php echo htmlspecialchars($app['barangay']); ?></span>
+                            </td>
+                            <td class="p-3.5">
+                                <div class="flex items-center gap-1">
+                                    <div class="w-6 h-6 rounded bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-500" title="Valid ID"><i class="fa-solid fa-id-card text-[10px]"></i></div>
+                                    <div class="w-6 h-6 rounded bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-500" title="Selfie Photo"><i class="fa-solid fa-camera text-[10px]"></i></div>
+                                    <?php if (!empty($app['photo_1x1_url'])): ?>
+                                    <div class="w-6 h-6 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600" title="1x1 Photo"><i class="fa-regular fa-image text-[10px]"></i></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($app['signature_photo_url'])): ?>
+                                    <div class="w-6 h-6 rounded bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600" title="Digital Signature"><i class="fa-solid fa-signature text-[10px]"></i></div>
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                            <td class="p-3.5">
+                                <span id="badge-<?php echo $app['raw_id']; ?>" class="px-2 py-0.5 text-[10px] font-bold rounded-md border <?php echo getAppStatusBadge($app['status']); ?>">
+                                    <?php echo $app['status']; ?>
+                                </span>
+                            </td>
+                            <td class="p-3.5 text-center">
+                                <div class="flex items-center justify-center gap-1.5">
+                                    <?php if (!empty($app['citizen_id_number']) || $app['status'] === 'Approved'): ?>
+                                    <button onclick="event.stopPropagation(); openCitizenCardModal(<?php echo htmlspecialchars(json_encode($app)); ?>)" class="px-2 py-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1 shadow-xs" title="View Official Citizen Card">
+                                        <i class="fa-solid fa-id-card text-[10px]"></i>
+                                        <span>Card</span>
+                                    </button>
+                                    <?php endif; ?>
+                                    <button class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#0f53d1] hover:text-white flex items-center justify-center text-slate-500 transition cursor-pointer shadow-2xs" title="Inspect Application in Modal">
+                                        <i class="fa-solid fa-expand text-xs"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
 
-                <!-- Pagination Footer -->
-                <div class="p-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <span id="pendingPaginationInfo" class="text-xs text-slate-500 font-medium">Showing <?php echo count($applications); ?> entries</span>
-                    <div id="pendingPaginationControls" class="flex items-center gap-1 text-xs"></div>
-                </div>
-
+            <!-- Pagination Footer -->
+            <div class="p-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span id="pendingPaginationInfo" class="text-xs text-slate-500 font-medium">Showing <?php echo count($applications); ?> entries</span>
+                <div id="pendingPaginationControls" class="flex items-center gap-1 text-xs"></div>
             </div>
 
         </div>
 
-        <!-- Right Column: Detail Inspector Drawer Panel -->
-        <div id="pendingDetailDrawer" class="hidden w-full xl:w-[430px] bg-white rounded-2xl border border-slate-200 shadow-md p-5 shrink-0 flex-col gap-4">
-            
-            <!-- Drawer Header -->
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center gap-2">
-                    <h2 id="drawerAppId" class="text-base font-black text-slate-900 tracking-tight">VER-0001</h2>
-                    <span id="drawerAppStatus" class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-50 text-amber-600 border border-amber-200/80">Pending</span>
+    </div>
+
+</main>
+
+<!-- ============================================================================== -->
+<!-- APPLICANT VERIFICATION & APPROVAL DETAILS MODAL                                -->
+<!-- ============================================================================== -->
+<div id="pendingDetailDrawer" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        
+        <!-- Modal Light Header with Back button, App ID, Status badge, and Close Button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closePendingDrawer()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Verification Queue">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-user-check"></i>
                 </div>
-                <button onclick="closePendingDrawer()" class="text-slate-400 hover:text-slate-700 transition cursor-pointer p-1"><i class="fa-solid fa-xmark text-sm"></i></button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Application Review</h3>
+                        <span id="drawerAppId" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">VER-0001</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Citizen Identity Verification & Credential Inspector</p>
+                </div>
             </div>
 
-            <!-- Drawer Tabs -->
-            <div class="flex items-center border-b border-slate-200">
-                <button id="drawerTabReviewBtn" onclick="switchDrawerTab('review')" class="px-4 py-2 border-b-2 border-[#0f53d1] text-xs font-bold text-[#0f53d1] transition cursor-pointer">Applicant Details</button>
-                <button id="drawerTabActivityBtn" onclick="switchDrawerTab('activity')" class="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition cursor-pointer flex items-center gap-1.5">
-                    <span>Audit History</span>
+            <div class="flex items-center gap-2.5">
+                <span id="drawerAppStatus" class="px-2.5 py-1 text-[10px] font-bold rounded-md bg-amber-50 text-amber-600 border border-amber-200/80">Pending</span>
+                <button type="button" onclick="closePendingDrawer()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+        </div>
 
+        <!-- Navigation Tabs -->
+        <div class="flex items-center px-6 border-b border-slate-200 bg-slate-50/60 shrink-0">
+            <button id="drawerTabReviewBtn" onclick="switchDrawerTab('review')" class="px-4 py-2.5 border-b-2 border-[#0f53d1] text-xs font-bold text-[#0f53d1] transition cursor-pointer">Applicant Details</button>
+            <button id="drawerTabActivityBtn" onclick="switchDrawerTab('activity')" class="px-4 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition cursor-pointer flex items-center gap-1.5">
+                <span>Audit History</span>
+            </button>
+        </div>
+
+        <!-- Scrollable Modal Body -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            
             <!-- Review Tab Content -->
             <div id="drawerTabReviewContent" class="space-y-4">
                 
                 <!-- Applicant Profile Header Card -->
-                <div class="flex items-center gap-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-100">
+                <div class="flex items-center gap-3.5 p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
                     <div class="relative">
-                        <img id="drawerApplicantAvatar" src="" class="w-12 h-12 rounded-full border border-slate-200 shrink-0" alt="Applicant">
-                        <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white"></span>
+                        <img id="drawerApplicantAvatar" src="" class="w-14 h-14 rounded-full border border-slate-200 shrink-0 object-cover" alt="Applicant">
+                        <span class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white"></span>
                     </div>
                     <div>
-                        <h4 id="drawerApplicantName" class="text-sm font-black text-slate-800">Danny Espelita</h4>
-                        <p class="text-[11px] text-slate-500 font-medium" id="drawerBarangayDistrict">Barangay 171, District 1</p>
+                        <h4 id="drawerApplicantName" class="text-base font-black text-slate-900">Danny Espelita</h4>
+                        <p class="text-xs text-slate-500 font-medium" id="drawerBarangayDistrict">Barangay 171, District 1</p>
                     </div>
                 </div>
 
                 <!-- Official Citizen ID Badge (Shown when approved) -->
-                <div id="drawerCitizenIdBadgeBox" class="hidden p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 space-y-2">
+                <div id="drawerCitizenIdBadgeBox" class="hidden p-4 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
                             <i class="fa-solid fa-id-card"></i> Official Citizen ID
@@ -604,22 +671,22 @@ include '../../includes/sidebar.php';
                         <span id="drawerCitizenIdDisplay" class="text-xs font-black text-indigo-900 font-mono">CAL-2026-000001</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div id="drawerQrBox" class="w-16 h-16 bg-white rounded-lg border border-indigo-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                        <div id="drawerQrBox" class="w-16 h-16 bg-white rounded-xl border border-indigo-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
                             <img id="drawerQrImg" src="" class="w-full h-full object-contain" alt="QR Code" />
                         </div>
                         <div class="text-[10px] text-indigo-800 space-y-0.5 flex-1">
-                            <p class="font-bold">Digital Identity Credential</p>
+                            <p class="font-bold text-xs">Digital Identity Credential</p>
                             <p class="text-indigo-600 font-mono text-[9px] break-all line-clamp-2" id="drawerQrTokenDisplay"></p>
                         </div>
                     </div>
-                    <button type="button" id="viewCitizenCardBtn" data-action="view-card" class="w-full mt-2 py-2 px-3 bg-[#0F4C81] hover:bg-sky-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-sky-400/40">
+                    <button type="button" id="viewCitizenCardBtn" data-action="view-card" class="w-full mt-2 py-2.5 px-3 bg-[#0F4C81] hover:bg-sky-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-sky-400/40">
                         <i class="fa-solid fa-id-card text-xs"></i>
                         <span>View Citizen ID Card</span>
                     </button>
                 </div>
 
                 <!-- Admin Action / Rework Notes Box (Shown when present) -->
-                <div id="drawerAdminNotesBox" class="hidden p-3.5 rounded-xl bg-orange-50 border border-orange-200 space-y-1">
+                <div id="drawerAdminNotesBox" class="hidden p-4 rounded-2xl bg-orange-50 border border-orange-200 space-y-1">
                     <span class="text-[10px] font-bold uppercase tracking-wider text-orange-800 flex items-center gap-1.5">
                         <i class="fa-solid fa-circle-exclamation"></i>
                         <span id="drawerAdminNotesTitle">Rework Notes / Decision Remarks</span>
@@ -627,96 +694,211 @@ include '../../includes/sidebar.php';
                     <p id="drawerAdminNotesContent" class="text-xs text-orange-950 font-medium whitespace-pre-wrap"></p>
                 </div>
 
-                <!-- Personal Information Summary -->
-                <div class="space-y-2 text-xs">
-                    <h3 class="text-[11px] font-black text-slate-800 tracking-wide uppercase border-b border-slate-100 pb-1">Personal Details</h3>
-                    <div class="grid grid-cols-2 gap-2 text-[11px]">
-                        <div>
-                            <span class="text-slate-400 block text-[10px]">Birthdate</span>
-                            <span id="drawerBirthdate" class="font-bold text-slate-700">May 15, 1998</span>
+                <!-- Personal Information Summary Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                    <h3 class="text-xs font-black text-slate-800 tracking-wide uppercase border-b border-slate-100 pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-user text-[#0f53d1]"></i>
+                        <span>Personal Details</span>
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3 text-xs">
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                            <span class="text-slate-400 block text-[10px] font-bold uppercase">Birthdate</span>
+                            <span id="drawerBirthdate" class="font-bold text-slate-800 text-xs">May 15, 1998</span>
                         </div>
-                        <div>
-                            <span class="text-slate-400 block text-[10px]">Sex / Gender</span>
-                            <span id="drawerSex" class="font-bold text-slate-700">Male</span>
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                            <span class="text-slate-400 block text-[10px] font-bold uppercase">Sex / Gender</span>
+                            <span id="drawerSex" class="font-bold text-slate-800 text-xs">Male</span>
                         </div>
-                        <div>
-                            <span class="text-slate-400 block text-[10px]">Civil Status</span>
-                            <span id="drawerCivilStatus" class="font-bold text-slate-700">Single</span>
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                            <span class="text-slate-400 block text-[10px] font-bold uppercase">Civil Status</span>
+                            <span id="drawerCivilStatus" class="font-bold text-slate-800 text-xs">Single</span>
                         </div>
-                        <div>
-                            <span class="text-slate-400 block text-[10px]">Residency Duration</span>
-                            <span id="drawerYearsResident" class="font-bold text-slate-700">12 year(s)</span>
+                        <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                            <span class="text-slate-400 block text-[10px] font-bold uppercase">Residency Duration</span>
+                            <span id="drawerYearsResident" class="font-bold text-slate-800 text-xs">12 year(s)</span>
                         </div>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block text-[10px]">Address</span>
-                        <span id="drawerAddress" class="font-bold text-slate-700 text-[11px] block">Block 12 Lot 5, Sampaguita St.</span>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Address</span>
+                        <span id="drawerAddress" class="font-bold text-slate-800 block">Block 12 Lot 5, Sampaguita St.</span>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block text-[10px]">Valid ID Submitted</span>
-                        <span id="drawerValidIdType" class="font-bold text-slate-700 text-[11px]">PhilSys National ID</span>
-                        <span id="drawerValidIdNumber" class="text-slate-400 font-mono text-[10px] ml-1">1234-5678-9012-3456</span>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Valid ID Submitted</span>
+                        <span id="drawerValidIdType" class="font-bold text-slate-800">PhilSys National ID</span>
+                        <span id="drawerValidIdNumber" class="text-slate-500 font-mono text-[11px] ml-1">1234-5678-9012-3456</span>
                     </div>
                 </div>
 
                 <!-- Submitted Assets: 4 Cards (ID Front, Selfie, 1x1 Photo, Digital Signature) -->
-                <div class="space-y-2.5 pt-2 border-t border-slate-100">
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-[11px] font-black text-slate-800 tracking-wide uppercase">Verification Assets</h3>
+                <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <h3 class="text-xs font-black text-slate-800 tracking-wide uppercase flex items-center gap-2">
+                            <i class="fa-solid fa-id-card-clip text-indigo-600"></i>
+                            <span>Verification Assets</span>
+                        </h3>
                         <span class="text-[10px] font-bold text-slate-400">4 Credentials</span>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-2.5">
                         <!-- Valid ID Front -->
-                        <div class="flex flex-col items-center gap-1 text-center p-2 rounded-xl bg-slate-50 border border-slate-200">
-                            <div id="drawerIdPhotoBox" class="w-full h-24 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
-                                <i class="fa-solid fa-id-card text-xl text-slate-400"></i>
+                        <div class="flex flex-col items-center gap-1.5 text-center p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div id="drawerIdPhotoBox" class="w-full h-28 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
+                                <i class="fa-solid fa-id-card text-2xl text-slate-400"></i>
                             </div>
-                            <span class="text-[10px] font-bold text-slate-700">Valid ID (Front)</span>
+                            <span class="text-[11px] font-bold text-slate-700">Valid ID (Front)</span>
                         </div>
 
                         <!-- Selfie Verification -->
-                        <div class="flex flex-col items-center gap-1 text-center p-2 rounded-xl bg-slate-50 border border-slate-200">
-                            <div id="drawerSelfiePhotoBox" class="w-full h-24 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
-                                <i class="fa-solid fa-camera text-xl text-slate-400"></i>
+                        <div class="flex flex-col items-center gap-1.5 text-center p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div id="drawerSelfiePhotoBox" class="w-full h-28 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
+                                <i class="fa-solid fa-camera text-2xl text-slate-400"></i>
                             </div>
-                            <span class="text-[10px] font-bold text-slate-700">Selfie Liveness</span>
+                            <span class="text-[11px] font-bold text-slate-700">Selfie Liveness</span>
                         </div>
 
                         <!-- 1x1 Photo -->
-                        <div class="flex flex-col items-center gap-1 text-center p-2 rounded-xl bg-slate-50 border border-slate-200">
-                            <div id="drawerPhoto1x1Box" class="w-full h-24 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
-                                <i class="fa-regular fa-image text-xl text-slate-400"></i>
+                        <div class="flex flex-col items-center gap-1.5 text-center p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                            <div id="drawerPhoto1x1Box" class="w-full h-28 bg-slate-200 rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
+                                <i class="fa-regular fa-image text-2xl text-slate-400"></i>
                             </div>
-                            <span class="text-[10px] font-bold text-slate-700">1x1 ID Photo</span>
+                            <span class="text-[11px] font-bold text-slate-700">1x1 ID Photo</span>
                         </div>
 
                         <!-- Digital Signature -->
-                        <div class="flex flex-col items-center gap-1 text-center p-2 rounded-xl bg-white border border-slate-200">
-                            <div id="drawerSignatureBox" class="w-full h-24 bg-white rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
-                                <i class="fa-solid fa-signature text-xl text-slate-400"></i>
+                        <div class="flex flex-col items-center gap-1.5 text-center p-2.5 rounded-xl bg-white border border-slate-200">
+                            <div id="drawerSignatureBox" class="w-full h-28 bg-white rounded-lg border border-slate-300 flex items-center justify-center overflow-hidden">
+                                <i class="fa-solid fa-signature text-2xl text-slate-400"></i>
                             </div>
-                            <span class="text-[10px] font-bold text-slate-700">Digital Signature</span>
+                            <span class="text-[11px] font-bold text-slate-700">Digital Signature</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Decision Action Buttons Grid -->
-                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100">
-                    <button id="btnApproveApp" onclick="handleApproveApplication()" class="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-check"></i>
-                        <span>Approve</span>
-                    </button>
+                <!-- 1. Dedicated Rejection Record Panel (Displayed when app.status === 'Rejected') -->
+                <div id="drawerRejectedNoticeBox" class="hidden p-4 rounded-2xl bg-rose-50/80 border border-rose-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-sm shadow-2xs">
+                                <i class="fa-solid fa-circle-xmark"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-rose-950 uppercase tracking-wide">Application Formally Rejected</h4>
+                                <p class="text-[10px] text-rose-600 font-medium">Archived decision • Action controls locked</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-rose-200/80 text-rose-800 border border-rose-300 shadow-2xs">
+                            Concluded / Rejected
+                        </span>
+                    </div>
 
-                    <button id="btnReturnApp" onclick="openDecisionModal('return')" class="py-2.5 px-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        <span>Return</span>
-                    </button>
+                    <!-- Rejection Reason Card -->
+                    <div class="bg-white p-3.5 rounded-xl border border-rose-200 shadow-2xs space-y-1">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-rose-500 block flex items-center gap-1.5">
+                            <i class="fa-solid fa-ban text-[10px]"></i>
+                            <span>Recorded Rejection Reason</span>
+                        </span>
+                        <p id="drawerRejectionReasonText" class="text-xs font-bold text-slate-800 whitespace-pre-wrap leading-relaxed">No formal reason specified.</p>
+                    </div>
 
-                    <button id="btnRejectApp" onclick="openDecisionModal('reject')" class="py-2.5 px-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
-                        <i class="fa-solid fa-xmark"></i>
-                        <span>Reject</span>
-                    </button>
+                    <!-- Reviewer and Timestamp -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-rose-900 pt-1 border-t border-rose-200/60 font-medium">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-shield text-rose-500"></i>
+                            <span>Reviewed by: <strong id="drawerRejectedByText" class="text-rose-950 font-bold">Admin</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-rose-700">
+                            <i class="fa-regular fa-clock text-rose-500"></i>
+                            <span id="drawerRejectedAtText"></span>
+                        </div>
+                    </div>
+
+                    <p class="text-[10.5px] text-slate-500 bg-white/70 p-2.5 rounded-xl border border-rose-100 leading-relaxed">
+                        <i class="fa-solid fa-circle-info text-rose-400 mr-1"></i>
+                        Staff decision actions are locked for this record because it has already been processed and rejected. If the citizen submits a new registration, it will arrive as a fresh submission in the <strong>Pending Review</strong> queue.
+                    </p>
+                </div>
+
+                <!-- 2. Dedicated Approved Record Panel (Displayed when app.status === 'Approved') -->
+                <div id="drawerApprovedNoticeBox" class="hidden p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm shadow-2xs">
+                                <i class="fa-solid fa-circle-check"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-emerald-950 uppercase tracking-wide">Application Approved</h4>
+                                <p class="text-[10px] text-emerald-600 font-medium">Verified Citizen Identity Credential Issued</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-200/80 text-emerald-800 border border-emerald-300 shadow-2xs">
+                            Active / Approved
+                        </span>
+                    </div>
+
+                    <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-2xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">Citizen ID Number</span>
+                            <span id="drawerApprovedCitizenId" class="text-sm font-black font-mono text-emerald-950">CAL-2026-000001</span>
+                        </div>
+                        <button type="button" onclick="if(activeApp) openCitizenCardModal(activeApp)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-id-card"></i>
+                            <span>View ID Card</span>
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-emerald-900 pt-1 border-t border-emerald-200/60 font-medium">
+                        <div class="flex items-center gap-1.5">
+                            <i class="fa-solid fa-user-check text-emerald-600"></i>
+                            <span>Approved by: <strong id="drawerApprovedByText" class="text-emerald-950 font-bold">Admin</strong></span>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-emerald-700">
+                            <i class="fa-regular fa-clock text-emerald-600"></i>
+                            <span id="drawerApprovedAtText"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Dedicated Superseded Record Panel (Displayed when app.status === 'Superseded') -->
+                <div id="drawerSupersededNoticeBox" class="hidden p-4 rounded-2xl bg-slate-100/90 border border-slate-300 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm shadow-2xs">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-slate-900 uppercase tracking-wide">Application Superseded</h4>
+                                <p class="text-[10px] text-slate-500 font-medium">Replaced by subsequent approved registration</p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-slate-200 text-slate-700 border border-slate-300 shadow-2xs">
+                            Archived / Superseded
+                        </span>
+                    </div>
+
+                    <p class="text-xs text-slate-600 bg-white p-3.5 rounded-xl border border-slate-200 leading-relaxed">
+                        This prior registration submission was superseded after the citizen re-submitted their registration and was subsequently approved. It is retained strictly for historical audit trail purposes and has been removed from active rejected tallies.
+                    </p>
+                </div>
+
+                <!-- 4. Staff Decision Action Buttons Grid (Displayed ONLY for pending/under review/rework applications) -->
+                <div id="drawerDecisionActionsBox" class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Staff Decision Actions</span>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <button id="btnApproveApp" onclick="handleApproveApplication()" class="py-2.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Approve</span>
+                        </button>
+
+                        <button id="btnReturnApp" onclick="openDecisionModal('return')" class="py-2.5 px-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span>Return</span>
+                        </button>
+
+                        <button id="btnRejectApp" onclick="openDecisionModal('reject')" class="py-2.5 px-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-xmark"></i>
+                            <span>Reject</span>
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -727,7 +909,7 @@ include '../../includes/sidebar.php';
                     <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Application Audit Trail</span>
                     <span class="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">System Logged</span>
                 </div>
-                <div class="relative pl-5 border-l-2 border-blue-100 space-y-4 ml-2">
+                <div id="drawerAuditTrailTimeline" class="relative pl-5 border-l-2 border-blue-100 space-y-4 ml-2">
                     <div class="relative">
                         <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#0f53d1] border-2 border-white ring-2 ring-blue-100"></span>
                         <p class="font-bold text-slate-800 text-xs">Application Received</p>
@@ -739,13 +921,23 @@ include '../../includes/sidebar.php';
 
         </div>
 
-    </div>
+        <!-- Modal Bottom Navigation (Back & Close Buttons) -->
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" onclick="closePendingDrawer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Verification Queue</span>
+            </button>
+            <button type="button" onclick="closePendingDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
+            </button>
+        </div>
 
-</main>
+    </div>
+</div>
 
 <!-- DECISION MODAL: RETURN FOR CORRECTION OR REJECT -->
-<div id="decisionModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+<div id="decisionModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
         <!-- Modal Header -->
         <div id="modalHeader" class="p-5 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -970,6 +1162,99 @@ function selectPendingApplication(rowElement) {
         notesBox.classList.add('hidden');
     }
 
+    // Status-Specific Panels & Action Control Switching
+    const actionsBox = document.getElementById('drawerDecisionActionsBox');
+    const rejectedBox = document.getElementById('drawerRejectedNoticeBox');
+    const approvedBox = document.getElementById('drawerApprovedNoticeBox');
+    const supersededBox = document.getElementById('drawerSupersededNoticeBox');
+
+    if (actionsBox) actionsBox.classList.add('hidden');
+    if (rejectedBox) rejectedBox.classList.add('hidden');
+    if (approvedBox) approvedBox.classList.add('hidden');
+    if (supersededBox) supersededBox.classList.add('hidden');
+
+    if (app.status === 'Rejected') {
+        // Application is rejected: Disable decision actions and show clean, official rejection summary
+        if (rejectedBox) {
+            rejectedBox.classList.remove('hidden');
+            const rejReason = app.rejection_reason || app.admin_action_notes || 'Application did not meet identity verification criteria.';
+            document.getElementById('drawerRejectionReasonText').textContent = rejReason;
+            document.getElementById('drawerRejectedByText').textContent = app.reviewer || app.reviewed_by || 'Admin';
+            document.getElementById('drawerRejectedAtText').textContent = app.reviewed_at || (app.date + ' ' + app.time);
+        }
+    } else if (app.status === 'Approved') {
+        // Application is approved: Hide decision buttons and show official credential panel
+        if (approvedBox) {
+            approvedBox.classList.remove('hidden');
+            document.getElementById('drawerApprovedCitizenId').textContent = app.citizen_id_number || 'CAL-2026-XXXXXX';
+            document.getElementById('drawerApprovedByText').textContent = app.reviewer || app.reviewed_by || 'Admin';
+            document.getElementById('drawerApprovedAtText').textContent = app.reviewed_at || (app.date + ' ' + app.time);
+        }
+    } else if (app.status === 'Superseded') {
+        // Application is superseded: Replaced by subsequent approved registration
+        if (supersededBox) {
+            supersededBox.classList.remove('hidden');
+        }
+    } else {
+        // Active queue: Pending Review, Under Review, or Returned for Correction
+        if (actionsBox) actionsBox.classList.remove('hidden');
+    }
+
+    // Dynamic Audit Trail Timeline Population
+    const timeline = document.getElementById('drawerAuditTrailTimeline');
+    if (timeline) {
+        let eventsHtml = `
+            <div class="relative">
+                <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#0f53d1] border-2 border-white ring-2 ring-blue-100"></span>
+                <p class="font-bold text-slate-800 text-xs">Application Received</p>
+                <p class="text-[10px] text-slate-400">Submitted by citizen via CivCentral Mobile App.</p>
+                <span class="text-[9px] font-medium text-slate-400">${app.date} at ${app.time}</span>
+            </div>
+        `;
+
+        const reviewerName = app.reviewer && app.reviewer !== 'Unassigned' ? app.reviewer : (app.reviewed_by || 'Admin');
+
+        if (app.status === 'Approved') {
+            eventsHtml += `
+                <div class="relative">
+                    <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-emerald-600 border-2 border-white ring-2 ring-emerald-100"></span>
+                    <p class="font-bold text-emerald-800 text-xs">Application Officially Approved</p>
+                    <p class="text-[10px] text-slate-500">Citizen verified and official Citizen ID issued by ${reviewerName}.</p>
+                    <span class="text-[9px] font-medium text-slate-400">${app.reviewed_at || 'Approved'}</span>
+                </div>
+            `;
+        } else if (app.status === 'Rejected') {
+            eventsHtml += `
+                <div class="relative">
+                    <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-rose-600 border-2 border-white ring-2 ring-rose-100"></span>
+                    <p class="font-bold text-rose-800 text-xs">Application Formally Rejected</p>
+                    <p class="text-[10px] text-slate-500">Reviewed by ${reviewerName}: "${app.rejection_reason || app.admin_action_notes || 'Discrepancy detected'}". Actions concluded.</p>
+                    <span class="text-[9px] font-medium text-slate-400">${app.reviewed_at || 'Rejected'}</span>
+                </div>
+            `;
+        } else if (app.status === 'Returned for Correction') {
+            eventsHtml += `
+                <div class="relative">
+                    <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-orange-500 border-2 border-white ring-2 ring-orange-100"></span>
+                    <p class="font-bold text-orange-800 text-xs">Returned for Correction</p>
+                    <p class="text-[10px] text-slate-500">Citizen requested by ${reviewerName} to update credential documents.</p>
+                    <span class="text-[9px] font-medium text-slate-400">${app.reviewed_at || 'Awaiting Correction'}</span>
+                </div>
+            `;
+        } else if (app.status === 'Superseded') {
+            eventsHtml += `
+                <div class="relative">
+                    <span class="absolute -left-[27px] top-0.5 w-3.5 h-3.5 rounded-full bg-slate-500 border-2 border-white ring-2 ring-slate-200"></span>
+                    <p class="font-bold text-slate-700 text-xs">Application Superseded</p>
+                    <p class="text-[10px] text-slate-500">Prior rejected attempt superseded after applicant re-submitted and was approved.</p>
+                    <span class="text-[9px] font-medium text-slate-400">Archived Record</span>
+                </div>
+            `;
+        }
+
+        timeline.innerHTML = eventsHtml;
+    }
+
     drawer.classList.remove('hidden');
     drawer.classList.add('flex');
 }
@@ -1062,6 +1347,18 @@ async function handleApproveApplication() {
             if (statusSpan) {
                 statusSpan.textContent = 'Approved';
                 statusSpan.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-600 border-emerald-200';
+            }
+
+            // Switch to Approved status panel and lock action controls
+            const actionsBox = document.getElementById('drawerDecisionActionsBox');
+            if (actionsBox) actionsBox.classList.add('hidden');
+
+            const approvedBox = document.getElementById('drawerApprovedNoticeBox');
+            if (approvedBox) {
+                approvedBox.classList.remove('hidden');
+                document.getElementById('drawerApprovedCitizenId').textContent = result.citizen_id_number;
+                document.getElementById('drawerApprovedByText').textContent = 'Admin';
+                document.getElementById('drawerApprovedAtText').textContent = result.reviewed_at || 'Just now';
             }
 
             // Update drawer elements if open
@@ -1235,6 +1532,38 @@ document.addEventListener('click', function(e) {
         } else if (!citizenData) {
             alert('Please select an applicant from the table to view their Citizen ID card.');
         }
+    }
+});
+
+// Modal dismiss listeners (Backdrop click and Escape key)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const decModal = document.getElementById('decisionModal');
+        if (decModal && !decModal.classList.contains('hidden')) {
+            closeDecisionModal();
+            return;
+        }
+        closePendingDrawer();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('pendingDetailDrawer');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closePendingDrawer();
+            }
+        });
+    }
+
+    const decModal = document.getElementById('decisionModal');
+    if (decModal) {
+        decModal.addEventListener('click', function(e) {
+            if (e.target === decModal) {
+                closeDecisionModal();
+            }
+        });
     }
 });
 </script>

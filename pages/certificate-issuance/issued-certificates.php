@@ -216,7 +216,7 @@ foreach ($dbIssued as $row) {
                     </tr>
                     <?php else: ?>
                     <?php foreach ($issuedCertificates as $c): ?>
-                    <tr class="issued-row hover:bg-slate-50 transition select-none">
+                    <tr class="issued-row hover:bg-blue-50/40 transition select-none cursor-pointer" onclick="openPrintPreview('<?php echo $c['ref_no']; ?>', '<?php echo htmlspecialchars(addslashes($c['requester'])); ?>', '<?php echo htmlspecialchars(addslashes($c['cert_type'])); ?>', '<?php echo htmlspecialchars(addslashes($c['purpose'])); ?>', '<?php echo $c['date_released']; ?>')">
                         <td class="py-3.5 px-4">
                             <div class="flex items-center gap-2.5">
                                 <span class="w-2 h-2 rounded-full bg-[#0f53d1]"></span>
@@ -227,11 +227,11 @@ foreach ($dbIssued as $row) {
                             </div>
                         </td>
                         <td class="py-3.5 px-3">
-                            <p class="font-bold text-slate-900 text-xs"><?php echo htmlspecialchars($c['cert_type']); ?></p>
+                            <p class="font-bold text-slate-900 text-xs hover:text-[#0f53d1] transition"><?php echo htmlspecialchars($c['cert_type']); ?></p>
                             <span class="text-[10px] text-slate-400 font-medium truncate max-w-xs block"><?php echo htmlspecialchars($c['purpose']); ?></span>
                         </td>
                         <td class="py-3.5 px-3">
-                            <p class="font-bold text-slate-900 text-xs"><?php echo htmlspecialchars($c['requester']); ?></p>
+                            <p class="font-bold text-slate-900 text-xs truncate max-w-xs"><?php echo htmlspecialchars($c['requester']); ?></p>
                             <span class="text-[10px] text-slate-400"><?php echo $c['citizen_id']; ?></span>
                         </td>
                         <td class="py-3.5 px-3 whitespace-nowrap">
@@ -247,13 +247,13 @@ foreach ($dbIssued as $row) {
                                 <?php echo $c['reprint_label']; ?>
                             </span>
                         </td>
-                        <td class="py-3.5 px-3 text-center whitespace-nowrap">
+                        <td class="py-3.5 px-3 text-center whitespace-nowrap" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-center gap-1.5">
-                                <button onclick="openPrintPreview('<?php echo $c['ref_no']; ?>', '<?php echo htmlspecialchars(addslashes($c['requester'])); ?>', '<?php echo htmlspecialchars(addslashes($c['cert_type'])); ?>', '<?php echo htmlspecialchars(addslashes($c['purpose'])); ?>', '<?php echo $c['date_released']; ?>')" class="px-3 py-1 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-[10px] rounded-lg shadow-2xs transition flex items-center gap-1 cursor-pointer">
+                                <button type="button" onclick="event.stopPropagation(); openPrintPreview('<?php echo $c['ref_no']; ?>', '<?php echo htmlspecialchars(addslashes($c['requester'])); ?>', '<?php echo htmlspecialchars(addslashes($c['cert_type'])); ?>', '<?php echo htmlspecialchars(addslashes($c['purpose'])); ?>', '<?php echo $c['date_released']; ?>')" class="px-3 py-1 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-[10px] rounded-lg shadow-2xs transition flex items-center gap-1 cursor-pointer">
                                     <i class="fa-solid fa-print"></i>
                                     <span>Print PDF</span>
                                 </button>
-                                <button onclick="logReprint('<?php echo $c['ref_no']; ?>', '<?php echo $c['req_id']; ?>')" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[10px] rounded-lg transition flex items-center gap-1 cursor-pointer" title="Log Duplicate Copy">
+                                <button type="button" onclick="event.stopPropagation(); logReprint('<?php echo $c['ref_no']; ?>', '<?php echo $c['req_id']; ?>')" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[10px] rounded-lg transition flex items-center gap-1 cursor-pointer" title="Log Duplicate Copy">
                                     <i class="fa-solid fa-rotate-right"></i>
                                     <span>Reprint</span>
                                 </button>
@@ -275,8 +275,16 @@ foreach ($dbIssued as $row) {
     <div class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-6 animate-in fade-in zoom-in-95 duration-200">
         
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider">Official Document Canvas</h3>
-            <button onclick="closePrintPreview()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closePrintPreview()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer text-xs" title="Back to Registry">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div>
+                    <h3 class="text-xs font-black text-slate-700 uppercase tracking-wider">Official Document Canvas</h3>
+                    <p class="text-[11px] text-slate-400 font-medium">Official municipal barangay clearance & certification preview</p>
+                </div>
+            </div>
+            <button onclick="closePrintPreview()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -325,14 +333,20 @@ foreach ($dbIssued as $row) {
             </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2.5 pt-2">
-            <button onclick="closePrintPreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
-                Close
+        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
+            <button onclick="closePrintPreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Registry</span>
             </button>
-            <button onclick="window.print()" class="px-5 py-2 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
-                <i class="fa-solid fa-print"></i>
-                <span>Print Document</span>
-            </button>
+            <div class="flex items-center gap-2">
+                <button onclick="closePrintPreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close
+                </button>
+                <button onclick="window.print()" class="px-5 py-2 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-print"></i>
+                    <span>Print Document</span>
+                </button>
+            </div>
         </div>
 
     </div>
@@ -391,6 +405,24 @@ function exportIssuedCSV() {
 
     alert('Exporting Issued Certificates Log to CSV...');
 }
+
+// Modal dismiss listeners (Backdrop click and Escape key)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closePrintPreview();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('printCertificateModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closePrintPreview();
+            }
+        });
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

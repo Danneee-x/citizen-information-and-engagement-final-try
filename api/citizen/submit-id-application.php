@@ -208,11 +208,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        $emergencyName = trim($data['emergency_contact_name'] ?? '');
+        $emergencyPhone = trim($data['emergency_contact_phone'] ?? '');
+        $emergencyRelation = trim($data['emergency_contact_relation'] ?? 'Next of Kin');
+        $signatureUrl = trim($data['signature_url'] ?? '');
+        $eSignatureName = trim($data['e_signature_name'] ?? '');
+        $signatureMode = trim($data['signature_mode'] ?? 'upload');
+
         $stmt = $pdo->prepare("
             INSERT INTO `id_issuance_applications` 
-            (`reference_no`, `citizen_user_id`, `id_category`, `id_title`, `application_type`, `first_name`, `middle_name`, `last_name`, `suffix`, `gender`, `birthdate`, `civil_status`, `contact_number`, `email`, `street_address`, `barangay`, `district`, `resident_since`, `issuing_bureau`, `claim_office`, `estimated_turnaround`, `primary_doc_name`, `primary_doc_url`, `photo_2x2_url`, `support_doc_name`, `support_doc_url`, `status`, `created_at`)
+            (`reference_no`, `citizen_user_id`, `id_category`, `id_title`, `application_type`, `first_name`, `middle_name`, `last_name`, `suffix`, `gender`, `birthdate`, `civil_status`, `contact_number`, `email`, `street_address`, `barangay`, `district`, `resident_since`, `issuing_bureau`, `claim_office`, `estimated_turnaround`, `primary_doc_name`, `primary_doc_url`, `photo_2x2_url`, `support_doc_name`, `support_doc_url`, `emergency_contact_name`, `emergency_contact_phone`, `emergency_contact_relation`, `signature_url`, `e_signature_name`, `signature_mode`, `status`, `created_at`)
             VALUES
-            (:ref_no, :uid, :cat, :title, :app_type, :first, :middle, :last, :suffix, :gender, :bday, :civil, :contact, :email, :street, :brgy, :dist, :res_since, :bureau, :claim_office, :turnaround, :doc_name, :doc_url, :photo_url, :sup_name, :sup_url, 'Pending Review', NOW())
+            (:ref_no, :uid, :cat, :title, :app_type, :first, :middle, :last, :suffix, :gender, :bday, :civil, :contact, :email, :street, :brgy, :dist, :res_since, :bureau, :claim_office, :turnaround, :doc_name, :doc_url, :photo_url, :sup_name, :sup_url, :em_name, :em_phone, :em_rel, :sig_url, :esig_name, :sig_mode, 'Pending Review', NOW())
         ");
 
         $stmt->execute([
@@ -242,6 +249,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':photo_url' => $data['photo_2x2_url'] ?? null,
             ':sup_name' => $data['support_doc_name'] ?? null,
             ':sup_url' => $data['support_doc_url'] ?? null,
+            ':em_name' => $emergencyName ?: null,
+            ':em_phone' => $emergencyPhone ?: null,
+            ':em_rel' => $emergencyRelation ?: null,
+            ':sig_url' => $signatureUrl ?: null,
+            ':esig_name' => $eSignatureName ?: null,
+            ':sig_mode' => $signatureMode ?: null,
         ]);
 
         $newId = (int)$pdo->lastInsertId();

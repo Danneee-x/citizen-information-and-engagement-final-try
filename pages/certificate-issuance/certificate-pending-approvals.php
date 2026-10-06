@@ -23,19 +23,34 @@ foreach ($dbPending as $row) {
     $cId = $row['citizen_user_id'] ? 'CTZ-2026-' . str_pad($row['citizen_user_id'], 4, '0', STR_PAD_LEFT) : 'CTZ-APP';
     $isWaived = $row['payment_status'] === 'Waived';
 
+    $docList = [];
+    if (!empty($row['uploaded_documents'])) {
+        $decoded = json_decode($row['uploaded_documents'], true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $d) {
+                $docList[] = is_array($d) ? ($d['name'] ?? 'Supporting Document') : (string)$d;
+            }
+        }
+    }
+
     $pendingApprovals[] = [
         'id' => $row['reference_no'],
         'citizen_id' => $cId,
         'requester' => $row['citizen_name'],
         'address' => $row['street_address'] . (!empty($row['barangay']) ? ', ' . $row['barangay'] : ''),
+        'contact' => $row['contact_number'] ?? '0917-000-0000',
         'cert_type' => $row['certificate_type'],
         'purpose' => $row['purpose'],
+        'purpose_details' => $row['purpose_details'] ?? '',
         'date_requested' => date('M j, Y • h:i A', strtotime($row['created_at'])),
         'civil_status' => $row['civil_status'] ?? 'Single',
         'resident_since' => $row['resident_since'] ?? '2015',
+        'fee_amount' => number_format((float)$row['fee_amount'], 2),
         'fees_status' => $isWaived ? "Waived ({$row['certificate_type']})" : "Paid (₱" . number_format((float)$row['fee_amount'], 2) . ")",
         'is_waived' => $isWaived,
-        'officer_recommendation' => !empty($row['verification_notes']) ? $row['verification_notes'] : "Verified by Civil Registry Intake ({$row['encoded_by']})"
+        'officer_recommendation' => !empty($row['verification_notes']) ? $row['verification_notes'] : "Verified by Civil Registry Intake (" . ($row['encoded_by'] ?? 'Citizen Mobile App') . ")",
+        'docs' => $docList,
+        'status' => $row['status']
     ];
 }
 ?>
@@ -195,14 +210,14 @@ foreach ($dbPending as $row) {
                     </tr>
                     <?php else: ?>
                     <?php foreach ($pendingApprovals as $p): ?>
-                    <tr class="pending-row hover:bg-slate-50 transition select-none">
+                    <tr class="pending-row hover:bg-blue-50/40 transition select-none cursor-pointer" onclick="openCertificateReviewModal('<?php echo $p['id']; ?>')">
                         <td class="py-3.5 px-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-xs font-bold shrink-0">
                                     <i class="fa-solid fa-hourglass-half"></i>
                                 </div>
                                 <div class="min-w-0">
-                                    <p class="font-bold text-slate-900 text-xs truncate"><?php echo htmlspecialchars($p['requester']); ?></p>
+                                    <p class="font-bold text-slate-900 text-xs truncate hover:text-[#0f53d1] transition"><?php echo htmlspecialchars($p['requester']); ?></p>
                                     <div class="flex items-center gap-1.5 mt-0.5">
                                         <span class="text-[10px] font-bold text-[#0f53d1]"><?php echo $p['id']; ?></span>
                                         <span class="text-[9px] text-slate-400"><?php echo $p['citizen_id']; ?></span>
@@ -211,7 +226,7 @@ foreach ($dbPending as $row) {
                             </div>
                         </td>
                         <td class="py-3.5 px-3">
-                            <p class="font-bold text-slate-900 text-xs"><?php echo htmlspecialchars($p['cert_type']); ?></p>
+                            <p class="font-bold text-slate-900 text-xs hover:text-[#0f53d1] transition"><?php echo htmlspecialchars($p['cert_type']); ?></p>
                             <span class="text-[10px] text-slate-400 font-medium block truncate max-w-xs"><?php echo htmlspecialchars($p['address']); ?></span>
                         </td>
                         <td class="py-3.5 px-3 text-slate-700 font-medium">
@@ -225,15 +240,15 @@ foreach ($dbPending as $row) {
                         <td class="py-3.5 px-3">
                             <span class="text-slate-600 text-[11px] block max-w-xs truncate"><?php echo htmlspecialchars($p['officer_recommendation']); ?></span>
                         </td>
-                        <td class="py-3.5 px-3 text-center whitespace-nowrap">
+                        <td class="py-3.5 px-3 text-center whitespace-nowrap" onclick="event.stopPropagation()">
                             <div class="flex items-center justify-center gap-1.5">
-                                <button onclick="previewCertificateRecord('<?php echo $p['id']; ?>', '<?php echo htmlspecialchars(addslashes($p['requester'])); ?>', '<?php echo htmlspecialchars(addslashes($p['cert_type'])); ?>', '<?php echo htmlspecialchars(addslashes($p['purpose'])); ?>')" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[10px] rounded-lg transition">
+                                <button type="button" onclick="event.stopPropagation(); openCertificateReviewModal('<?php echo $p['id']; ?>')" class="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[10px] rounded-lg transition cursor-pointer" title="View Document Review Modal">
                                     <i class="fa-regular fa-eye mr-1"></i> Preview
                                 </button>
-                                <button onclick="approveRequestSingle('<?php echo $p['id']; ?>')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg shadow-2xs transition">
+                                <button type="button" onclick="event.stopPropagation(); approveRequestSingle('<?php echo $p['id']; ?>')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg shadow-2xs transition cursor-pointer">
                                     <i class="fa-solid fa-check mr-1"></i> Approve
                                 </button>
-                                <button onclick="rejectRequestSingle('<?php echo $p['id']; ?>')" class="px-2.5 py-1 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-[10px] rounded-lg transition">
+                                <button type="button" onclick="event.stopPropagation(); rejectRequestSingle('<?php echo $p['id']; ?>')" class="px-2.5 py-1 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-[10px] rounded-lg transition cursor-pointer">
                                     <i class="fa-solid fa-xmark mr-1"></i> Reject
                                 </button>
                             </div>
@@ -250,82 +265,209 @@ foreach ($dbPending as $row) {
 
 <!-- PRINTABLE / PREVIEW CERTIFICATE CANVAS MODAL -->
 <div id="previewCertificateModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl border border-slate-200 space-y-6">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
-                <h3 class="text-xs font-black text-slate-500 uppercase tracking-wider">Document Review Canvas (Pending Approval)</h3>
-            </div>
-            <button onclick="closeCertificatePreview()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <!-- Official Barangay Letterhead Template Canvas -->
-        <div class="p-8 border-2 border-slate-300 rounded-xl space-y-6 bg-white text-slate-900 font-serif">
-            <div class="text-center space-y-0.5 border-b-2 border-slate-900 pb-4">
-                <p class="text-xs tracking-widest uppercase font-sans text-slate-500">Republic of the Philippines</p>
-                <p class="text-xs tracking-wider uppercase font-sans font-bold text-slate-700">City of Caloocan • District 1</p>
-                <h2 class="text-lg font-black tracking-wide uppercase font-sans text-slate-900">Office of the Barangay Captain</h2>
-            </div>
-
-            <div class="text-center pt-2">
-                <h1 id="previewCertTitle" class="text-2xl font-black uppercase tracking-wider border-b border-slate-400 inline-block pb-1">BARANGAY CLEARANCE</h1>
-            </div>
-
-            <div class="space-y-4 text-sm leading-relaxed text-justify pt-4">
-                <p class="font-sans font-bold text-xs uppercase tracking-wider text-slate-500">TO WHOM IT MAY CONCERN:</p>
-                <p>
-                    This is to officially certify that <strong id="previewCitizenName" class="underline font-black font-sans uppercase">CITIZEN NAME</strong>, of legal age, is a bona fide resident of this Barangay with good moral standing in the community.
-                </p>
-                <p>
-                    Records on file in this office show that the above-named person has <strong>NO DEROGATORY RECORD</strong> or pending administrative case filed against them as of this date.
-                </p>
-                <p>
-                    This certification is being processed upon the official request of the interested party for <strong id="previewPurpose" class="font-bold">Employment Purposes</strong>.
-                </p>
-                <p class="text-xs text-slate-500 pt-4">
-                    Document reference generated at the Barangay Hall, City of Caloocan, Metro Manila.
-                </p>
-            </div>
-
-            <div class="pt-8 flex items-end justify-between border-t border-slate-200">
-                <div class="text-center">
-                    <div class="w-16 h-16 border border-slate-300 rounded-lg flex items-center justify-center mx-auto text-slate-300 text-xs font-sans">
-                        <i class="fa-solid fa-qrcode text-2xl"></i>
+        <!-- Modal Top Bar -->
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeCertificatePreview()" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer text-xs" title="Back to Pending Queue">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Certificate Review & Verification</h3>
+                        <span id="previewRefBadge" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">CAL-DOC-2026-0000</span>
                     </div>
-                    <span id="previewControlNo" class="text-[9px] font-mono text-slate-500 block mt-1">REQ-2026-0000</span>
+                    <p class="text-[11px] text-slate-400 font-medium">Verify citizen records and document preview prior to official authorization</p>
                 </div>
+            </div>
 
-                <div class="text-center">
-                    <div class="w-44 border-b border-slate-900 mx-auto mb-1"></div>
-                    <p class="font-sans font-bold text-xs">HON. BARANGAY CAPTAIN</p>
-                    <p class="font-sans text-[10px] text-slate-500">Punong Barangay</p>
-                </div>
+            <div class="flex items-center gap-2.5">
+                <span class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span>Pending Final Approval</span>
+                </span>
+                <button type="button" onclick="closeCertificatePreview()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
         </div>
 
-        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
-            <span class="text-xs text-amber-600 font-semibold flex items-center gap-1.5">
-                <i class="fa-solid fa-circle-exclamation text-xs"></i> Ready for administrative decision
-            </span>
+        <!-- Scrollable Modal Content -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5 bg-slate-50/50">
+            
+            <!-- Applicant & Verification Dossier Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-blue-50 text-[#0f53d1] flex items-center justify-center text-xs">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                        <h4 class="text-xs font-black text-slate-900 uppercase tracking-wider">Applicant & Request Dossier</h4>
+                    </div>
+                    <span id="previewCitizenIdBadge" class="text-xs text-[#0f53d1] font-mono font-bold bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">CTZ-2026-0000</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Applicant Legal Name</span>
+                        <p id="previewApplicantName" class="text-sm font-black text-slate-900">Juan Dela Cruz</p>
+                        <p id="previewApplicantAddress" class="text-xs text-slate-500 font-medium">Barangay Commonwealth, Quezon City</p>
+                    </div>
+
+                    <div class="space-y-1 md:text-right">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Application Date & Contact</span>
+                        <p id="previewDateRequested" class="text-xs font-bold text-slate-800">Oct 06, 2026 • 10:30 AM</p>
+                        <p id="previewApplicantContact" class="text-xs text-slate-500 font-medium font-mono">0917-000-0000</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 text-xs">
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Certificate</span>
+                        <span id="previewCertTypeInfo" class="font-bold text-slate-800 text-xs truncate block">Barangay Clearance</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Purpose</span>
+                        <span id="previewPurposeInfo" class="font-bold text-slate-800 text-xs truncate block">Employment</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Civil Status</span>
+                        <span id="previewCivilStatusInfo" class="font-bold text-slate-800 text-xs truncate block">Single</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Resident Since</span>
+                        <span id="previewResidentSinceInfo" class="font-bold text-slate-800 text-xs truncate block">2015</span>
+                    </div>
+                </div>
+
+                <!-- Payment Status & Officer Recommendation Note -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/60 flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Payment / Fee:</span>
+                        <span id="previewFeeStatusBadge" class="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-200">
+                            Paid (₱75.00)
+                        </span>
+                    </div>
+                    <div class="p-3 bg-amber-50/50 rounded-xl border border-amber-200/60 flex items-center gap-2">
+                        <i class="fa-solid fa-shield-halved text-amber-600 text-xs shrink-0"></i>
+                        <div class="min-w-0 text-xs">
+                            <span class="text-[10px] font-bold text-amber-700 uppercase block">Intake Verification Note:</span>
+                            <span id="previewOfficerNote" class="text-slate-700 font-medium truncate block text-[11px]">Verified by Civil Registry Intake</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attached Supporting Documents (if any) -->
+                <div id="previewDocsContainer" class="pt-1">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Attached Supporting Documents</span>
+                    <div id="previewDocsList" class="flex flex-wrap gap-2">
+                        <span class="text-xs text-slate-400 italic">No attachments required</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Official Barangay Letterhead Template Canvas -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-file-lines text-amber-600"></i>
+                        <span>Official Document Authorization Preview</span>
+                    </span>
+                    <span class="text-[10px] font-semibold text-slate-400">Live preview prior to release</span>
+                </div>
+
+                <div class="p-6 md:p-8 border-2 border-slate-300 rounded-xl space-y-5 bg-white text-slate-900 font-serif shadow-xs">
+                    <div class="text-center space-y-0.5 border-b-2 border-slate-900 pb-4">
+                        <p class="text-[11px] tracking-widest uppercase font-sans text-slate-500">Republic of the Philippines</p>
+                        <p class="text-xs tracking-wider uppercase font-sans font-bold text-slate-700">City of Caloocan • District 1</p>
+                        <h2 class="text-base md:text-lg font-black tracking-wide uppercase font-sans text-slate-900">Office of the Punong Barangay</h2>
+                    </div>
+
+                    <div class="text-center pt-2">
+                        <h1 id="previewCertTitle" class="text-xl md:text-2xl font-black uppercase tracking-wider border-b-2 border-slate-900 inline-block pb-1 font-sans">BARANGAY CLEARANCE</h1>
+                    </div>
+
+                    <div class="space-y-4 text-xs md:text-sm leading-relaxed text-justify pt-3">
+                        <p class="font-sans font-bold text-xs uppercase tracking-wider text-slate-600">TO WHOM IT MAY CONCERN:</p>
+                        <p id="previewCertParagraph1">
+                            This is to officially certify that <strong id="previewCitizenName" class="underline font-black font-sans uppercase">CITIZEN NAME</strong>, of legal age, <span id="previewCivilStatusText">Single</span>, is a bona fide resident of this Barangay residing at <strong id="previewAddressText">0025 Kasunduan Street</strong> with good moral standing in the community.
+                        </p>
+                        <p id="previewCertParagraph2">
+                            Records on file in this office show that the above-named person has <strong>NO DEROGATORY RECORD</strong> or pending administrative case filed against them as of this date.
+                        </p>
+                        <p id="previewCertParagraph3">
+                            This certification is being processed upon the official request of the interested party for <strong id="previewPurpose" class="font-bold">Scholarship & Educational Assistance</strong> purposes.
+                        </p>
+                        <p class="text-[11px] text-slate-500 pt-2 font-sans">
+                            Given and signed at the Barangay Hall, City of Caloocan, Metro Manila, Philippines.
+                        </p>
+                    </div>
+
+                    <div class="pt-6 flex items-end justify-between border-t border-slate-200">
+                        <div class="text-center">
+                            <div class="w-14 h-14 border border-slate-300 rounded-lg flex items-center justify-center mx-auto text-slate-400 text-xs font-sans bg-slate-50">
+                                <i class="fa-solid fa-qrcode text-2xl"></i>
+                            </div>
+                            <span id="previewControlNo" class="text-[9px] font-mono font-bold text-slate-500 block mt-1">REQ-2026-0000</span>
+                        </div>
+
+                        <div class="text-center">
+                            <div class="w-48 border-b-2 border-slate-900 mx-auto mb-1"></div>
+                            <p class="font-sans font-black text-xs uppercase text-slate-900">HON. BARANGAY CAPTAIN</p>
+                            <p class="font-sans text-[10px] text-slate-500 font-medium">Punong Barangay • Caloocan City</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decision Rationale / Actions Card -->
+            <div class="bg-amber-50/60 p-4 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs shrink-0 shadow-xs">
+                        <i class="fa-solid fa-gavel"></i>
+                    </div>
+                    <div>
+                        <h5 class="text-xs font-bold text-amber-950">Administrative Authorization Decision</h5>
+                        <p class="text-[11px] text-amber-800">Approving will move this request to the Ready for Release queue for official stamp and dispatch.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="rejectFromPreview()" class="px-3.5 py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                        <span>Reject</span>
+                    </button>
+                    <button type="button" id="previewApproveBtn" onclick="approveFromPreview()" class="px-4.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-check text-xs"></i>
+                        <span>Approve Document</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Modal Bottom Navigation Footer -->
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Queue</span>
+            </button>
             <div class="flex items-center gap-2">
-                <button onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
-                    Close Review
-                </button>
-                <button id="previewApproveBtn" onclick="approveFromPreview()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-check"></i>
-                    <span>Approve Document</span>
+                <button type="button" onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close
                 </button>
             </div>
         </div>
+
     </div>
 </div>
 
 </main>
 
 <script>
+const pendingApprovalsData = <?php echo json_encode(array_column($pendingApprovals, null, 'id')); ?>;
+let activePendingId = null;
+
 function filterPendingTable() {
     const searchVal = document.getElementById('pendingSearchInput').value.toLowerCase();
     const rows = document.querySelectorAll('.pending-row');
@@ -336,8 +478,132 @@ function filterPendingTable() {
     });
 }
 
+function openCertificateReviewModal(refId) {
+    const item = pendingApprovalsData[refId];
+    if (!item) {
+        console.error('Pending request record not found:', refId);
+        return;
+    }
+
+    activePendingId = refId;
+
+    // Header info
+    const refBadge = document.getElementById('previewRefBadge');
+    if (refBadge) refBadge.textContent = item.id;
+    const controlNo = document.getElementById('previewControlNo');
+    if (controlNo) controlNo.textContent = item.id;
+
+    // Dossier fields
+    const appName = document.getElementById('previewApplicantName');
+    if (appName) appName.textContent = item.requester;
+    const cIdBadge = document.getElementById('previewCitizenIdBadge');
+    if (cIdBadge) cIdBadge.textContent = item.citizen_id;
+    const appAddr = document.getElementById('previewApplicantAddress');
+    if (appAddr) appAddr.textContent = item.address;
+    const appContact = document.getElementById('previewApplicantContact');
+    if (appContact) appContact.textContent = item.contact || 'Not provided';
+    const dateReq = document.getElementById('previewDateRequested');
+    if (dateReq) dateReq.textContent = item.date_requested;
+    const cTypeInfo = document.getElementById('previewCertTypeInfo');
+    if (cTypeInfo) cTypeInfo.textContent = item.cert_type;
+    const purpInfo = document.getElementById('previewPurposeInfo');
+    if (purpInfo) purpInfo.textContent = item.purpose;
+    const civStatusInfo = document.getElementById('previewCivilStatusInfo');
+    if (civStatusInfo) civStatusInfo.textContent = item.civil_status || 'Single';
+    const resSinceInfo = document.getElementById('previewResidentSinceInfo');
+    if (resSinceInfo) resSinceInfo.textContent = item.resident_since || '2015';
+    const offNote = document.getElementById('previewOfficerNote');
+    if (offNote) offNote.textContent = item.officer_recommendation;
+
+    // Fee badge
+    const feeBadge = document.getElementById('previewFeeStatusBadge');
+    if (feeBadge) {
+        feeBadge.textContent = item.fees_status;
+        if (item.is_waived) {
+            feeBadge.className = "px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-purple-50 text-purple-600 border border-purple-200";
+        } else {
+            feeBadge.className = "px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-50 text-emerald-600 border border-emerald-200";
+        }
+    }
+
+    // Docs
+    const docsContainer = document.getElementById('previewDocsList');
+    if (docsContainer) {
+        if (item.docs && item.docs.length > 0) {
+            docsContainer.innerHTML = item.docs.map(d => `
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
+                    <i class="fa-solid fa-file-circle-check text-[10px]"></i>
+                    <span>${escapeHtml(d)}</span>
+                </span>
+            `).join('');
+        } else {
+            docsContainer.innerHTML = `<span class="text-xs text-slate-400 italic">No attachments required</span>`;
+        }
+    }
+
+    // Document Canvas Preview
+    const certTitle = document.getElementById('previewCertTitle');
+    if (certTitle) certTitle.textContent = item.cert_type.toUpperCase();
+    const citName = document.getElementById('previewCitizenName');
+    if (citName) citName.textContent = item.requester.toUpperCase();
+    const civStatusText = document.getElementById('previewCivilStatusText');
+    if (civStatusText) civStatusText.textContent = item.civil_status || 'Single';
+    const addrText = document.getElementById('previewAddressText');
+    if (addrText) addrText.textContent = item.address;
+    const purpText = document.getElementById('previewPurpose');
+    if (purpText) purpText.textContent = item.purpose;
+
+    // Tailor certificate body based on certificate type
+    const cType = item.cert_type.toLowerCase();
+    const p1 = document.getElementById('previewCertParagraph1');
+    const p2 = document.getElementById('previewCertParagraph2');
+    const p3 = document.getElementById('previewCertParagraph3');
+
+    if (p1 && p2 && p3) {
+        if (cType.includes('indigency')) {
+            p1.innerHTML = `This is to officially certify that <strong class="underline font-black font-sans uppercase">${escapeHtml(item.requester)}</strong>, of legal age, <span>${escapeHtml(item.civil_status || 'Single')}</span>, is a bona fide resident of this Barangay residing at <strong>${escapeHtml(item.address)}</strong>.`;
+            p2.innerHTML = `Further certified that the above-named individual belongs to an <strong>INDIGENT FAMILY</strong> in this community with low income, and is hereby recommended for government, educational, or medical assistance in accordance with RA 11261 / local welfare guidelines.`;
+            p3.innerHTML = `This certification is issued upon the official request of the interested party for <strong class="font-bold">${escapeHtml(item.purpose)}</strong> purposes.`;
+        } else if (cType.includes('residency')) {
+            p1.innerHTML = `This is to officially certify that <strong class="underline font-black font-sans uppercase">${escapeHtml(item.requester)}</strong>, of legal age, <span>${escapeHtml(item.civil_status || 'Single')}</span>, has been a verified resident of this Barangay since <strong>${escapeHtml(item.resident_since || '2015')}</strong>, presently residing at <strong>${escapeHtml(item.address)}</strong>.`;
+            p2.innerHTML = `Records confirm continuous bona fide residency in this community and that the individual is known to be of good moral character.`;
+            p3.innerHTML = `Issued upon request of the above-named resident for <strong class="font-bold">${escapeHtml(item.purpose)}</strong> purposes.`;
+        } else {
+            p1.innerHTML = `This is to officially certify that <strong class="underline font-black font-sans uppercase">${escapeHtml(item.requester)}</strong>, of legal age, <span>${escapeHtml(item.civil_status || 'Single')}</span>, is a bona fide resident of this Barangay residing at <strong>${escapeHtml(item.address)}</strong> with good moral standing in the community.`;
+            p2.innerHTML = `Records on file in this office show that the above-named person has <strong>NO DEROGATORY RECORD</strong> or pending administrative case filed against them as of this date.`;
+            p3.innerHTML = `This certification is being processed upon the official request of the interested party for <strong class="font-bold">${escapeHtml(item.purpose)}</strong> purposes.`;
+        }
+    }
+
+    const modal = document.getElementById('previewCertificateModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeCertificatePreview() {
+    activePendingId = null;
+    const modal = document.getElementById('previewCertificateModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function approveFromPreview() {
+    if (!activePendingId) return;
+    approveRequestSingle(activePendingId);
+}
+
+function rejectFromPreview() {
+    if (!activePendingId) return;
+    rejectRequestSingle(activePendingId);
+}
+
 function previewCertificateRecord(id, name, type, purpose) {
-    alert(`OFFICIAL DOCUMENT REVIEW\n\nReference: ${id}\nApplicant: ${name}\nDocument: ${type}\nPurpose: ${purpose}\n\nStatus: Pending Final Barangay Signature`);
+    openCertificateReviewModal(id);
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/[&<>"']/g, function(m) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m];
+    });
 }
 
 async function approveRequestSingle(refId) {
@@ -384,17 +650,52 @@ async function rejectRequestSingle(refId) {
 }
 
 async function bulkApproveQueue() {
-    const rows = document.querySelectorAll('.pending-row');
-    if (!rows || rows.length === 0) {
+    const ids = Object.keys(pendingApprovalsData);
+    if (!ids || ids.length === 0) {
         alert('No pending requests to approve.');
         return;
     }
 
-    if (!confirm(`Approve all ${rows.length} pending requests in queue?`)) return;
+    if (!confirm(`Are you sure you want to approve all ${ids.length} pending requests in queue?`)) return;
 
-    alert('Bulk approval processing completed. Queue refreshed.');
+    let successCount = 0;
+    for (const refId of ids) {
+        try {
+            const res = await fetch('../../api/admin/certificate-actions.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ action: 'approve', reference_no: refId })
+            });
+            const data = await res.json();
+            if (data && data.status === 'success') {
+                successCount++;
+            }
+        } catch (e) {
+            console.error('Error approving', refId, e);
+        }
+    }
+
+    alert(`Bulk approval complete. ${successCount} of ${ids.length} requests approved.`);
     window.location.reload();
 }
+
+// Modal dismiss listeners (Backdrop click and Escape key)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeCertificatePreview();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('previewCertificateModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeCertificatePreview();
+            }
+        });
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

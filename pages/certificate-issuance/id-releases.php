@@ -125,10 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Compute Dynamic Counters
-$readyCount = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` IN ('Ready for Release', 'Approved')")->fetchColumn();
+$readyCount = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` = 'Ready for Release'")->fetchColumn();
 $claimedToday = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` = 'Claimed' AND DATE(`released_at`) = CURDATE()")->fetchColumn();
 $totalClaimed = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` = 'Claimed'")->fetchColumn();
-$totalInPipeline = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications`")->fetchColumn();
+$totalInPipeline = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` IN ('Ready for Release', 'Claimed')")->fetchColumn();
 
 // Query Filters
 $activeTab = $_GET['tab'] ?? 'ready'; // ready | claimed | all
@@ -144,9 +144,13 @@ $sql = "SELECT * FROM `id_issuance_applications` WHERE 1=1";
 $params = [];
 
 if ($activeTab === 'ready') {
-    $sql .= " AND `status` IN ('Ready for Release', 'Approved')";
+    // Only cards physically ready for citizen handover
+    $sql .= " AND `status` = 'Ready for Release'";
 } elseif ($activeTab === 'claimed') {
     $sql .= " AND `status` = 'Claimed'";
+} else {
+    // Desk records: only applications that have arrived at the release counter
+    $sql .= " AND `status` IN ('Ready for Release', 'Claimed')";
 }
 
 if (!empty($searchQuery)) {
@@ -159,10 +163,18 @@ if (!empty($searchQuery)) {
     $params[':q5'] = $likeTerm;
 }
 
-$sql .= " ORDER BY CASE WHEN `status` IN ('Ready for Release', 'Approved') THEN 0 ELSE 1 END, `id` DESC";
+$sql .= " ORDER BY CASE WHEN `status` = 'Ready for Release' THEN 0 ELSE 1 END, `id` DESC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $releaseList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Check if search matched an application that is still in review or printing queue (Approved / Pending)
+$searchedPipelineApp = null;
+if (!empty($searchQuery) && empty($releaseList)) {
+    $checkStmt = $pdo->prepare("SELECT * FROM `id_issuance_applications` WHERE (`reference_no` = :ref OR `reference_no` LIKE :q1) LIMIT 1");
+    $checkStmt->execute([':ref' => $searchQuery, ':q1' => "%{$searchQuery}%"]);
+    $searchedPipelineApp = $checkStmt->fetch(PDO::FETCH_ASSOC);
+}
 
 include '../../includes/header.php';
 include '../../includes/sidebar.php';
@@ -377,17 +389,34 @@ include '../../includes/sidebar.php';
                     <?php if (empty($releaseList)): ?>
                     <tr>
                         <td colspan="7" class="text-center py-12 text-slate-400 font-medium">
+                            <?php if (!empty($searchedPipelineApp)): ?>
+                            <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center text-lg mb-2 border border-amber-200">
+                                <i class="fa-solid fa-print"></i>
+                            </div>
+                            <div class="space-y-1.5">
+                                <p class="font-bold text-slate-800 text-sm">Application Ref: <strong><?php echo htmlspecialchars($searchedPipelineApp['reference_no']); ?></strong></p>
+                                <p class="text-xs text-slate-600">Current Status: <span class="px-2 py-0.5 rounded-full font-black text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200"><?php echo htmlspecialchars($searchedPipelineApp['status']); ?></span></p>
+                                <p class="text-xs text-slate-500 max-w-md mx-auto">This ID card is still in the card printing / evaluation queue. It will only appear on the Release Desk once printed and marked as <strong>Ready for Release</strong>.</p>
+                                <div class="pt-2">
+                                    <a href="id-issuance.php?search=<?php echo urlencode($searchedPipelineApp['reference_no']); ?>" class="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition">
+                                        <i class="fa-solid fa-id-card"></i>
+                                        <span>Open in ID Issuance Queue &rarr;</span>
+                                    </a>
+                                </div>
+                            </div>
+                            <?php else: ?>
                             <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 mx-auto flex items-center justify-center text-lg mb-2">
                                 <i class="fa-solid fa-box-open"></i>
                             </div>
                             <span>No identification cards found in this queue.</span>
+                            <?php endif; ?>
                         </td>
                     </tr>
                     <?php else: ?>
                     <?php foreach ($releaseList as $app): 
                         $fullName = trim("{$app['first_name']} {$app['middle_name']} {$app['last_name']} {$app['suffix']}");
-                        $isReady = in_array($app['status'], ['Ready for Release', 'Approved']);
-                        $isClaimed = $app['status'] === 'Claimed';
+                        $isReady = ($app['status'] === 'Ready for Release');
+                        $isClaimed = ($app['status'] === 'Claimed');
                     ?>
                     <tr class="hover:bg-slate-50/70 transition <?php echo ($targetRef && $app['reference_no'] === $targetRef) ? 'bg-amber-50/60' : ''; ?>">
                         <!-- Ref No with Barcode indicator -->

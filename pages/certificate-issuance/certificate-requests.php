@@ -206,11 +206,8 @@ foreach ($dbRequests as $row) {
 
     </div>
 
-    <!-- Main Grid Layout (Table Container + Right Side Drawer) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-        <!-- Left Table Column -->
-        <div id="requestTableContainer" class="lg:col-span-12 space-y-4 transition-all duration-300">
+    <!-- Main Table Container -->
+    <div id="requestTableContainer" class="w-full space-y-4">
 
             <!-- Search & Multi-Filter Card -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
@@ -331,90 +328,132 @@ foreach ($dbRequests as $row) {
                         </tbody>
                     </table>
                 </div>
+    </div>
+
+</main>
+
+<!-- ============================================================================== -->
+<!-- CERTIFICATE REQUEST DETAILS & INSPECTOR MODAL                                  -->
+<!-- ============================================================================== -->
+<div id="requestDetailsDrawer" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        
+        <!-- Modal Header with Back Button, Ref ID, Status, Close Button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeRequestDrawer()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Certificate Requests Queue">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-certificate"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Certificate Request</h3>
+                        <span id="drawerReqId" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">CAL-DOC-2026-0000</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Municipal Document Application Inspector</p>
+                </div>
             </div>
 
-        </div>
-
-        <!-- Right Side Inspector Drawer: Request Details & Attached Documents -->
-        <div id="requestDetailsDrawer" class="hidden lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-5 sticky top-6">
-            
-            <!-- Drawer Header -->
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center gap-2">
-                    <span id="drawerReqId" class="text-xs font-bold text-[#0f53d1]">CAL-DOC-2026-0000</span>
-                    <span id="drawerReqStatus" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-200">Pending</span>
-                </div>
-                <button onclick="closeRequestDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+            <div class="flex items-center gap-2.5">
+                <span id="drawerReqStatus" class="px-2.5 py-1 text-[10px] font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-200">Pending</span>
+                <button type="button" onclick="closeRequestDrawer()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+        </div>
 
-            <!-- Requester Details -->
-            <div class="space-y-3">
-                <div>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Requester Profile</span>
-                    <h3 id="drawerRequesterName" class="text-sm font-black text-slate-900 leading-snug">Danny Espelita Jr</h3>
-                    <p id="drawerCitizenId" class="text-xs text-[#0f53d1] font-bold">CTZ-2026-0001</p>
-                    <p id="drawerRequesterAddress" class="text-xs text-slate-500 font-medium mt-1">Barangay 171, Caloocan City</p>
+        <!-- Scrollable Modal Body -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            
+            <!-- Requester Details Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-user text-[#0f53d1]"></i>
+                    <span>Requester Profile</span>
+                </span>
+                
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 id="drawerRequesterName" class="text-base font-black text-slate-900 leading-snug">Danny Espelita Jr</h3>
+                        <p id="drawerRequesterAddress" class="text-xs text-slate-500 font-medium mt-0.5">Barangay 171, Caloocan City</p>
+                    </div>
+                    <span id="drawerCitizenId" class="text-xs text-[#0f53d1] font-mono font-bold bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">CTZ-2026-0001</span>
                 </div>
 
-                <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-slate-400 font-medium">Requested Certificate</span>
-                        <span id="drawerCertType" class="font-bold text-slate-800">Barangay Clearance</span>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Requested Certificate</span>
+                        <span id="drawerCertType" class="font-bold text-slate-800 text-xs">Barangay Clearance</span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-slate-400 font-medium">Purpose</span>
-                        <span id="drawerPurpose" class="font-bold text-slate-800 truncate max-w-[170px]">Employment</span>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Purpose of Request</span>
+                        <span id="drawerPurpose" class="font-bold text-slate-800 text-xs truncate block">Employment</span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-slate-400 font-medium">Fee / Amount</span>
-                        <span id="drawerFee" class="font-bold text-emerald-600">₱50.00</span>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Official Fee</span>
+                        <span id="drawerFee" class="font-bold text-emerald-600 text-xs">₱50.00</span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-slate-400 font-medium">Payment Status</span>
-                        <span id="drawerPaymentStatus" class="font-bold text-slate-800">Pending</span>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Payment Status</span>
+                        <span id="drawerPaymentStatus" class="font-bold text-slate-800 text-xs">Pending</span>
                     </div>
-                    <div class="flex items-center justify-between text-[11px]">
-                        <span class="text-slate-400 font-medium">Contact Phone</span>
-                        <span id="drawerContact" class="font-bold text-slate-800">09171234567</span>
-                    </div>
+                </div>
+
+                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                    <span class="text-slate-400 block text-[10px] font-bold uppercase">Contact Phone</span>
+                    <span id="drawerContact" class="font-bold text-slate-800">09171234567</span>
                 </div>
             </div>
 
             <!-- Uploaded Supporting Documents Section -->
-            <div class="space-y-3 border-t border-slate-100 pt-3">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Documents</span>
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <i class="fa-solid fa-paperclip text-slate-500"></i>
+                    <span>Attached Supporting Documents</span>
+                </span>
                 <div id="drawerDocsList" class="space-y-2">
                     <span class="text-xs text-slate-400 italic">No attachments provided</span>
                 </div>
             </div>
 
             <!-- Quick Action Buttons -->
-            <div class="space-y-2 border-t border-slate-100 pt-4">
-                <div class="flex items-center gap-2">
+            <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Staff Processing Actions</span>
+                <div class="flex items-center gap-2.5">
                     <button type="button" onclick="actionFromDrawer('approve')" class="flex-1 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-check text-xs"></i>
-                        <span>Approve</span>
+                        <span>Approve Request</span>
                     </button>
 
                     <button type="button" onclick="actionFromDrawer('release')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-stamp text-xs"></i>
                         <span>Issue Certificate</span>
                     </button>
-                </div>
 
-                <button type="button" onclick="actionFromDrawer('reject')" class="w-full py-2 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-xmark text-xs"></i>
-                    <span>Reject Request</span>
-                </button>
+                    <button type="button" onclick="actionFromDrawer('reject')" class="px-4 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-xmark text-xs"></i>
+                        <span>Reject</span>
+                    </button>
+                </div>
             </div>
 
         </div>
 
-    </div>
+        <!-- Modal Bottom Navigation (Back & Close Buttons) -->
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" onclick="closeRequestDrawer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Requests Queue</span>
+            </button>
+            <button type="button" onclick="closeRequestDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
+            </button>
+        </div>
 
-</main>
+    </div>
+</div>
 
 <!-- NEW REQUEST ENCODING MODAL (Connected to Backend Database) -->
 <div id="newRequestModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -567,7 +606,6 @@ function selectRequestRow(rowElement, refId) {
 
     if (drawer) {
         drawer.classList.remove('hidden');
-        tableContainer.className = "lg:col-span-8 space-y-4 transition-all duration-300";
     }
 }
 
@@ -575,9 +613,7 @@ function closeRequestDrawer() {
     activeRequestId = null;
     document.querySelectorAll('.request-row').forEach(r => r.classList.remove('bg-blue-50/40'));
     const drawer = document.getElementById('requestDetailsDrawer');
-    const tableContainer = document.getElementById('requestTableContainer');
     if (drawer) drawer.classList.add('hidden');
-    if (tableContainer) tableContainer.className = "lg:col-span-12 space-y-4 transition-all duration-300";
 }
 
 function filterRequestsTable() {
@@ -740,6 +776,25 @@ function exportRequestsCSV() {
     link.download = `Caloocan_Certificate_Requests_${new Date().toISOString().slice(0,10)}.csv`;
     link.click();
 }
+
+// Modal dismiss listeners (Backdrop click and Escape key)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeRequestDrawer();
+        closeNewRequestModal();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('requestDetailsDrawer');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeRequestDrawer();
+            }
+        });
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

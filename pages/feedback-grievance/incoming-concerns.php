@@ -283,11 +283,8 @@ foreach ($dbConcerns as $row) {
 
     </div>
 
-    <!-- Main Grid Layout (Filter & Table Container + Right Drawer Inspector) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-        <!-- Table Column -->
-        <div id="concernsTableContainer" class="lg:col-span-12 space-y-4 transition-all duration-300">
+    <!-- Main Full-Width Table Layout -->
+    <div id="concernsTableContainer" class="w-full space-y-4">
 
             <!-- Multi-Filter & Search Bar Card -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
@@ -342,7 +339,7 @@ foreach ($dbConcerns as $row) {
                         <h3 class="text-xs font-black text-slate-900 uppercase tracking-wider">Incoming Grievance Tickets</h3>
                         <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-[#0f53d1]"><?php echo count($concerns); ?> total</span>
                     </div>
-                    <span class="text-xs text-slate-400 font-medium">Click row to open details inspector</span>
+                    <span class="text-xs text-slate-400 font-medium">Click row to open details modal</span>
                 </div>
 
                 <div class="overflow-x-auto custom-scrollbar">
@@ -412,8 +409,8 @@ foreach ($dbConcerns as $row) {
                                     </span>
                                 </td>
                                 <td class="py-3.5 px-3 text-center" onclick="event.stopPropagation();">
-                                    <button onclick="selectConcernRow(this.closest('tr'), '<?php echo $item['id']; ?>')" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-[#0f53d1] hover:text-white text-slate-600 transition flex items-center justify-center cursor-pointer shadow-2xs" title="Open Ticket Inspector">
-                                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                                    <button onclick="selectConcernRow(this.closest('tr'), '<?php echo $item['id']; ?>')" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-[#0f53d1] hover:text-white text-slate-600 transition flex items-center justify-center cursor-pointer shadow-2xs" title="Open Concern Details Modal">
+                                        <i class="fa-solid fa-expand text-xs"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -424,123 +421,196 @@ foreach ($dbConcerns as $row) {
                 </div>
             </div>
 
-        </div>
-
-        <!-- Right Details Drawer Inspector -->
-        <div id="concernDetailsDrawer" class="hidden lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-            
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div class="flex items-center gap-2">
-                    <span id="drawerTicketId" class="text-xs font-black text-[#0f53d1] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">TCK-2026-0000</span>
-                    <span id="drawerStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-blue-50 text-[#0f53d1] border-blue-200">New</span>
-                </div>
-                <button onclick="closeConcernDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition flex items-center justify-center cursor-pointer">
-                    <i class="fa-solid fa-xmark text-xs"></i>
-                </button>
-            </div>
-
-            <!-- Subject & Body -->
-            <div class="space-y-2">
-                <h4 id="drawerTitle" class="text-sm font-black text-slate-900 leading-snug">Concern Subject Title</h4>
-                <p id="drawerFullText" class="text-xs text-slate-600 font-normal leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/70 max-h-40 overflow-y-auto custom-scrollbar">
-                    Detailed concern description will display here...
-                </p>
-            </div>
-
-            <!-- Details Table -->
-            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-400 font-medium">Submitted By</span>
-                    <span id="drawerSubmittedBy" class="font-bold text-slate-800">Pedro Reyes</span>
-                </div>
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-400 font-medium">Contact Phone</span>
-                    <span id="drawerPhone" class="font-bold text-slate-800">09171234567</span>
-                </div>
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-400 font-medium">Category</span>
-                    <span id="drawerCategory" class="font-bold text-[#0f53d1]">Infrastructure</span>
-                </div>
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-400 font-medium">Location</span>
-                    <span id="drawerLocation" class="font-bold text-slate-800 truncate max-w-[170px]">Camarin Road, Caloocan</span>
-                </div>
-                <div class="flex items-center justify-between text-[11px]">
-                    <span class="text-slate-400 font-medium">AI Confidence</span>
-                    <span id="drawerAiScore" class="font-bold text-emerald-600">98% Engine</span>
-                </div>
-            </div>
-
-            <!-- Dynamic Re-routing & Priority Controls (MySQL Wired) -->
-            <div class="space-y-3 p-3 bg-blue-50/40 border border-blue-100 rounded-xl text-xs">
-                <div>
-                    <label class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
-                        <i class="fa-solid fa-building-flag text-[#0f53d1] mr-1"></i> Assigned Department
-                    </label>
-                    <select id="drawerDeptSelect" onchange="updateTicketDepartment(this.value)" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-lg p-2 outline-none cursor-pointer focus:ring-1 focus:ring-[#0f53d1]">
-                        <?php foreach ($caloocanDepartments as $dept): ?>
-                        <option value="<?php echo htmlspecialchars($dept); ?>"><?php echo htmlspecialchars($dept); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
-                        <i class="fa-solid fa-signal text-amber-500 mr-1"></i> Priority Level
-                    </label>
-                    <select id="drawerPrioritySelect" onchange="updateTicketPriority(this.value)" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-lg p-2 outline-none cursor-pointer focus:ring-1 focus:ring-[#0f53d1]">
-                        <option value="Urgent">Urgent (4-Hour SLA)</option>
-                        <option value="High">High (24-Hour SLA)</option>
-                        <option value="Medium">Medium (48-Hour SLA)</option>
-                        <option value="Low">Low (72-Hour SLA)</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Evidence Attachments Container -->
-            <div class="space-y-2">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Photo Evidence</span>
-                <div id="drawerAttachmentsContainer" class="flex items-center gap-2 flex-wrap">
-                    <div class="text-[11px] text-slate-400 italic">No attachments</div>
-                </div>
-            </div>
-
-            <!-- Resolution Notes & Staff Actions Taken -->
-            <div class="space-y-1.5">
-                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Action Taken / Resolution Notes</label>
-                <textarea id="drawerResolutionNotes" rows="2" placeholder="Record action taken by municipal department crew..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-xl p-2.5 outline-none focus:ring-1 focus:ring-[#0f53d1]"></textarea>
-                <button onclick="saveResolutionNotes()" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition">
-                    <i class="fa-solid fa-floppy-disk mr-1"></i> Save Staff Notes
-                </button>
-            </div>
-
-            <!-- Quick Status Transition Buttons (MySQL Wired) -->
-            <div class="space-y-2 pt-2 border-t border-slate-100">
-                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transition Status</label>
-                <div class="grid grid-cols-4 gap-1.5">
-                    <button onclick="updateTicketStatus('Under Review')" class="py-2 px-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-[10px] rounded-lg border border-amber-200 transition text-center" title="Mark Under Review">
-                        Review
-                    </button>
-                    <button onclick="updateTicketStatus('In Progress')" class="py-2 px-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[10px] rounded-lg border border-indigo-200 transition text-center" title="Field Unit Dispatched">
-                        In Progress
-                    </button>
-                    <button onclick="updateTicketStatus('Resolved')" class="py-2 px-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-[10px] rounded-lg border border-emerald-200 transition text-center" title="Issue Solved">
-                        Resolve
-                    </button>
-                    <button onclick="updateTicketStatus('Closed')" class="py-2 px-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg border border-slate-300 transition text-center" title="Close Case">
-                        Close
-                    </button>
-                </div>
-            </div>
-
-        </div>
-
     </div>
 
 </main>
 
+<!-- ============================================================================== -->
+<!-- CONCERN DETAILS & RESOLUTION MANAGEMENT MODAL                                  -->
+<!-- ============================================================================== -->
+<div id="concernDetailsModal" class="fixed inset-0 z-[9999] hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150">
+        
+        <!-- Light Header with Back/Close Button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeConcernModal()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Concerns Queue">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Grievance Ticket Details</h3>
+                        <span id="modalTicketId" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">TCK-2026-0000</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Municipal Citizen Feedback & Concern Inspector</p>
+                </div>
+            </div>
 
+            <div class="flex items-center gap-2.5">
+                <span id="modalStatusBadge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-[#0f53d1] border border-blue-200">
+                    NEW
+                </span>
+                <button type="button" onclick="closeConcernModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
 
+        <!-- Scrollable Modal Content -->
+        <div class="p-6 space-y-5 max-h-[78vh] overflow-y-auto custom-scrollbar">
+
+            <!-- Subject & Description Card -->
+            <div class="bg-slate-50/80 rounded-2xl p-4.5 border border-slate-200/80 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Concern Title & Narrative</span>
+                    <span id="modalCategoryBadge" class="px-2 py-0.5 rounded text-[10px] font-bold border bg-blue-50 text-[#0f53d1] border-blue-200">Garbage & Waste</span>
+                </div>
+                <h4 id="modalTitle" class="text-base font-black text-slate-900 leading-snug">Concern Subject Title</h4>
+                <div class="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700 font-normal leading-relaxed">
+                    <p id="modalFullText" class="whitespace-pre-line">Detailed concern description will display here...</p>
+                </div>
+            </div>
+
+            <!-- Citizen & Incident Details Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-[#0f53d1]"></i>
+                        <span>Incident & Citizen Profile</span>
+                    </span>
+                    <span id="modalAiScore" class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">98% AI Match</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Submitted By</span>
+                        <div class="flex items-center gap-1.5 font-bold text-slate-900">
+                            <i id="modalAnonIcon" class="fa-solid fa-user-secret text-purple-600 hidden text-xs"></i>
+                            <span id="modalSubmittedBy">Anonymous Resident</span>
+                            <span id="modalCitizenId" class="text-[10px] text-slate-400 font-normal ml-1">(CTZ-APP)</span>
+                        </div>
+                    </div>
+
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Contact Number</span>
+                        <span id="modalPhone" class="font-bold text-slate-800">Confidential / Masked</span>
+                    </div>
+
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Location Tag</span>
+                        <span class="font-bold text-slate-800 flex items-center gap-1">
+                            <i class="fa-solid fa-location-dot text-rose-500 text-xs"></i>
+                            <span id="modalLocation">Camarin Road, Caloocan</span>
+                        </span>
+                    </div>
+
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block mb-0.5">Date & Time Filed</span>
+                        <span id="modalDateFiled" class="font-bold text-slate-800">Oct 06, 2026 • 02:40 PM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attached Photo Evidence -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2.5 shadow-xs">
+                <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-camera text-slate-500"></i>
+                    <span>Attached Photo Evidence</span>
+                </span>
+                <div id="modalAttachmentsContainer" class="flex items-center gap-3 flex-wrap pt-1">
+                    <span class="text-xs text-slate-400 italic">No attachments</span>
+                </div>
+            </div>
+
+            <!-- Municipal Routing & Priority SLA Card -->
+            <div class="bg-blue-50/50 border border-blue-100 rounded-2xl p-4.5 space-y-3.5 shadow-xs">
+                <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-[#0f53d1]"></i>
+                    <span>Department Assignment & Priority SLA</span>
+                </span>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                            <i class="fa-solid fa-building-flag text-[#0f53d1] mr-1"></i> Assigned Municipal Department
+                        </label>
+                        <select id="modalDeptSelect" onchange="updateTicketDepartment(this.value)" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none cursor-pointer focus:ring-2 focus:ring-[#0f53d1]/30">
+                            <?php foreach ($caloocanDepartments as $dept): ?>
+                            <option value="<?php echo htmlspecialchars($dept); ?>"><?php echo htmlspecialchars($dept); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
+                            <i class="fa-solid fa-signal text-amber-500 mr-1"></i> Priority Level (SLA)
+                        </label>
+                        <select id="modalPrioritySelect" onchange="updateTicketPriority(this.value)" class="w-full bg-white border border-slate-200 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none cursor-pointer focus:ring-2 focus:ring-[#0f53d1]/30">
+                            <option value="Urgent">Urgent (4-Hour SLA Dispatch)</option>
+                            <option value="High">High (24-Hour SLA Dispatch)</option>
+                            <option value="Medium">Medium (48-Hour SLA Dispatch)</option>
+                            <option value="Low">Low (72-Hour SLA Dispatch)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resolution Notes & Staff Actions Taken -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2.5 shadow-xs">
+                <label class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-600"></i>
+                    <span>Action Taken / Resolution Notes</span>
+                </label>
+                <textarea id="modalResolutionNotes" rows="3" placeholder="Record official action taken by municipal department, dispatch report, or resolution summary..." class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-xl p-3 outline-none focus:ring-2 focus:ring-[#0f53d1]/30 focus:bg-white transition"></textarea>
+                <button type="button" onclick="saveResolutionNotes()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-floppy-disk text-slate-500"></i>
+                    <span>Save Staff Notes</span>
+                </button>
+            </div>
+
+            <!-- Quick Status Workflow Transitions -->
+            <div class="bg-slate-50/80 p-4.5 rounded-2xl border border-slate-200 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider text-slate-800">Transition Status</span>
+                    <span class="text-[10px] text-slate-400">Click to update ticket status in live database</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button type="button" onclick="updateTicketStatus('Under Review')" class="py-2.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-xl border border-amber-200 transition text-center shadow-xs cursor-pointer flex items-center justify-center gap-1.5" title="Mark Under Review">
+                        <i class="fa-solid fa-clock-rotate-left text-[11px]"></i>
+                        <span>Under Review</span>
+                    </button>
+                    <button type="button" onclick="updateTicketStatus('In Progress')" class="py-2.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition text-center shadow-xs cursor-pointer flex items-center justify-center gap-1.5" title="Field Unit Dispatched">
+                        <i class="fa-solid fa-person-digging text-[11px]"></i>
+                        <span>In Progress</span>
+                    </button>
+                    <button type="button" onclick="updateTicketStatus('Resolved')" class="py-2.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 transition text-center shadow-xs cursor-pointer flex items-center justify-center gap-1.5" title="Issue Solved">
+                        <i class="fa-solid fa-circle-check text-[11px]"></i>
+                        <span>Resolved</span>
+                    </button>
+                    <button type="button" onclick="updateTicketStatus('Closed')" class="py-2.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 transition text-center shadow-xs cursor-pointer flex items-center justify-center gap-1.5" title="Close Case">
+                        <i class="fa-solid fa-lock text-[11px]"></i>
+                        <span>Closed</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Bottom Navigation (Back Button) -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <button type="button" onclick="closeConcernModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fa-solid fa-arrow-left text-xs"></i>
+                    <span>Back to Concerns Queue</span>
+                </button>
+                <button type="button" onclick="closeConcernModal()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
 <script>
 const concernsData = <?php echo json_encode(array_column($concerns, null, 'id')); ?>;
 let activeConcernId = null;
@@ -552,13 +622,7 @@ function refreshQueue() {
 }
 
 function selectConcernRow(rowElement, id) {
-    const drawer = document.getElementById('concernDetailsDrawer');
-    const tableContainer = document.getElementById('concernsTableContainer');
-
-    if (activeConcernId === id && drawer && !drawer.classList.contains('hidden')) {
-        closeConcernDrawer();
-        return;
-    }
+    const modal = document.getElementById('concernDetailsModal');
 
     activeConcernId = id;
     document.querySelectorAll('.concern-row').forEach(r => {
@@ -571,83 +635,134 @@ function selectConcernRow(rowElement, id) {
     const data = concernsData[id];
     if (!data) return;
 
-    document.getElementById('drawerTicketId').innerText = data.id;
-    document.getElementById('drawerTitle').innerText = data.title;
-    document.getElementById('drawerFullText').innerText = data.full_text;
-    document.getElementById('drawerSubmittedBy').innerText = data.submitted_by;
-    document.getElementById('drawerPhone').innerText = data.citizen_phone || 'None';
-    document.getElementById('drawerCategory').innerText = data.category;
-    document.getElementById('drawerLocation').innerText = data.location;
-    document.getElementById('drawerAiScore').innerText = data.ai_confidence_score || '95% Gemini Engine';
-    document.getElementById('drawerResolutionNotes').value = data.resolution_notes || '';
+    const ticketIdEl = document.getElementById('modalTicketId');
+    if (ticketIdEl) ticketIdEl.innerText = data.id;
+
+    const titleEl = document.getElementById('modalTitle');
+    if (titleEl) titleEl.innerText = data.title;
+
+    const fullTextEl = document.getElementById('modalFullText');
+    if (fullTextEl) fullTextEl.innerText = data.full_text;
+
+    const submittedByEl = document.getElementById('modalSubmittedBy');
+    if (submittedByEl) submittedByEl.innerText = data.submitted_by;
+
+    const citizenIdEl = document.getElementById('modalCitizenId');
+    if (citizenIdEl) citizenIdEl.innerText = `(${data.citizen_id || 'CTZ-APP'})`;
+
+    const anonIcon = document.getElementById('modalAnonIcon');
+    if (anonIcon) {
+        if (data.is_anonymous) anonIcon.classList.remove('hidden');
+        else anonIcon.classList.add('hidden');
+    }
+
+    const phoneEl = document.getElementById('modalPhone');
+    if (phoneEl) phoneEl.innerText = data.citizen_phone || 'None';
+
+    const catBadge = document.getElementById('modalCategoryBadge');
+    if (catBadge) {
+        catBadge.innerText = data.category;
+        catBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold border ${data.category_color || 'bg-blue-50 text-[#0f53d1] border-blue-200'}`;
+    }
+
+    const locEl = document.getElementById('modalLocation');
+    if (locEl) locEl.innerText = data.location || 'Caloocan City';
+
+    const dateEl = document.getElementById('modalDateFiled');
+    if (dateEl) dateEl.innerText = data.date_filed || 'Recently';
+
+    const aiScoreEl = document.getElementById('modalAiScore');
+    if (aiScoreEl) aiScoreEl.innerText = data.ai_confidence_score ? `${data.ai_confidence_score} AI Match` : '95% AI Match';
+
+    const notesEl = document.getElementById('modalResolutionNotes');
+    if (notesEl) notesEl.value = data.resolution_notes || '';
 
     // Set Dept Select
-    const deptSelect = document.getElementById('drawerDeptSelect');
+    const deptSelect = document.getElementById('modalDeptSelect');
     if (deptSelect && data.assigned_dept) {
         deptSelect.value = data.assigned_dept;
     }
 
     // Set Priority Select
-    const prioSelect = document.getElementById('drawerPrioritySelect');
+    const prioSelect = document.getElementById('modalPrioritySelect');
     if (prioSelect && data.priority) {
         prioSelect.value = data.priority;
     }
 
     // Set Status Badge
-    const statusBadge = document.getElementById('drawerStatusBadge');
+    const statusBadge = document.getElementById('modalStatusBadge');
     if (statusBadge) {
-        statusBadge.innerText = data.status;
-        statusBadge.className = "px-2 py-0.5 rounded-full text-[10px] font-bold border " + data.status_badge;
+        statusBadge.innerText = (data.status || 'NEW').toUpperCase();
+        statusBadge.className = "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border " + data.status_badge;
     }
 
     // Attachments
-    const attachContainer = document.getElementById('drawerAttachmentsContainer');
-    attachContainer.innerHTML = '';
-    if (data.photo_evidence_url) {
-        const fullImgUrl = data.photo_evidence_url.startsWith('http') ? data.photo_evidence_url : '../../' + data.photo_evidence_url;
-        attachContainer.innerHTML = `
-            <a href="${fullImgUrl}" target="_blank" class="w-16 h-16 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-80 transition relative group">
-                <img src="${fullImgUrl}" class="w-full h-full object-cover" alt="Evidence" onerror="this.onerror=null; this.src='../../assets/images/placeholder-image.png';">
-                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-bold transition">
-                    <i class="fa-solid fa-magnifying-glass-plus"></i>
-                </div>
-            </a>
-        `;
-    } else if (data.attachments && data.attachments.length > 0) {
-        data.attachments.forEach(att => {
-            attachContainer.innerHTML += `
-                <div class="w-16 h-16 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-1 text-center">
-                    <i class="fa-solid fa-file-image text-base text-blue-500"></i>
-                    <span class="text-[8px] font-bold mt-1 truncate w-full">${att}</span>
-                </div>
+    const attachContainer = document.getElementById('modalAttachmentsContainer');
+    if (attachContainer) {
+        attachContainer.innerHTML = '';
+        if (data.photo_evidence_url) {
+            const fullImgUrl = data.photo_evidence_url.startsWith('http') ? data.photo_evidence_url : '../../' + data.photo_evidence_url;
+            attachContainer.innerHTML = `
+                <a href="${fullImgUrl}" target="_blank" class="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-85 transition relative group shadow-2xs">
+                    <img src="${fullImgUrl}" class="w-full h-full object-cover" alt="Evidence" onerror="this.onerror=null; this.src='../../assets/images/placeholder-image.png';">
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    </div>
+                </a>
             `;
-        });
-    } else {
-        attachContainer.innerHTML = '<span class="text-[11px] text-slate-400 italic">No attached evidence files</span>';
+        } else if (data.attachments && data.attachments.length > 0) {
+            data.attachments.forEach(att => {
+                attachContainer.innerHTML += `
+                    <div class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-2 text-center shadow-2xs">
+                        <i class="fa-solid fa-file-image text-xl text-blue-500"></i>
+                        <span class="text-[9px] font-bold mt-1.5 truncate w-full text-slate-600">${att}</span>
+                    </div>
+                `;
+            });
+        } else {
+            attachContainer.innerHTML = '<span class="text-xs text-slate-400 italic">No attached evidence files</span>';
+        }
     }
 
-    if (drawer) {
-        drawer.classList.remove('hidden');
-        tableContainer.className = "lg:col-span-8 space-y-4 transition-all duration-300";
+    if (modal) {
+        modal.classList.remove('hidden');
     }
 }
 
-function closeConcernDrawer() {
-    activeConcernId = null;
+function closeConcernModal() {
+    const modal = document.getElementById('concernDetailsModal');
+    if (modal) modal.classList.add('hidden');
     document.querySelectorAll('.concern-row').forEach(r => {
         r.classList.remove('bg-blue-50/40');
     });
-    const drawer = document.getElementById('concernDetailsDrawer');
-    const tableContainer = document.getElementById('concernsTableContainer');
-    if (drawer) drawer.classList.add('hidden');
-    if (tableContainer) tableContainer.className = "lg:col-span-12 space-y-4 transition-all duration-300";
 }
 
+function closeConcernDrawer() {
+    closeConcernModal();
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeConcernModal();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('concernDetailsModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeConcernModal();
+            }
+        });
+    }
+});
+
 function filterConcernsTable() {
-    const searchVal = document.getElementById('concernSearchInput').value.toLowerCase();
-    const catVal = document.getElementById('concernCategoryFilter').value.toLowerCase();
-    const statusVal = document.getElementById('concernStatusFilter').value.toLowerCase();
-    const priorityVal = document.getElementById('concernPriorityFilter').value.toLowerCase();
+    const searchVal = (document.getElementById('concernSearchInput') ? document.getElementById('concernSearchInput').value : '').toLowerCase();
+    const catVal = (document.getElementById('concernCategoryFilter') ? document.getElementById('concernCategoryFilter').value : '').toLowerCase();
+    const statusVal = (document.getElementById('concernStatusFilter') ? document.getElementById('concernStatusFilter').value : '').toLowerCase();
+    const priorityVal = (document.getElementById('concernPriorityFilter') ? document.getElementById('concernPriorityFilter').value : '').toLowerCase();
 
     const rows = document.querySelectorAll('.concern-row');
 
@@ -666,8 +781,6 @@ function filterConcernsTable() {
     });
 }
 
-
-
 async function updateTicketStatus(newStatus) {
     if (!activeConcernId) {
         alert('Please select a ticket first.');
@@ -679,6 +792,9 @@ async function updateTicketStatus(newStatus) {
     }
 
     try {
+        const notesEl = document.getElementById('modalResolutionNotes') || document.getElementById('drawerResolutionNotes');
+        const notes = notesEl ? notesEl.value.trim() : '';
+
         const res = await fetch('../../api/admin/concerns.php', {
             method: 'POST',
             headers: {
@@ -688,7 +804,7 @@ async function updateTicketStatus(newStatus) {
             body: JSON.stringify({
                 ticket_number: activeConcernId,
                 status: newStatus,
-                resolution_notes: document.getElementById('drawerResolutionNotes').value.trim()
+                resolution_notes: notes
             })
         });
 
@@ -762,7 +878,8 @@ async function updateTicketPriority(newPrio) {
 
 async function saveResolutionNotes() {
     if (!activeConcernId) return;
-    const notes = document.getElementById('drawerResolutionNotes').value.trim();
+    const notesEl = document.getElementById('modalResolutionNotes') || document.getElementById('drawerResolutionNotes');
+    const notes = notesEl ? notesEl.value.trim() : '';
 
     try {
         const res = await fetch('../../api/admin/concerns.php', {

@@ -57,7 +57,10 @@ try {
         'rejection_reason' => 'TEXT NULL',
         'reviewed_at' => 'DATETIME NULL',
         'is_duplicate' => 'TINYINT(1) NOT NULL DEFAULT 0',
-        'duplicate_notes' => 'TEXT NULL'
+        'duplicate_notes' => 'TEXT NULL',
+        'household_id' => 'VARCHAR(50) NULL',
+        'citizen_status' => 'VARCHAR(50) DEFAULT "Active"',
+        'is_archived' => 'TINYINT(1) DEFAULT 0'
     ];
     foreach ($needed as $col => $type) {
         if (!in_array($col, $cols)) {
@@ -86,7 +89,7 @@ try {
     $counts['four_ps']     = 0;
 
     // Fetch ONLY Approved citizens for the Registered Citizens table
-    $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Approved' ORDER BY COALESCE(reviewed_at, submitted_at) DESC LIMIT 100");
+    $stmt = $pdo->query("SELECT * FROM citizen_verifications WHERE verification_status = 'Approved' AND COALESCE(is_archived, 0) = 0 ORDER BY COALESCE(reviewed_at, submitted_at) DESC LIMIT 100");
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($rows as $r) {
@@ -103,7 +106,7 @@ try {
         if ($age >= 60) $tags[] = 'Senior Citizen';
         if (in_array($r['civil_status'], ['Widowed', 'Separated', 'Divorced / Annulled'])) $tags[] = 'Solo Parent';
 
-        $status = ($age >= 60) ? 'Senior Citizen' : 'Active';
+        $status = !empty($r['citizen_status']) ? $r['citizen_status'] : (($age >= 60) ? 'Senior Citizen' : 'Active');
 
         $citizenIdNumber = !empty($r['citizen_id_number']) ? $r['citizen_id_number'] : ('CAL-2026-' . str_pad($r['verification_id'], 6, '0', STR_PAD_LEFT));
 
@@ -134,7 +137,7 @@ try {
             'signature_photo_url' => $r['signature_photo_url'] ?? '',
             'qr_code_token' => $r['qr_code_token'] ?? '',
             'qr_code_image_url' => $r['qr_code_image_url'] ?? '',
-            'household' => 'HH-' . str_pad($r['citizen_user_id'] ?: $r['verification_id'], 5, '0', STR_PAD_LEFT),
+            'household' => !empty($r['household_id']) ? $r['household_id'] : ('HH-' . str_pad($r['citizen_user_id'] ?: $r['verification_id'], 5, '0', STR_PAD_LEFT)),
             'occupation' => $r['occupation'] ?? 'Resident',
             'mobile' => '09' . substr(preg_replace('/[^0-9]/', '', $r['valid_id_number'] ?? '123456789'), 0, 9),
             'status' => $status,
@@ -530,17 +533,17 @@ include '../../includes/sidebar.php';
                     </div>
                     
                     <div class="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 -mb-1">
-                        <button onclick="markSelectedForValidation()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                        <button onclick="markSelectedForValidation()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                             <i class="fa-solid fa-shield-halved text-amber-500"></i> Mark for Validation
                         </button>
-                        <button class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                        <button onclick="exportSelectedCitizensCSV()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                             <i class="fa-solid fa-download text-slate-400"></i> Export Selected
                         </button>
-                        <button class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                        <button onclick="printSelectedCitizensRoster()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                             <i class="fa-solid fa-print text-slate-400"></i> Print Selected
                         </button>
                         <div class="relative inline-block text-left">
-                            <button onclick="toggleChangeStatusDropdown(event)" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                            <button onclick="toggleChangeStatusDropdown(event)" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                                 <i class="fa-solid fa-repeat text-slate-400"></i> Change Status <i class="fa-solid fa-chevron-down text-[8px] ml-1 opacity-60"></i>
                             </button>
                             <div id="changeStatusMenu" class="hidden fixed w-44 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[9999] text-xs font-medium text-slate-600">
@@ -564,10 +567,10 @@ include '../../includes/sidebar.php';
                                 </button>
                             </div>
                         </div>
-                        <button class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5">
+                        <button onclick="openAssignHouseholdModal()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                             <i class="fa-solid fa-house-user text-slate-400"></i> Assign to Household
                         </button>
-                        <button class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-red-600 bg-white border border-red-100 rounded-lg hover:bg-red-50 transition cursor-pointer flex items-center gap-1.5">
+                        <button onclick="openArchiveCitizensModal()" class="whitespace-nowrap px-3 py-2 text-[11px] font-bold text-red-600 bg-white border border-red-100 rounded-lg hover:bg-red-50 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
                             <i class="fa-solid fa-box-archive opacity-80"></i> Archive Selected
                         </button>
                     </div>
@@ -1384,15 +1387,18 @@ function getStatusBadgeHtml(status) {
 function changeSelectedCitizensStatus(newStatus) {
     const checkedRowCheckboxes = document.querySelectorAll('.citizen-row-checkbox:checked');
     if (checkedRowCheckboxes.length === 0) {
-        alert('Please select at least one citizen to change status.');
+        showRegistryToast('Please select at least one citizen to change status.', 'warning');
         const menu = document.getElementById('changeStatusMenu');
         if (menu) menu.classList.add('hidden');
         return;
     }
 
+    const citizenIds = [];
     checkedRowCheckboxes.forEach(cb => {
         const row = cb.closest('tr');
         if (row) {
+            const cid = row.getAttribute('data-citizen-id');
+            if (cid) citizenIds.push(cid);
             row.setAttribute('data-status', newStatus);
             const statusCell = row.children[9];
             if (statusCell) {
@@ -1405,6 +1411,18 @@ function changeSelectedCitizensStatus(newStatus) {
     if (menu) menu.classList.add('hidden');
 
     filterCitizensByDistrict();
+    showRegistryToast(`Status updated to "${newStatus}" for ${citizenIds.length} citizen(s).`, 'success');
+
+    // Persist to database
+    fetch('../../api/admin/bulk-citizens.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'change_status',
+            status: newStatus,
+            citizen_ids: citizenIds
+        })
+    }).catch(e => console.error('Bulk status update error:', e));
 }
 
 let currentViewMode = 'table';
@@ -1498,7 +1516,7 @@ function getSelectedRowsData() {
 function exportSelectedCitizensCSV() {
     const selected = getSelectedRowsData();
     if (selected.length === 0) {
-        alert('Please select at least one citizen from the table to export.');
+        showRegistryToast('Please select at least one citizen from the table to export.', 'warning');
         return;
     }
     const headers = ['Citizen ID', 'Full Name', 'Age', 'Sex', 'Civil Status', 'Barangay', 'District', 'Household', 'Status'];
@@ -1524,12 +1542,13 @@ function exportSelectedCitizensCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    showRegistryToast(`Exported ${selected.length} citizen(s) to CSV!`, 'success');
 }
 
 function printSelectedCitizensRoster() {
     const selected = getSelectedRowsData();
     if (selected.length === 0) {
-        alert('Please select at least one citizen to print.');
+        showRegistryToast('Please select at least one citizen to print.', 'warning');
         return;
     }
     const printWindow = window.open('', '_blank');
@@ -1594,38 +1613,306 @@ function printSelectedCitizensRoster() {
     setTimeout(() => { printWindow.print(); }, 250);
 }
 
-function assignSelectedCitizensHousehold() {
+// -------------------------------------------------------------
+// TOAST NOTIFICATIONS HELPER
+// -------------------------------------------------------------
+function showRegistryToast(message, type = 'success') {
+    let toast = document.getElementById('registryFloatingToast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'registryFloatingToast';
+        toast.className = 'fixed bottom-6 right-6 z-[99999] transition-all duration-300 transform translate-y-10 opacity-0 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold pointer-events-none';
+        document.body.appendChild(toast);
+    }
+    
+    if (type === 'warning') {
+        toast.className = 'fixed bottom-6 right-6 z-[99999] transition-all duration-300 transform translate-y-0 opacity-100 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold bg-amber-500 text-white pointer-events-auto';
+        toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-sm"></i> <span>${escapeHtml(message)}</span>`;
+    } else if (type === 'error') {
+        toast.className = 'fixed bottom-6 right-6 z-[99999] transition-all duration-300 transform translate-y-0 opacity-100 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold bg-rose-600 text-white pointer-events-auto';
+        toast.innerHTML = `<i class="fa-solid fa-circle-exclamation text-sm"></i> <span>${escapeHtml(message)}</span>`;
+    } else {
+        toast.className = 'fixed bottom-6 right-6 z-[99999] transition-all duration-300 transform translate-y-0 opacity-100 flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-bold bg-slate-900 text-white pointer-events-auto';
+        toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i> <span>${escapeHtml(message)}</span>`;
+    }
+
+    setTimeout(() => {
+        toast.className = toast.className.replace('opacity-100 translate-y-0', 'opacity-0 translate-y-10 pointer-events-none');
+    }, 3200);
+}
+
+// -------------------------------------------------------------
+// ASSIGN HOUSEHOLD MODAL CONTROLLERS
+// -------------------------------------------------------------
+function openAssignHouseholdModal() {
     const selected = getSelectedRowsData();
     if (selected.length === 0) {
-        alert('Please select at least one citizen to assign to a household.');
+        showRegistryToast('Please select at least one citizen to assign to a household.', 'warning');
         return;
     }
-    const hhNum = prompt(`Enter Household Number to assign ${selected.length} selected citizen(s):`, 'HH-2026-001');
-    if (!hhNum || !hhNum.trim()) return;
+    const modal = document.getElementById('assignHouseholdModal');
+    if (!modal) return;
+    
+    const countEl = document.getElementById('householdSelectedCountText');
+    if (countEl) countEl.innerText = `${selected.length} citizen(s) selected`;
 
+    const namesContainer = document.getElementById('householdSelectedNamesList');
+    if (namesContainer) {
+        namesContainer.innerHTML = selected.map(s => `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#0f53d1] border border-blue-200/80 rounded-lg text-xs font-bold">
+                <i class="fa-solid fa-user text-[10px]"></i>
+                ${escapeHtml(s.name)}
+            </span>
+        `).join('');
+    }
+
+    // Default household ID from selected or current
+    const existingHh = selected.find(s => s.household && s.household.startsWith('HH-'))?.household || 'HH-00035';
+    const input = document.getElementById('householdIdInput');
+    if (input) input.value = existingHh;
+
+    modal.classList.remove('hidden');
+}
+
+function closeAssignHouseholdModal() {
+    const modal = document.getElementById('assignHouseholdModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function generateNewHouseholdId() {
+    const rand = Math.floor(10000 + Math.random() * 90000);
+    const input = document.getElementById('householdIdInput');
+    if (input) input.value = `HH-${rand}`;
+}
+
+function confirmAssignHousehold() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) return;
+
+    const input = document.getElementById('householdIdInput');
+    const hhId = input ? input.value.trim().toUpperCase() : '';
+    if (!hhId) {
+        showRegistryToast('Please enter or generate a valid Household ID (e.g. HH-00035).', 'warning');
+        return;
+    }
+
+    const citizenIds = selected.map(s => s.id);
+
+    // Update table in UI immediately
     selected.forEach(c => {
-        c.row.setAttribute('data-household', hhNum.trim());
-        const hhCell = c.row.children[8];
+        c.row.setAttribute('data-household', hhId);
+        const hhCell = c.row.children[8]; // Household ID column
         if (hhCell) {
-            hhCell.innerHTML = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-[#0f53d1] border border-blue-200/80">${hhNum.trim()}</span>`;
+            hhCell.innerHTML = `<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-[#0f53d1] border border-blue-200/80">${hhId}</span>`;
         }
     });
-    alert(`Successfully assigned ${selected.length} citizen(s) to household "${hhNum.trim()}"!`);
+
+    closeAssignHouseholdModal();
+    showRegistryToast(`Assigned ${selected.length} citizen(s) to household ${hhId}!`, 'success');
+
+    // Persist to database
+    fetch('../../api/admin/bulk-citizens.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'assign_household',
+            household_id: hhId,
+            citizen_ids: citizenIds
+        })
+    }).catch(e => console.error('Assign household error:', e));
+}
+
+function assignSelectedCitizensHousehold() {
+    openAssignHouseholdModal();
+}
+
+// -------------------------------------------------------------
+// ARCHIVE CITIZENS MODAL CONTROLLERS
+// -------------------------------------------------------------
+function openArchiveCitizensModal() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) {
+        showRegistryToast('Please select at least one citizen to archive.', 'warning');
+        return;
+    }
+    const modal = document.getElementById('archiveCitizensModal');
+    if (!modal) return;
+
+    const countEl = document.getElementById('archiveSelectedCountText');
+    if (countEl) countEl.innerText = `You are about to archive ${selected.length} citizen record(s).`;
+
+    const namesContainer = document.getElementById('archiveSelectedNamesList');
+    if (namesContainer) {
+        namesContainer.innerHTML = selected.map(s => `
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200/80 rounded-lg text-xs font-bold">
+                <i class="fa-solid fa-box-archive text-[10px]"></i>
+                ${escapeHtml(s.name)} (${escapeHtml(s.id)})
+            </span>
+        `).join('');
+    }
+
+    modal.classList.remove('hidden');
+}
+
+function closeArchiveCitizensModal() {
+    const modal = document.getElementById('archiveCitizensModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function confirmArchiveCitizens() {
+    const selected = getSelectedRowsData();
+    if (selected.length === 0) return;
+
+    const reasonSelect = document.getElementById('archiveReasonSelect');
+    const reasonText = reasonSelect ? reasonSelect.value : 'Administrative archiving';
+    const citizenIds = selected.map(s => s.id);
+
+    // Animate and hide rows
+    selected.forEach(c => {
+        c.row.style.transition = 'all 0.3s ease-out';
+        c.row.style.opacity = '0';
+        c.row.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            c.row.style.display = 'none';
+            const cb = c.row.querySelector('.citizen-row-checkbox');
+            if (cb) cb.checked = false;
+            updateSelectAllState();
+        }, 300);
+    });
+
+    closeArchiveCitizensModal();
+    showRegistryToast(`Archived ${selected.length} citizen record(s).`, 'success');
+
+    // Persist to database
+    fetch('../../api/admin/bulk-citizens.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'archive',
+            reason: reasonText,
+            citizen_ids: citizenIds
+        })
+    }).catch(e => console.error('Archive error:', e));
 }
 
 function archiveSelectedCitizens() {
-    const selected = getSelectedRowsData();
-    if (selected.length === 0) {
-        alert('Please select at least one citizen to archive.');
-        return;
-    }
-    if (!confirm(`Are you sure you want to archive ${selected.length} selected citizen record(s)?`)) return;
-
-    changeSelectedCitizensStatus('Archived');
-    alert(`Successfully archived ${selected.length} citizen record(s).`);
+    openArchiveCitizensModal();
 }
 
+// Close modals when clicking backdrop or on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAssignHouseholdModal();
+        closeArchiveCitizensModal();
+    }
+});
 </script>
+
+<!-- ASSIGN TO HOUSEHOLD MODAL -->
+<div id="assignHouseholdModal" onclick="if(event.target === this) closeAssignHouseholdModal()" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100">
+                    <i class="fa-solid fa-house-chimney-user"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-slate-900">Assign to Household</h3>
+                    <p class="text-xs text-slate-500 font-medium">Link selected citizens under a shared household ID</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeAssignHouseholdModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition flex items-center justify-center cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <div>
+                <span class="font-bold text-slate-700 block mb-1.5" id="householdSelectedCountText">Selected Citizens</span>
+                <div id="householdSelectedNamesList" class="flex flex-wrap gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-32 overflow-y-auto custom-scrollbar">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700 block mb-1.5">Household ID (HH-XXXXX)</label>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="householdIdInput" placeholder="e.g. HH-00035" class="flex-1 bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-bold text-xs uppercase focus:ring-2 focus:ring-[#0f53d1]/30 focus:border-[#0f53d1]">
+                    <button type="button" onclick="generateNewHouseholdId()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shrink-0">
+                        <i class="fa-solid fa-arrows-rotate text-[11px]"></i>
+                        <span>Generate ID</span>
+                    </button>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Co-residents sharing this Household ID will cluster together in Household View.</p>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button type="button" onclick="closeAssignHouseholdModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" onclick="confirmAssignHousehold()" class="px-5 py-2.5 text-xs font-bold text-white bg-[#0f53d1] hover:bg-[#0d46b0] rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-check text-xs"></i>
+                <span>Save Household Assignment</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ARCHIVE SELECTED CITIZENS MODAL -->
+<div id="archiveCitizensModal" onclick="if(event.target === this) closeArchiveCitizensModal()" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-150 my-auto">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg border border-rose-100">
+                    <i class="fa-solid fa-box-archive"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-slate-900">Archive Citizen Records</h3>
+                    <p class="text-xs text-slate-500 font-medium">Remove selected records from active citizen registry</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeArchiveCitizensModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition flex items-center justify-center cursor-pointer">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <div class="space-y-4 text-xs">
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0 text-sm"></i>
+                <p class="leading-relaxed font-medium">Archiving will deactivate their active status in the public directory while safely preserving historical verifications and audit logs.</p>
+            </div>
+
+            <div>
+                <span class="font-bold text-slate-700 block mb-1.5" id="archiveSelectedCountText">Selected Records</span>
+                <div id="archiveSelectedNamesList" class="flex flex-wrap gap-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-32 overflow-y-auto custom-scrollbar">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div>
+                <label class="font-bold text-slate-700 block mb-1.5">Reason for Archiving</label>
+                <select id="archiveReasonSelect" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer">
+                    <option value="Relocated outside Caloocan City">Relocated outside Caloocan City</option>
+                    <option value="Deceased Record">Deceased Record</option>
+                    <option value="Duplicate or Superceded Registry">Duplicate or Superceded Registry</option>
+                    <option value="Administrative Invalidation / Audit">Administrative Invalidation / Audit</option>
+                    <option value="Citizen Request for De-registration">Citizen Request for De-registration</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button type="button" onclick="closeArchiveCitizensModal()" class="px-4 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" onclick="confirmArchiveCitizens()" class="px-5 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-box-archive text-xs"></i>
+                <span>Confirm Archive</span>
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- Floating Global Row Actions Dropdown Overlay -->
 <div id="globalRowActionsMenu" class="hidden fixed w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[9999] text-xs font-medium text-slate-600 text-left">

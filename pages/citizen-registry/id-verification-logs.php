@@ -124,6 +124,10 @@ try {
             $result = 'Failed';
             $badge = 'bg-rose-50 text-rose-600 border-rose-200';
             $remarks = !empty($r['rejection_reason']) ? $r['rejection_reason'] : 'Discrepancy detected during validation.';
+        } elseif ($r['verification_status'] === 'Superseded') {
+            $result = 'Superseded';
+            $badge = 'bg-slate-100 text-slate-600 border-slate-300';
+            $remarks = 'Prior application superseded by subsequent approved registration.';
         } elseif ($isDup) {
             $result = 'Flagged';
             $badge = 'bg-amber-50 text-amber-600 border-amber-200';

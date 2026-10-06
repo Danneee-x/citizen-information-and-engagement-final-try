@@ -261,11 +261,8 @@ include '../../includes/sidebar.php';
 
     </div>
 
-    <!-- Main Content Layout Grid (Table + Alert Details Side Panel) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-        <!-- Left Table Container (8 Cols when drawer open, 12 Cols when closed) -->
-        <div id="tableContainer" class="lg:col-span-12 space-y-4 transition-all duration-300">
+    <!-- Main Content Layout (Full Width Table) -->
+    <div id="tableContainer" class="w-full space-y-4">
             
             <!-- Filters & Search Bar Card -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
@@ -433,92 +430,99 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-        </div>
+    </div>
 
-        <!-- Right Side Panel: Alert Details (4 Cols) -->
-        <div id="alertDetailsDrawer" class="hidden lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5 sticky top-6">
-            
-            <!-- Drawer Header -->
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h2 class="text-sm font-black text-slate-900 tracking-tight">Alert Details</h2>
-                <button onclick="closeDetailsDrawer()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition cursor-pointer text-xs">
+</main>
+
+<!-- ============================================================================== -->
+<!-- ALERT & BROADCAST DETAILS MODAL                                                -->
+<!-- ============================================================================== -->
+<div id="alertDetailsDrawer" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        
+        <!-- Modal Light Header with Back button, Alert Title, Status badge, and Close Button -->
+        <div class="bg-white px-6 py-4.5 flex items-center justify-between border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="closeDetailsDrawer()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer" title="Back to Alerts Queue">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div id="drawerCategoryIcon" class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-bullhorn"></i>
+                </div>
+                <div>
+                    <h3 id="drawerTitle" class="font-extrabold text-base tracking-tight text-slate-900 leading-snug">Alert Details</h3>
+                    <p id="drawerCategoryText" class="text-xs text-[#0f53d1] font-bold mt-0.5">General Announcement</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2.5">
+                <span id="drawerStatusBadge" class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px] border border-emerald-200 shrink-0">Delivered</span>
+                <button type="button" onclick="closeDetailsDrawer()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
+        </div>
 
-            <!-- Title & Category Badge Header -->
-            <div class="space-y-2">
-                <div class="flex items-start justify-between gap-2">
-                    <div class="flex items-center gap-2">
-                        <div id="drawerCategoryIcon" class="w-8 h-8 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center shrink-0 text-sm">
-                            <i class="fa-solid fa-bullhorn"></i>
-                        </div>
-                        <div>
-                            <h3 id="drawerTitle" class="text-sm font-black text-slate-900 leading-snug">Advisory Title</h3>
-                            <p id="drawerCategoryText" class="text-[11px] font-bold text-[#0f53d1]">General Announcement</p>
-                        </div>
-                    </div>
-                    <span id="drawerStatusBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px] border border-emerald-200 shrink-0">Delivered</span>
-                </div>
-                <p id="drawerTimestamp" class="text-[10px] text-slate-400 font-semibold flex items-center gap-1.5 pl-1">
-                    <i class="fa-regular fa-calendar"></i>
+        <!-- Scrollable Modal Body -->
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            <!-- Timestamp banner -->
+            <div class="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                <span class="text-slate-400 font-bold uppercase text-[10px]">Broadcast Timestamp</span>
+                <p id="drawerTimestamp" class="text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                    <i class="fa-regular fa-calendar text-[#0f53d1]"></i>
                     <span>Date & Time</span>
                 </p>
             </div>
 
-            <!-- Message Content Box -->
-            <div class="space-y-1.5">
+            <!-- Message Content Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2 shadow-xs">
                 <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MESSAGE CONTENT</h4>
                 <div id="drawerMessageContent" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium leading-relaxed space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
                 </div>
             </div>
 
-            <!-- Recipients Summary -->
-            <div class="space-y-1.5">
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">RECIPIENTS SUMMARY</h4>
+            <!-- Recipients & Delivery Channels Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3.5 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">RECIPIENTS SUMMARY</h4>
+                    <span id="drawerRecipientsBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px] border border-emerald-200">0 recipients</span>
+                </div>
                 <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-lg bg-blue-50 text-[#0f53d1] flex items-center justify-center text-xs">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-xs">
                         <i class="fa-solid fa-users"></i>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span id="drawerRecipientsTarget" class="text-xs font-bold text-slate-800">All Residents</span>
-                        <span id="drawerRecipientsBadge" class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px] border border-emerald-200">0 recipients</span>
+                    <div>
+                        <span id="drawerRecipientsTarget" class="text-xs font-bold text-slate-900 block">All Residents</span>
+                        <span class="text-[10px] text-slate-400">Target Audience</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5 pt-1">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DELIVERY CHANNELS</h4>
+                    <div id="drawerChannelsList" class="grid grid-cols-3 gap-2">
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
+                            <div class="text-emerald-500 text-sm"><i class="fa-solid fa-comment-dots"></i></div>
+                            <p class="text-[10px] font-bold text-slate-800">SMS</p>
+                            <p class="text-[9px] text-emerald-600 font-bold">Enabled</p>
+                        </div>
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
+                            <div class="text-[#0f53d1] text-sm"><i class="fa-solid fa-bell"></i></div>
+                            <p class="text-[10px] font-bold text-slate-800">In-App / Push</p>
+                            <p class="text-[9px] text-emerald-600 font-bold">Delivered</p>
+                        </div>
+                        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
+                            <div class="text-purple-600 text-sm"><i class="fa-solid fa-envelope"></i></div>
+                            <p class="text-[10px] font-bold text-slate-800">Email</p>
+                            <p class="text-[9px] text-emerald-600 font-bold">Enabled</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Delivery Channels -->
-            <div class="space-y-1.5">
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DELIVERY CHANNELS</h4>
-                <div id="drawerChannelsList" class="grid grid-cols-3 gap-2">
-                    
-                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
-                        <div class="text-emerald-500 text-sm"><i class="fa-solid fa-comment-dots"></i></div>
-                        <p class="text-[10px] font-bold text-slate-800">SMS</p>
-                        <p class="text-[9px] text-emerald-600 font-bold">Enabled</p>
-                    </div>
-
-                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
-                        <div class="text-[#0f53d1] text-sm"><i class="fa-solid fa-bell"></i></div>
-                        <p class="text-[10px] font-bold text-slate-800">In-App / Push</p>
-                        <p class="text-[9px] text-emerald-600 font-bold">Delivered</p>
-                    </div>
-
-                    <div class="p-2 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-0.5">
-                        <div class="text-purple-600 text-sm"><i class="fa-solid fa-envelope"></i></div>
-                        <p class="text-[10px] font-bold text-slate-800">Email</p>
-                        <p class="text-[9px] text-emerald-600 font-bold">Enabled</p>
-                    </div>
-
-                </div>
-            </div>
-
-            <!-- Delivery Summary Donut Chart -->
-            <div class="space-y-2 border-t border-slate-100 pt-3">
-                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">DELIVERY SUMMARY</h4>
-                
-                <div class="flex items-center gap-4">
-                    <!-- SVG Donut Chart -->
+            <!-- Delivery Summary Donut Chart Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-3 shadow-xs">
+                <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block border-b border-slate-100 pb-2">DELIVERY STATUS BREAKDOWN</h4>
+                <div class="flex items-center gap-5">
                     <div class="relative w-24 h-24 shrink-0 flex items-center justify-center">
                         <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                             <path class="text-slate-100" stroke-width="4.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
@@ -532,37 +536,34 @@ include '../../includes/sidebar.php';
                         </div>
                     </div>
 
-                    <!-- Donut Legend -->
                     <div class="space-y-1.5 text-xs min-w-0 flex-1">
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between p-1.5 bg-slate-50 rounded-lg">
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span class="text-slate-600 font-medium">Delivered</span>
+                                <span class="text-slate-600 font-medium text-[11px]">Delivered</span>
                             </div>
-                            <span id="donutDeliveredCount" class="font-bold text-slate-900">0 (0%)</span>
+                            <span id="donutDeliveredCount" class="font-bold text-slate-900 text-[11px]">0 (0%)</span>
                         </div>
-
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between p-1.5 bg-slate-50 rounded-lg">
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                                <span class="text-slate-600 font-medium">Failed</span>
+                                <span class="text-slate-600 font-medium text-[11px]">Failed</span>
                             </div>
-                            <span id="donutFailedCount" class="font-bold text-slate-900">0 (0%)</span>
+                            <span id="donutFailedCount" class="font-bold text-slate-900 text-[11px]">0 (0%)</span>
                         </div>
-
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between p-1.5 bg-slate-50 rounded-lg">
                             <div class="flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-slate-300"></span>
-                                <span class="text-slate-600 font-medium">Pending</span>
+                                <span class="text-slate-600 font-medium text-[11px]">Pending</span>
                             </div>
-                            <span id="donutPendingCount" class="font-bold text-slate-900">0 (0%)</span>
+                            <span id="donutPendingCount" class="font-bold text-slate-900 text-[11px]">0 (0%)</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Metadata Details -->
-            <div class="border-t border-slate-100 pt-3 grid grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200 grid grid-cols-2 gap-3 text-xs">
                 <div>
                     <span class="text-[10px] text-slate-400 font-bold block uppercase">Created By</span>
                     <p id="drawerCreatedBy" class="font-bold text-slate-800 text-[11px] truncate">Admin</p>
@@ -576,23 +577,32 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-            <!-- Footer Action Buttons -->
-            <div class="flex items-center gap-2 border-t border-slate-100 pt-4">
-                <button type="button" onclick="resendAlert()" class="flex-1 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+            <!-- Staff Action Buttons -->
+            <div class="flex items-center gap-2 pt-1">
+                <button type="button" onclick="resendAlert()" class="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-paper-plane text-slate-400"></i>
                     <span>Resend Alert</span>
                 </button>
-                <button type="button" onclick="downloadAlertReport()" class="flex-1 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                <button type="button" onclick="downloadAlertReport()" class="flex-1 py-2.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                     <i class="fa-solid fa-download text-slate-400"></i>
                     <span>Download Report</span>
                 </button>
             </div>
+        </div>
 
+        <!-- Modal Bottom Navigation (Back & Close Buttons) -->
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" onclick="closeDetailsDrawer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fa-solid fa-arrow-left text-xs"></i>
+                <span>Back to Alerts Queue</span>
+            </button>
+            <button type="button" onclick="closeDetailsDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
+            </button>
         </div>
 
     </div>
-
-</main>
+</div>
 
 <script>
 const broadcastData = <?php echo json_encode($broadcastsJson); ?>;
@@ -654,9 +664,8 @@ function selectBroadcastRow(rowElement, id) {
     document.getElementById('drawerCreatedBy').innerHTML = `${data.sender}`;
     document.getElementById('drawerAlertId').innerHTML = `<span>${data.alertId}</span> <i class="fa-regular fa-copy text-slate-400 hover:text-slate-700 cursor-pointer" onclick="copyAlertId('${data.alertId}')"></i>`;
 
-    // Unhide drawer
+    // Unhide modal
     drawer.classList.remove('hidden');
-    tableContainer.className = "lg:col-span-8 space-y-4 transition-all duration-300";
 }
 
 function closeDetailsDrawer() {
@@ -665,9 +674,7 @@ function closeDetailsDrawer() {
         r.classList.remove('bg-blue-50/60');
     });
     const drawer = document.getElementById('alertDetailsDrawer');
-    const tableContainer = document.getElementById('tableContainer');
-    drawer.classList.add('hidden');
-    tableContainer.className = "lg:col-span-12 space-y-4 transition-all duration-300";
+    if (drawer) drawer.classList.add('hidden');
 }
 
 function filterTable() {
@@ -781,8 +788,21 @@ function changeBroadcastPageSize(newSize) {
 
 document.addEventListener('DOMContentLoaded', function() {
     renderBroadcastPagination();
+    const modal = document.getElementById('alertDetailsDrawer');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeDetailsDrawer();
+            }
+        });
+    }
 });
 
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDetailsDrawer();
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

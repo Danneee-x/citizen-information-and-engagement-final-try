@@ -15,10 +15,16 @@ $certPdo = getCertificateDbConnection();
 $vStats = [];
 try {
     $vStats = $pdo->query("SELECT 
-        COUNT(*) as total_verifications,
+        COUNT(CASE WHEN verification_status != 'Superseded' AND COALESCE(is_archived, 0) = 0 THEN 1 ELSE NULL END) as total_verifications,
         SUM(CASE WHEN verification_status = 'Approved' THEN 1 ELSE 0 END) as approved_count,
         SUM(CASE WHEN verification_status IN ('Pending', 'Under_Review') THEN 1 ELSE 0 END) as pending_count,
-        SUM(CASE WHEN verification_status = 'Rejected' THEN 1 ELSE 0 END) as rejected_count,
+        SUM(CASE WHEN verification_status = 'Rejected' AND COALESCE(is_archived, 0) = 0 
+            AND NOT EXISTS (
+                SELECT 1 FROM citizen_verifications v_app 
+                WHERE v_app.verification_status = 'Approved' 
+                AND ((v_app.citizen_user_id = citizen_verifications.citizen_user_id AND citizen_verifications.citizen_user_id > 0)
+                     OR (LOWER(TRIM(CONCAT(v_app.first_name, ' ', v_app.last_name))) = LOWER(TRIM(CONCAT(citizen_verifications.first_name, ' ', citizen_verifications.last_name))) AND v_app.barangay = citizen_verifications.barangay))
+            ) THEN 1 ELSE 0 END) as rejected_count,
         SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) < 30 THEN 1 ELSE 0 END) as youth_count,
         SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) BETWEEN 30 AND 59 THEN 1 ELSE 0 END) as adult_count,
         SUM(CASE WHEN TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) >= 60 THEN 1 ELSE 0 END) as senior_count,

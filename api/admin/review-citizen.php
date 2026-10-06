@@ -47,6 +47,11 @@ if (in_array($action, ['approve', 'approved'])) {
 $pdo = getDbConnection();
 
 try {
+    // Ensure ENUM includes Returned_For_Correction and Superseded
+    try {
+        $pdo->exec("ALTER TABLE `citizen_verifications` MODIFY COLUMN `verification_status` ENUM('Pending','Under_Review','Returned_For_Correction','Approved','Rejected','Superseded') NOT NULL DEFAULT 'Pending'");
+    } catch (Exception $e) {}
+
     // 1. Fetch verification entry
     $vStmt = $pdo->prepare("SELECT * FROM citizen_verifications WHERE verification_id = ? LIMIT 1");
     $vStmt->execute([$verificationId]);
@@ -174,6 +179,29 @@ try {
             ]);
         } catch (Exception $cardEx) {
             // Ignore if id_cards_issued table structure varies
+        }
+
+        // 3. Automatically mark any prior Rejected, Returned, or Pending records for this citizen as Superseded and Archived
+        try {
+            $superStmt = $pdo->prepare("UPDATE citizen_verifications SET 
+                verification_status = 'Superseded',
+                is_archived = 1,
+                admin_action_notes = CONCAT(COALESCE(admin_action_notes, ''), '\n[Superseded by Approved Application VER-', LPAD(:app_id_note, 4, '0'), ' on ', NOW(), ']')
+                WHERE verification_id != :app_id_filter 
+                  AND (
+                      (citizen_user_id = :uid AND citizen_user_id > 0)
+                      OR (LOWER(TRIM(CONCAT(first_name, ' ', last_name))) = LOWER(TRIM(:full_name)) AND barangay = :brgy)
+                  )
+                  AND verification_status IN ('Rejected', 'Returned_For_Correction', 'Pending', 'Under_Review')");
+            $superStmt->execute([
+                ':app_id_note'   => $verificationId,
+                ':app_id_filter' => $verificationId,
+                ':uid'           => $citizenUserId,
+                ':full_name'     => trim($verif['first_name'] . ' ' . $verif['last_name']),
+                ':brgy'          => $verif['barangay']
+            ]);
+        } catch (Exception $superEx) {
+            error_log("Failed to supersede prior applications: " . $superEx->getMessage());
         }
 
     } elseif ($newStatus === 'Returned_For_Correction') {

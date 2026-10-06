@@ -96,8 +96,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $refStmt->execute([':id' => $appId]);
             $updatedRef = $refStmt->fetchColumn() ?: '';
 
-            if (in_array($newStatus, ['Ready for Release', 'Approved'])) {
-                $alertMessage = "Application status updated to '{$newStatus}'. <a href='id-releases.php?ref=" . urlencode($updatedRef) . "' class='underline font-bold ml-2 text-indigo-700 hover:text-indigo-900'><i class='fa-solid fa-hand-holding-hand mr-1'></i>Open in ID Release Desk &rarr;</a>";
+            if ($newStatus === 'Ready for Release') {
+                $alertMessage = "Application status updated to 'Ready for Release'. <a href='id-releases.php?ref=" . urlencode($updatedRef) . "' class='underline font-bold ml-2 text-indigo-700 hover:text-indigo-900'><i class='fa-solid fa-hand-holding-hand mr-1'></i>Open in ID Release Desk &rarr;</a>";
+            } elseif ($newStatus === 'Approved') {
+                $alertMessage = "Application approved! The card is now ready for printing in production. Note: It will not appear on the Release & Pick-up Desk until it has been printed and marked as 'Ready for Release'.";
             } else {
                 $alertMessage = "Application status successfully updated to '{$newStatus}'.";
             }
@@ -991,7 +993,11 @@ include '../../includes/sidebar.php';
             <div class="flex items-center gap-2">
                 <button onclick="window.print()" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs">
                     <i class="fa-solid fa-print"></i>
-                    <span>Print Voucher</span>
+                    <span>Print Card / Voucher</span>
+                </button>
+                <button id="markReadyFromPrintBtn" type="button" onclick="markReadyFromPrint()" class="hidden px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-xs" title="Send printed card to the ID Release & Pick-up Desk">
+                    <i class="fa-solid fa-box-archive"></i>
+                    <span>Mark Printed & Send to Release Desk</span>
                 </button>
                 <button onclick="closePreviewModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
                     <i class="fa-solid fa-xmark"></i>
@@ -1357,10 +1363,14 @@ function openCitizenDetailsModal(app) {
     }
 
     const releaseBtn = document.getElementById('cdmReleaseBtn');
-    if (['Ready for Release', 'Approved', 'Claimed'].includes(app.status)) {
+    if (['Ready for Release', 'Claimed'].includes(app.status)) {
         releaseBtn.classList.remove('opacity-40', 'pointer-events-none');
+        releaseBtn.title = "Open in ID Release Desk";
     } else {
         releaseBtn.classList.add('opacity-40', 'pointer-events-none');
+        releaseBtn.title = (app.status === 'Approved')
+            ? "Card is approved & ready to print. Print the card first, then set status to 'Ready for Release' to send to Release Desk."
+            : "Only available when application is Ready for Release or Claimed.";
     }
 
     document.getElementById('citizenDetailsModal').classList.remove('hidden');
@@ -1387,6 +1397,10 @@ function openCardFromDetails() {
 
 function goToReleaseFromDetails() {
     if (selectedAppForModal) {
+        if (selectedAppForModal.status === 'Approved') {
+            alert(`Application ${selectedAppForModal.reference_no} is currently Approved (Ready for Printing). Please print the card first and change its status to 'Ready for Release' before sending to the Release Desk.`);
+            return;
+        }
         window.location.href = `id-releases.php?ref=${encodeURIComponent(selectedAppForModal.reference_no)}`;
     }
 }
@@ -1479,7 +1493,32 @@ function openPreviewModal(app) {
     document.getElementById('voucherClaimOffice').innerText = app.claim_office || 'Caloocan City Hall Complex Desk';
     document.getElementById('voucherTurnaround').innerText = app.estimated_turnaround || '3 to 5 Business Days';
 
+    const printReadyBtn = document.getElementById('markReadyFromPrintBtn');
+    if (printReadyBtn) {
+        if (app.status === 'Approved') {
+            printReadyBtn.classList.remove('hidden');
+        } else {
+            printReadyBtn.classList.add('hidden');
+        }
+    }
+
     document.getElementById('previewModal').classList.remove('hidden');
+}
+
+function markReadyFromPrint() {
+    if (!selectedAppForModal) return;
+    if (confirm(`Confirm card printing is complete for ${selectedAppForModal.reference_no}?\n\nThis will update status to 'Ready for Release' and make the card available at the ID Release & Pick-up Desk.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="action" value="update_status">
+            <input type="hidden" name="application_id" value="${selectedAppForModal.id}">
+            <input type="hidden" name="status" value="Ready for Release">
+            <input type="hidden" name="review_notes" value="Physical card printed in production and sent to the ID Release & Pick-up Desk.">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function closePreviewModal() {

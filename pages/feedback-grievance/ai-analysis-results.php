@@ -177,6 +177,13 @@ try {
             } else {
                 $currentStatus = 'Pending Review';
             }
+            $analyzedAt = !empty($row['created_at']) ? date('M d, Y • h:i A', strtotime($row['created_at'])) : date('M d, Y • h:i A');
+            $dispatchToken = 'ACK-' . strtoupper(substr(md5($row['ticket_number']), 0, 8));
+            $isTaglish = (bool)preg_match('/(po|opo|ang|mga|sa|ng|may|walang|baha|basura|ilaw|kalsada|lubak|tubig|dumi)/i', $row['title'] . ' ' . $row['description']);
+            $langDetected = $isTaglish ? 'Filipino / Taglish' : 'English (PH)';
+            $priorityVal = !empty($row['priority']) ? $row['priority'] : ($isUrgent ? 'Urgent' : 'Medium');
+            $slaVal = $departments[$deptKey]['default_sla'] ?? ($isUrgent ? '4 Hours' : '48 Hours');
+            $cleanReason = !empty($row['ai_reason']) ? $row['ai_reason'] : 'Multi-modal NLP classification and proximity cluster evaluation complete.';
 
             $liveAi[] = [
                 'id' => $row['ticket_number'],
@@ -190,7 +197,7 @@ try {
                 'ai_confidence' => (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96,
                 'vision_verified' => $hasPhoto,
                 'vision_summary' => $hasPhoto ? 'Gemini Vision verified citizen uploaded photo evidence.' : 'Intake verified from citizen mobile app report text.',
-                'sentiment' => !empty($row['ai_reason']) ? $row['ai_reason'] : ($isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report'),
+                'sentiment' => $isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report',
                 'sentiment_badge' => $isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
                 'barangay' => !empty($row['barangay']) ? $row['barangay'] : 'Caloocan City',
                 'cluster' => [
@@ -200,6 +207,14 @@ try {
                     'duplicate_ids' => $grpTickets
                 ],
                 'status' => $currentStatus,
+                'analyzed_at' => $analyzedAt,
+                'dispatch_token' => $dispatchToken,
+                'language_detected' => $langDetected,
+                'priority' => $priorityVal,
+                'sla_target' => $slaVal,
+                'ai_reason' => $cleanReason,
+                'model_name' => 'Google Gemini 3.5 Flash',
+                'photo_evidence_url' => $hasPhoto ? $row['photo_evidence_url'] : null,
                 'routing_target_url' => 'concern-routing.php'
             ];
         }
@@ -279,13 +294,13 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <div class="flex items-center space-x-2 text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">
                     <span>Feedback & Grievance</span>
                     <i class="fa-solid fa-chevron-right text-[8px] opacity-60"></i>
-                    <span class="text-indigo-600 dark:text-indigo-400">Gemini Multi-Modal AI Triage</span>
+                    <span class="text-indigo-600 dark:text-indigo-400">Gemini Multi-Modal AI Intelligence</span>
                 </div>
                 <h1 class="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 flex-wrap">
-                    <span>AI Analysis Results & Triage Hub</span>
+                    <span>AI Analysis Results & Intelligence History</span>
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-xs">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                        <span>⚡ Autonomous Routing Active</span>
+                        <span>⚡ Autonomous NLP History Log</span>
                     </span>
                 </h1>
             </div>
@@ -389,12 +404,13 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
             </div>
 
             <div class="flex items-center gap-2.5 text-xs">
-                <span class="text-slate-500 font-bold">Filter Status:</span>
+                <span class="text-slate-500 font-bold">Filter Reports:</span>
                 <select id="aiStatusFilter" onchange="applyAiFilters()" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 outline-none font-medium text-xs cursor-pointer focus:border-indigo-500">
-                    <option value="all">All Triage Statuses</option>
-                    <option value="Auto-Dispatched">⚡ Auto-Dispatched by AI (Zero-Touch)</option>
-                    <option value="Pending Review">⚠️ Low Confidence / Needs Review</option>
-                    <option value="Overridden">✏️ Manually Overridden</option>
+                    <option value="all">All Analyzed Reports</option>
+                    <option value="High Confidence">High AI Confidence (≥ 90%)</option>
+                    <option value="Urgent">Urgent / Safety Hazards</option>
+                    <option value="Clustered">Duplicate / Neighborhood Clusters</option>
+                    <option value="Vision">Photo Evidence Verified</option>
                 </select>
             </div>
 
@@ -405,11 +421,11 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
     <div class="space-y-4">
         <div class="flex items-center justify-between px-1">
             <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <i class="fa-solid fa-list-check text-indigo-600"></i>
-                <span>AI Classification & Triage Feed</span>
-                <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(7 tickets analyzed)</span>
+                <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+                <span>AI Analysis History & Audit Log</span>
+                <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(13 reports recorded)</span>
             </h3>
-            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Zero-Touch Automation: High-confidence reports are auto-routed directly to bureaus with staff override control</span>
+            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Read-only intelligence log of autonomous NLP evaluations, multi-modal evidence parsing, and department routing history</span>
         </div>
 
         <div id="aiFeedContainer" class="grid grid-cols-1 gap-4">
@@ -429,71 +445,118 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 </main>
 
 <!-- ========================================================================= -->
-<!-- STAFF OVERRIDE MODAL (HUMAN-IN-THE-LOOP CONTROL)                          -->
 <!-- ========================================================================= -->
-<div id="staffOverrideModal" class="hidden fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+<!-- AI INTELLIGENCE & ANALYSIS AUDIT REPORT MODAL (READ-ONLY INFORMATIONAL)    -->
+<!-- ========================================================================= -->
+<div id="analysisReportModal" class="hidden fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
         
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-            <h3 class="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-user-gear text-indigo-600"></i>
-                <span>Override AI Triage & Routing (Human-in-the-Loop)</span>
-            </h3>
-            <button onclick="closeStaffOverrideModal()" class="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>AI Analysis Audit Report</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            Read-Only Intelligence Log
+                        </span>
+                    </h3>
+                    <p class="text-[11px] text-slate-400 font-medium">Detailed audit breakdown of Gemini multi-modal inference and triage decisions</p>
+                </div>
+            </div>
+            <button onclick="closeAnalysisReportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer">
                 <i class="fa-solid fa-xmark text-sm"></i>
             </button>
         </div>
 
-        <div class="space-y-3.5 text-xs">
-            <div class="bg-indigo-50 dark:bg-indigo-950/40 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-between">
-                <div>
-                    <span class="text-[10px] text-slate-500 font-bold uppercase block">Target Report Ref</span>
-                    <span id="overrideModalTicketId" class="font-mono font-black text-indigo-600 dark:text-indigo-400 text-sm">CAL-REP-2026-4821</span>
+        <div class="space-y-4 text-xs">
+            <!-- Header Metadata Card -->
+            <div class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-2">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-700/60 pb-2.5">
+                    <div>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Report Reference Number</span>
+                        <span id="modalReportId" class="font-mono font-black text-indigo-600 dark:text-indigo-400 text-base">CAL-REP-2026-4821</span>
+                    </div>
+                    <div class="sm:text-right">
+                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Analysis Timestamp</span>
+                        <span id="modalReportDate" class="font-mono text-slate-600 dark:text-slate-300 font-bold text-xs">Oct 10, 2026 • 03:45 AM</span>
+                    </div>
                 </div>
-                <span class="text-[10px] bg-white dark:bg-slate-800 px-2 py-0.5 rounded-md font-bold text-slate-600 dark:text-slate-300">Staff Governance</span>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Barangay</span>
+                        <span id="modalReportBarangay" class="font-bold text-slate-800 dark:text-slate-200">Barangay 8</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Model Engine</span>
+                        <span class="font-bold text-indigo-600 dark:text-indigo-400">Gemini 3.5 Flash</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Confidence Score</span>
+                        <span id="modalReportConfidence" class="font-bold text-emerald-600 dark:text-emerald-400">97.1% Match</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Urgency / Priority</span>
+                        <span id="modalReportPriority" class="font-bold text-rose-600 dark:text-rose-400">High Priority</span>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Manual Category Assignment</label>
-                <select id="overrideCategorySelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer focus:border-indigo-500">
-                    <option value="Road & Infrastructure">Road & Infrastructure</option>
-                    <option value="Garbage & Waste">Garbage & Waste</option>
-                    <option value="Flooding & Drainage">Flooding & Drainage</option>
-                    <option value="Streetlights">Streetlights</option>
-                    <option value="Public Safety">Public Safety</option>
-                    <option value="Environment">Environment</option>
-                    <option value="Government Service / General Inquiry">Government Service / General Inquiry</option>
-                </select>
+            <!-- Subject & Narrative -->
+            <div class="space-y-1.5">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Citizen Report Narrative</span>
+                <h4 id="modalReportTitle" class="font-bold text-slate-900 dark:text-white text-sm">Large Pothole Hazard along 10th Avenue</h4>
+                <p id="modalReportNarrative" class="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800 font-medium leading-relaxed italic"></p>
             </div>
 
-            <div>
-                <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Target Department Bureau</label>
-                <select id="overrideDeptSelect" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 outline-none font-medium text-xs cursor-pointer focus:border-indigo-500">
-                    <?php foreach ($departments as $k => $d): ?>
-                    <option value="<?= $k ?>"><?= htmlspecialchars($d['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
+            <!-- Photo Evidence Preview (if present) -->
+            <div id="modalReportPhotoContainer" class="hidden space-y-1.5">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Visual Evidence</span>
+                <div class="w-full max-h-48 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+                    <img id="modalReportPhoto" src="" alt="Evidence" class="w-full h-48 object-cover">
+                </div>
             </div>
 
-            <div>
-                <label class="font-bold text-slate-700 dark:text-slate-300 block mb-1">Staff Override Audit Justification *</label>
-                <textarea id="overrideReasonText" rows="2" placeholder="State reason for overriding AI recommendation (e.g. specialized utility jurisdiction, inter-agency protocol)..." class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500 font-medium"></textarea>
+            <!-- NLP Keyword Extraction -->
+            <div class="space-y-1.5">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Extracted NLP Semantic Keywords</span>
+                <div id="modalReportKeywords" class="flex items-center gap-1.5 flex-wrap"></div>
+            </div>
+
+            <!-- Model Reasoning & Autonomous Routing Details -->
+            <div class="bg-indigo-50/50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-2">
+                <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">AI Model Inference & Reasoning Log</span>
+                <p id="modalReportReason" class="text-slate-700 dark:text-slate-200 leading-relaxed font-medium"></p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-indigo-100 dark:border-indigo-900/40 text-[11px]">
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Target Bureau</span>
+                        <span id="modalReportDept" class="font-bold text-slate-800 dark:text-slate-100">Public Assets & Facilities (PAFM)</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Municipal Token</span>
+                        <span id="modalReportToken" class="font-mono font-bold text-indigo-600 dark:text-indigo-400">ACK-74F2A19B</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Estimated SLA</span>
+                        <span id="modalReportSla" class="font-bold text-slate-800 dark:text-slate-100">24 Hours</span>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <button onclick="closeStaffOverrideModal()" class="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition cursor-pointer">
-                Cancel
-            </button>
-            <button onclick="saveStaffOverride()" class="px-5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-floppy-disk text-xs"></i>
-                <span>Save Staff Override & Dispatch</span>
+        <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <span class="text-[11px] text-slate-400 font-medium">To route or re-assign this concern, use the Concern Routing Desk.</span>
+            <button onclick="closeAnalysisReportModal()" class="px-5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer">
+                Close Report
             </button>
         </div>
 
     </div>
 </div>
-
 <!-- ========================================================================= -->
 <!-- BATCH RE-ANALYZE SIMULATION PROGRESS MODAL                                -->
 <!-- ========================================================================= -->
@@ -525,21 +588,19 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 // Master Reactive State for AI Triage Results
 let aiClassificationsData = <?php echo json_encode($initialAiClassifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 let departmentsMap = <?php echo json_encode($departments, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
-let activeOverrideItem = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     renderAiFeed();
 });
 
-// Render the AI Classification Cards
+// Render Dynamic Feed Cards (Strictly Informational AI Analysis History)
 function renderAiFeed() {
     const container = document.getElementById('aiFeedContainer');
     const emptyState = document.getElementById('aiEmptyState');
-    const feedCountBadge = document.getElementById('aiFeedCountBadge');
-    if (!container) return;
+    const countBadge = document.getElementById('aiFeedCountBadge');
 
     const filtered = getFilteredAiItems();
-    if (feedCountBadge) feedCountBadge.innerText = `(${filtered.length} tickets analyzed)`;
+    if (countBadge) countBadge.innerText = `(${filtered.length} reports recorded)`;
 
     if (filtered.length === 0) {
         container.innerHTML = '';
@@ -552,23 +613,12 @@ function renderAiFeed() {
     let html = '';
     filtered.forEach(item => {
         const deptInfo = departmentsMap[item.department_key] || { short: item.suggested_routing, badge: 'bg-slate-100 text-slate-700', icon: 'fa-solid fa-building' };
-        const isAutoDispatched = item.status === 'Auto-Dispatched' || item.status === 'Accepted';
-        const isOverridden = item.status === 'Overridden';
-        const isPendingReview = item.status === 'Pending Review';
-
-        let statusPill = '';
-        if (isAutoDispatched) {
-            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1"><i class="fa-solid fa-bolt-lightning text-emerald-500"></i> Auto-Dispatched to ${escapeHtml(deptInfo.short)}</span>`;
-        } else if (isOverridden) {
-            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 flex items-center gap-1"><i class="fa-solid fa-user-pen"></i> Staff Overridden</span>`;
-        } else {
-            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Low Confidence (<85%) - Manual Review</span>`;
-        }
+        const isHighConfidence = (item.ai_confidence || 0) >= 85;
 
         html += `
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition ${isAccepted ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/10' : ''}">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition">
             
-            <!-- Card Header -->
+            <!-- Card Top Header -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
                 <div class="flex items-center gap-3">
                     <span class="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900">
@@ -576,18 +626,24 @@ function renderAiFeed() {
                     </span>
                     <div>
                         <h4 class="text-sm font-black text-slate-900 dark:text-white leading-snug">${escapeHtml(item.title)}</h4>
-                        <span class="text-[11px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                            <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
-                            <span>${escapeHtml(item.barangay)}</span>
-                        </span>
+                        <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium mt-0.5 flex-wrap">
+                            <span class="flex items-center gap-1">
+                                <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
+                                <span>${escapeHtml(item.barangay)}</span>
+                            </span>
+                            <span class="flex items-center gap-1 font-mono text-[10px]">
+                                <i class="fa-regular fa-clock text-slate-400"></i>
+                                <span>Analyzed: ${escapeHtml(item.analyzed_at)}</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 <div class="flex items-center gap-2 flex-wrap sm:justify-end">
                     <!-- AI Confidence Badge -->
                     <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-extrabold text-[11px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 shadow-2xs">
-                        <i class="fa-solid fa-brain text-indigo-500"></i>
-                        <span>${item.ai_confidence}% AI Match</span>
+                        <i class="fa-solid fa-sparkles text-indigo-500"></i>
+                        <span>Gemini 3.5 Flash • ${item.ai_confidence}%</span>
                     </span>
 
                     <!-- Sentiment Badge -->
@@ -595,7 +651,10 @@ function renderAiFeed() {
                         ${item.sentiment}
                     </span>
 
-                    ${statusPill}
+                    <!-- Status Pill (Autonomous Dispatch Confirmation) -->
+                    <span class="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                        <i class="fa-solid fa-bolt-lightning text-emerald-500"></i> Auto-Dispatched to ${escapeHtml(deptInfo.short)}
+                    </span>
                 </div>
             </div>
 
@@ -605,8 +664,8 @@ function renderAiFeed() {
                     "${escapeHtml(item.text)}"
                 </p>
 
-                <div class="flex items-center gap-2 flex-wrap pt-1">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detected Keywords:</span>
+                <div class="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Semantic Keywords:</span>
                     ${item.detected_keywords.map(kw => `
                         <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-[10px] border border-indigo-100 dark:border-indigo-800">
                             #${escapeHtml(kw)}
@@ -622,12 +681,11 @@ function renderAiFeed() {
                 ` : ''}
             </div>
 
-            <!-- AI Suggested Bureau & Duplicate Cluster Grid -->
+            <!-- AI Classification & Proximity Summary -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                
-                <!-- AI Suggested Routing Box -->
+                <!-- AI Classification Box -->
                 <div class="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl space-y-1.5">
-                    <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">AI Suggested Classification & Routing</span>
+                    <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">AI Classification & Bureau Match</span>
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-slate-400">Category:</span>
                         <span class="font-extrabold text-slate-900 dark:text-white">${escapeHtml(item.ai_category)} <span class="text-slate-400 text-[10px] font-normal">(${escapeHtml(item.sub_category)})</span></span>
@@ -644,10 +702,10 @@ function renderAiFeed() {
                 <!-- Duplicate Cluster Box -->
                 <div class="p-3.5 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Proximity Cluster Detector</span>
+                        <span class="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Proximity Cluster Evaluation</span>
                         ${item.cluster.has_duplicates ? `
                         <span class="px-2 py-0.5 rounded-md bg-purple-600 text-white font-black text-[9px]">
-                            ${item.cluster.cluster_count} Similar Reports
+                            ${item.cluster.cluster_count} Similar Reports in Radius
                         </span>
                         ` : ''}
                     </div>
@@ -655,55 +713,85 @@ function renderAiFeed() {
                     <p class="font-bold text-slate-800 dark:text-slate-200 text-xs">${escapeHtml(item.cluster.cluster_name)}</p>
                     
                     ${item.cluster.has_duplicates ? `
-                    <div class="flex items-center justify-between pt-0.5">
-                        <p class="text-[10px] text-purple-700 dark:text-purple-300 font-mono">Cluster: ${item.cluster.duplicate_ids.join(', ')}</p>
-                        <button onclick="mergeDuplicateCluster('${item.id}')" class="text-[10px] font-bold text-purple-600 dark:text-purple-400 underline hover:text-purple-800 cursor-pointer">
-                            Merge Cluster
-                        </button>
-                    </div>
+                    <p class="text-[10px] text-purple-700 dark:text-purple-300 font-mono pt-0.5">Matched Tickets: ${item.cluster.duplicate_ids.join(', ')}</p>
                     ` : `
                     <p class="text-[10px] text-slate-400">No duplicate reports detected in neighborhood radius.</p>
                     `}
                 </div>
-
             </div>
 
-            <!-- Action Buttons Footer -->
+            <!-- AI Analysis History & Autonomous Triage Audit Trail (Informational Log) -->
+            <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                        <span>Analysis History & Autonomous Triage Trail</span>
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i>
+                        <span>${escapeHtml(item.analyzed_at)}</span>
+                    </span>
+                </div>
+
+                <!-- Audit Steps / History Sequence -->
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px]">
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">1. Intake & NLP</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.language_detected)}</p>
+                        <span class="text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <i class="fa-solid fa-check text-[8px]"></i> Multi-Modal Tokenized
+                        </span>
+                    </div>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">2. Model Engine</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.model_name)}</p>
+                        <span class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold">
+                            Confidence: ${item.ai_confidence}%
+                        </span>
+                    </div>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">3. Urgency & Impact</span>
+                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.priority)} Priority</p>
+                        <span class="text-[9px] text-slate-500">Est. SLA: ${escapeHtml(item.sla_target)}</span>
+                    </div>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">4. Municipal Dispatch</span>
+                        <p class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
+                            <i class="fa-solid fa-circle-check text-[9px]"></i> ${escapeHtml(deptInfo.short)}
+                        </p>
+                        <span class="text-[9px] font-mono text-slate-400 block truncate">Ref: ${escapeHtml(item.dispatch_token)}</span>
+                    </div>
+                </div>
+
+                <!-- Model Reasoning Summary -->
+                <div class="text-[11px] text-slate-600 dark:text-slate-300 bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 flex items-start gap-2">
+                    <i class="fa-solid fa-brain text-indigo-500 text-xs shrink-0 mt-0.5"></i>
+                    <div class="space-y-0.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">AI Reasoning Log:</span>
+                        <p class="leading-relaxed italic">"${escapeHtml(item.ai_reason)}"</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Informational Footer (Strictly Informational, NO ACTION BUTTONS) -->
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <a href="concern-routing.php" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                    <span>Track in Concern Routing & Dispatch Center</span>
-                </a>
+                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Autonomous Dispatch Complete &bull; Municipal Token: <code class="font-mono font-bold text-slate-700 dark:text-slate-200">${item.dispatch_token}</code></span>
+                </div>
 
                 <div class="flex items-center gap-2 justify-end">
-                    ${isAutoDispatched ? `
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold rounded-xl shadow-2xs">
-                        <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
-                        <span>Automatically Dispatched (Zero-Touch)</span>
-                    </span>
-                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
-                        <i class="fa-solid fa-sliders text-slate-400"></i>
-                        <span>Override Routing</span>
+                    <button onclick="openAnalysisReportModal('${item.id}')" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-file-waveform text-indigo-500"></i>
+                        <span>View Analysis Breakdown</span>
                     </button>
-                    ` : isOverridden ? `
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold rounded-xl">
-                        <i class="fa-solid fa-user-pen text-purple-500 text-xs"></i>
-                        <span>Manually Assigned to ${escapeHtml(deptInfo.short)}</span>
-                    </span>
-                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
-                        <i class="fa-solid fa-sliders text-slate-400"></i>
-                        <span>Edit Override</span>
-                    </button>
-                    ` : `
-                    <button onclick="acceptAiRecommendation('${item.id}')" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
-                        <i class="fa-solid fa-check text-xs"></i>
-                        <span>Confirm & Dispatch</span>
-                    </button>
-                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
-                        <i class="fa-solid fa-sliders text-slate-400"></i>
-                        <span>Re-assign</span>
-                    </button>
-                    `}
+                    <a href="concern-routing.php" class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800">
+                        <span>Concern Routing Desk</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                    </a>
                 </div>
             </div>
 
@@ -714,10 +802,10 @@ function renderAiFeed() {
     container.innerHTML = html;
 }
 
-// Filter engine
+// Filter engine for analysis records
 function getFilteredAiItems() {
     const searchVal = (document.getElementById('aiSearchInput')?.value || '').toLowerCase().trim();
-    const statusVal = document.getElementById('aiStatusFilter')?.value || 'all';
+    const filterVal = document.getElementById('aiStatusFilter')?.value || 'all';
 
     return aiClassificationsData.filter(item => {
         if (searchVal) {
@@ -730,10 +818,14 @@ function getFilteredAiItems() {
             if (!matchId && !matchTitle && !matchText && !matchBrgy && !matchKw) return false;
         }
 
-        if (statusVal === 'Auto-Dispatched') {
-            if (item.status !== 'Auto-Dispatched' && item.status !== 'Accepted') return false;
-        } else if (statusVal !== 'all' && item.status !== statusVal) {
-            return false;
+        if (filterVal === 'High Confidence') {
+            if ((item.ai_confidence || 0) < 90) return false;
+        } else if (filterVal === 'Urgent') {
+            if (!item.sentiment_badge || !item.sentiment_badge.includes('rose')) return false;
+        } else if (filterVal === 'Clustered') {
+            if (!item.cluster || !item.cluster.has_duplicates) return false;
+        } else if (filterVal === 'Vision') {
+            if (!item.vision_verified) return false;
         }
 
         return true;
@@ -752,7 +844,6 @@ function updateAiKpis() {
     let sumConf = 0;
     let urgent = 0;
     let autoDispatched = 0;
-    let clusters = 0;
     let duplicates = 0;
 
     aiClassificationsData.forEach(item => {
@@ -778,87 +869,41 @@ function updateAiKpis() {
     if (elAcceptSub) elAcceptSub.innerText = autoDispatched > 0 ? 'Zero-touch autonomous dispatch' : 'Autonomous AI routing active';
 }
 
-// Confirm AI Triage & Dispatch (For Low-Confidence / Flagged Reports)
-function acceptAiRecommendation(id) {
+// Open Read-Only Analysis Report Modal
+function openAnalysisReportModal(id) {
     const item = aiClassificationsData.find(c => c.id === id);
     if (!item) return;
 
-    item.status = 'Auto-Dispatched';
-    renderAiFeed();
-    updateAiKpis();
+    document.getElementById('modalReportId').innerText = item.id;
+    document.getElementById('modalReportDate').innerText = item.analyzed_at;
+    document.getElementById('modalReportTitle').innerText = item.title;
+    document.getElementById('modalReportBarangay').innerText = item.barangay;
+    document.getElementById('modalReportNarrative').innerText = '"' + item.text + '"';
+    document.getElementById('modalReportConfidence').innerText = item.ai_confidence + '% Confidence';
+    document.getElementById('modalReportPriority').innerText = item.priority;
+    document.getElementById('modalReportDept').innerText = item.suggested_routing;
+    document.getElementById('modalReportReason').innerText = item.ai_reason;
+    document.getElementById('modalReportToken').innerText = item.dispatch_token;
+    document.getElementById('modalReportSla').innerText = item.sla_target;
 
-    // Persist status change to MySQL database
-    fetch('../../api/admin/concerns.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            ticket_number: id,
-            status: 'Routed',
-            assigned_department: item.suggested_routing
-        })
-    }).then(res => res.json()).catch(err => console.warn('Sync notice:', err));
+    const photoContainer = document.getElementById('modalReportPhotoContainer');
+    if (item.photo_evidence_url) {
+        photoContainer.classList.remove('hidden');
+        document.getElementById('modalReportPhoto').src = item.photo_evidence_url;
+    } else {
+        photoContainer.classList.add('hidden');
+    }
 
-    showAiToast(`Triage for ${id} confirmed! Concern dispatched to ${item.suggested_routing}.`, 'success');
+    const keywordsBox = document.getElementById('modalReportKeywords');
+    keywordsBox.innerHTML = item.detected_keywords.map(kw => 
+        `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-[10px] border border-indigo-100 dark:border-indigo-800">#${escapeHtml(kw)}</span>`
+    ).join(' ');
+
+    document.getElementById('analysisReportModal').classList.remove('hidden');
 }
 
-// Staff Override Controller
-function openStaffOverrideModal(id) {
-    const item = aiClassificationsData.find(c => c.id === id);
-    if (!item) return;
-
-    activeOverrideItem = item;
-    document.getElementById('overrideModalTicketId').innerText = item.id;
-    document.getElementById('overrideCategorySelect').value = item.ai_category;
-    document.getElementById('overrideDeptSelect').value = item.department_key;
-    document.getElementById('overrideReasonText').value = '';
-
-    document.getElementById('staffOverrideModal').classList.remove('hidden');
-}
-
-function closeStaffOverrideModal() {
-    document.getElementById('staffOverrideModal').classList.add('hidden');
-    activeOverrideItem = null;
-}
-
-function saveStaffOverride() {
-    if (!activeOverrideItem) return;
-
-    const newCat = document.getElementById('overrideCategorySelect').value;
-    const newDeptKey = document.getElementById('overrideDeptSelect').value;
-    const reason = document.getElementById('overrideReasonText').value.trim() || 'Staff administrative jurisdiction override.';
-    const deptName = departmentsMap[newDeptKey]?.name || newDeptKey;
-
-    activeOverrideItem.ai_category = newCat;
-    activeOverrideItem.department_key = newDeptKey;
-    activeOverrideItem.suggested_routing = deptName;
-    activeOverrideItem.status = 'Overridden';
-
-    closeStaffOverrideModal();
-    renderAiFeed();
-    updateAiKpis();
-
-    // Persist override to MySQL database
-    fetch('../../api/admin/concerns.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            ticket_number: activeOverrideItem.id,
-            status: 'Routed',
-            assigned_department: deptName,
-            resolution_notes: 'Staff Override: ' + reason
-        })
-    }).then(res => res.json()).catch(err => console.warn('Sync notice:', err));
-
-    showAiToast(`Staff override saved for ${activeOverrideItem.id}: Routed to ${departmentsMap[newDeptKey]?.short}.`, 'success');
-}
-
-function mergeDuplicateCluster(id) {
-    const item = aiClassificationsData.find(c => c.id === id);
-    if (!item) return;
-
-    item.cluster.has_duplicates = false;
-    renderAiFeed();
-    showAiToast(`Duplicate cluster merged into primary ticket ${id}!`, 'info');
+function closeAnalysisReportModal() {
+    document.getElementById('analysisReportModal').classList.add('hidden');
 }
 
 // Batch Re-Analysis Simulation

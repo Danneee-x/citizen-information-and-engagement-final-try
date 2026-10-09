@@ -226,7 +226,7 @@ try {
 
 // Compute Dynamic AI Intelligence Metrics from live database rows
 $totalTickets = count($initialAiClassifications);
-$avgConfidenceVal = 96.2;
+$avgConfidenceVal = 0;
 $urgentFlagsCount = 0;
 $duplicateClustersCount = 0;
 $totalDuplicatesCount = 0;
@@ -254,7 +254,7 @@ if ($totalTickets > 0) {
         }
     }
 }
-$autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalTickets) * 100, 1) : 98.5;
+$autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalTickets) * 100, 1) : 0;
 ?>
 
 <!-- Custom Styling -->
@@ -333,10 +333,10 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 </div>
             </div>
             <div>
-                <h3 id="kpiAvgConfidence" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight"><?= $avgConfidenceVal ?>% Avg</h3>
+                <h3 id="kpiAvgConfidence" class="text-2xl font-black text-slate-900 dark:text-white tracking-tight"><?= $totalTickets > 0 ? ($avgConfidenceVal . '% Avg') : '0.0% Avg' ?></h3>
                 <p class="text-[11px] font-semibold text-emerald-600 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-check-double"></i>
-                    <span id="kpiAvgConfidenceSub"><?= $totalTickets ?> concerns evaluated with NLP</span>
+                    <span id="kpiAvgConfidenceSub"><?= $totalTickets > 0 ? ($totalTickets . ' concerns evaluated with NLP') : '0 concerns evaluated with NLP' ?></span>
                 </p>
             </div>
         </div>
@@ -387,7 +387,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <h3 id="kpiAcceptanceRate" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight"><?= $totalTickets > 0 ? ($autoDispatchedCount . ' / ' . $totalTickets . ' (' . $autoDispatchRateVal . '%)') : '100%' ?></h3>
                 <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-circle-check"></i>
-                    <span id="kpiAcceptanceRateSub"><?= $autoDispatchedCount > 0 ? 'Zero-touch autonomous dispatch' : 'Autonomous AI routing active' ?></span>
+                    <span id="kpiAcceptanceRateSub"><?= $autoDispatchedCount > 0 ? 'Zero-touch autonomous dispatch' : ($totalTickets > 0 ? 'Autonomous AI routing active' : 'No dispatches recorded yet') ?></span>
                 </p>
             </div>
         </div>
@@ -423,7 +423,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
             <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
                 <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
                 <span>AI Analysis History & Audit Log</span>
-                <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(13 reports recorded)</span>
+                <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(<?= $totalTickets ?> reports recorded)</span>
             </h3>
             <span class="text-xs text-slate-400 font-medium hidden sm:inline">Click any row or "View Analysis" to inspect the full multi-modal intelligence audit trail in a modal</span>
         </div>
@@ -467,7 +467,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                         <option value="25">25</option>
                         <option value="50">50</option>
                     </select>
-                    <span id="showingEntriesText" class="text-xs text-slate-500 font-medium ml-1 mr-2">Showing 1 to 10 of 13 entries</span>
+                    <span id="showingEntriesText" class="text-xs text-slate-500 font-medium ml-1 mr-2">Showing <?= $totalTickets > 0 ? ('1 to ' . min(10, $totalTickets) . ' of ' . $totalTickets) : '0' ?> entries</span>
                 </div>
 
                 <div id="paginationButtonsContainer" class="flex items-center gap-1 flex-wrap">
@@ -514,18 +514,18 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-3">
                     <span id="modalReportId" class="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900">
-                        CAL-REP-2026-6120
+                        ---
                     </span>
                     <div>
-                        <h4 id="modalReportTitle" class="text-sm font-black text-slate-900 dark:text-white leading-snug">Report Title</h4>
+                        <h4 id="modalReportTitle" class="text-sm font-black text-slate-900 dark:text-white leading-snug">---</h4>
                         <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium mt-0.5 flex-wrap">
                             <span class="flex items-center gap-1">
                                 <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
-                                <span id="modalReportBarangay">Barangay</span>
+                                <span id="modalReportBarangay">---</span>
                             </span>
                             <span class="flex items-center gap-1 font-mono text-[10px]">
                                 <i class="fa-regular fa-clock text-slate-400"></i>
-                                <span id="modalReportDate">Analyzed: Oct 10, 2026 • 03:40 AM</span>
+                                <span id="modalReportDate">---</span>
                             </span>
                         </div>
                     </div>
@@ -535,12 +535,12 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                     <!-- AI Confidence Badge -->
                     <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-extrabold text-[11px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 shadow-2xs">
                         <i class="fa-solid fa-sparkles text-indigo-500"></i>
-                        <span id="modalReportConfidence">Gemini 3.5 Flash • 98%</span>
+                        <span id="modalReportConfidence">---</span>
                     </span>
 
                     <!-- Sentiment Badge -->
-                    <span id="modalReportSentimentBadge" class="px-2.5 py-1 rounded-xl font-bold text-[11px] border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                        Community Service Report
+                    <span id="modalReportSentimentBadge" class="px-2.5 py-1 rounded-xl font-bold text-[11px] border bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300">
+                        ---
                     </span>
 
                     <!-- Status Pill -->
@@ -554,7 +554,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
             <div class="space-y-2 text-xs">
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Citizen Report Narrative:</span>
                 <p id="modalReportNarrative" class="text-slate-600 dark:text-slate-300 font-medium leading-relaxed bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 p-3.5 rounded-xl italic">
-                    "Testing narrative"
+                    ---
                 </p>
 
                 <div class="flex items-center gap-2 flex-wrap pt-0.5">
@@ -563,9 +563,9 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 </div>
 
                 <!-- Vision Multi-Modal Verification -->
-                <div id="modalReportVisionContainer" class="p-2.5 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 rounded-xl flex items-center gap-2 text-[11px] text-purple-900 dark:text-purple-200 font-medium">
+                <div id="modalReportVisionContainer" class="hidden p-2.5 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 rounded-xl flex items-center gap-2 text-[11px] text-purple-900 dark:text-purple-200 font-medium">
                     <i class="fa-solid fa-eye text-purple-600 dark:text-purple-400"></i>
-                    <span><strong>Vision Multi-Modal Verification:</strong> <span id="modalReportVisionSummary">Gemini Vision verified citizen uploaded photo evidence.</span></span>
+                    <span><strong>Vision Multi-Modal Verification:</strong> <span id="modalReportVisionSummary">---</span></span>
                 </div>
 
                 <!-- Photo Evidence Preview (if present) -->
@@ -584,13 +584,13 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                     <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">AI Classification & Bureau Match</span>
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-slate-400">Category:</span>
-                        <span id="modalReportCategory" class="font-extrabold text-slate-900 dark:text-white">Streetlights</span>
+                        <span id="modalReportCategory" class="font-extrabold text-slate-900 dark:text-white">---</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <span class="text-slate-500 dark:text-slate-400">Target Bureau:</span>
                         <span id="modalReportDept" class="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
                             <i id="modalReportDeptIcon" class="fa-solid fa-building text-[10px]"></i>
-                            <span id="modalReportDeptText">Public Assets & Facilities Management (PAFM)</span>
+                            <span id="modalReportDeptText">---</span>
                         </span>
                     </div>
                 </div>
@@ -599,13 +599,11 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <div class="p-3.5 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1.5">
                     <div class="flex items-center justify-between">
                         <span class="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Proximity Cluster Evaluation</span>
-                        <span id="modalReportClusterBadge" class="px-2 py-0.5 rounded-md bg-purple-600 text-white font-black text-[9px]">
-                            6 Similar Reports in Radius
-                        </span>
+                        <span id="modalReportClusterBadge" class="hidden px-2 py-0.5 rounded-md bg-purple-600 text-white font-black text-[9px]"></span>
                     </div>
 
-                    <p id="modalReportClusterName" class="font-bold text-slate-800 dark:text-slate-200 text-xs">Streetlights (171)</p>
-                    <p id="modalReportClusterMatched" class="text-[10px] text-purple-700 dark:text-purple-300 font-mono pt-0.5">Matched Tickets: CAL-REP-2026-6120, CAL-REP-2026-9020...</p>
+                    <p id="modalReportClusterName" class="font-bold text-slate-800 dark:text-slate-200 text-xs">---</p>
+                    <p id="modalReportClusterMatched" class="hidden text-[10px] text-purple-700 dark:text-purple-300 font-mono pt-0.5"></p>
                 </div>
             </div>
 
@@ -618,7 +616,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                     </span>
                     <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
                         <i class="fa-regular fa-clock"></i>
-                        <span id="modalReportTrailDate">Oct 10, 2026 • 03:40 AM</span>
+                        <span id="modalReportTrailDate">---</span>
                     </span>
                 </div>
 
@@ -626,7 +624,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px]">
                     <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
                         <span class="text-[9px] font-bold text-slate-400 uppercase block">1. Intake & NLP</span>
-                        <p id="modalReportLang" class="font-bold text-slate-800 dark:text-slate-200">Filipino / Taglish</p>
+                        <p id="modalReportLang" class="font-bold text-slate-800 dark:text-slate-200">---</p>
                         <span class="text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                             <i class="fa-solid fa-check text-[8px]"></i> Multi-Modal Tokenized
                         </span>
@@ -634,24 +632,22 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 
                     <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
                         <span class="text-[9px] font-bold text-slate-400 uppercase block">2. Model Engine</span>
-                        <p id="modalReportModel" class="font-bold text-slate-800 dark:text-slate-200">Google Gemini 3.5 Flash</p>
-                        <span id="modalReportModelConf" class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold">
-                            Confidence: 98%
-                        </span>
+                        <p id="modalReportModel" class="font-bold text-slate-800 dark:text-slate-200">---</p>
+                        <span id="modalReportModelConf" class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold">---</span>
                     </div>
 
                     <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
                         <span class="text-[9px] font-bold text-slate-400 uppercase block">3. Urgency & Impact</span>
-                        <p id="modalReportPriority" class="font-bold text-slate-800 dark:text-slate-200">Medium Priority</p>
-                        <span id="modalReportSla" class="text-[9px] text-slate-500">Est. SLA: 24 Hours</span>
+                        <p id="modalReportPriority" class="font-bold text-slate-800 dark:text-slate-200">---</p>
+                        <span id="modalReportSla" class="text-[9px] text-slate-500">---</span>
                     </div>
 
                     <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
                         <span class="text-[9px] font-bold text-slate-400 uppercase block">4. Municipal Dispatch</span>
                         <p id="modalReportDispatchDept" class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
-                            <i class="fa-solid fa-circle-check text-[9px]"></i> PAFM
+                            <i class="fa-solid fa-circle-check text-[9px]"></i> ---
                         </p>
-                        <span id="modalReportToken" class="text-[9px] font-mono text-slate-400 block truncate">Ref: ACK-EDB1C390</span>
+                        <span id="modalReportToken" class="text-[9px] font-mono text-slate-400 block truncate">Ref: ---</span>
                     </div>
                 </div>
 
@@ -660,7 +656,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                     <i class="fa-solid fa-brain text-indigo-500 text-xs shrink-0 mt-0.5"></i>
                     <div class="space-y-0.5">
                         <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">AI Reasoning Log:</span>
-                        <p id="modalReportReason" class="leading-relaxed italic">"Infrastructure hazard assigned to Public Assets & Facilities team."</p>
+                        <p id="modalReportReason" class="leading-relaxed italic">---</p>
                     </div>
                 </div>
             </div>
@@ -669,7 +665,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Autonomous Dispatch Complete &bull; Token: <code id="modalReportFooterToken" class="font-mono font-bold text-slate-700 dark:text-slate-200">ACK-EDB1C390</code></span>
+                    <span>Autonomous Dispatch Complete &bull; Token: <code id="modalReportFooterToken" class="font-mono font-bold text-slate-700 dark:text-slate-200">---</code></span>
                 </div>
 
                 <div class="flex items-center gap-2 justify-end">

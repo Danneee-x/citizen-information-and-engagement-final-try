@@ -384,7 +384,7 @@ try {
 </div>
 
 <script>
-const API_URL = '/civentral-citizen-information-and-engagement/api/admin/duplicate-flags.php';
+const API_URL = '<?php echo $basePath; ?>api/admin/duplicate-flags.php';
 let activeFlagCode = null;
 let activeMasterVidA = null;
 let activeMasterVidB = null;
@@ -399,18 +399,21 @@ function openMergeModal(flagCode, vidA, vidB, nameA, nameB) {
     activeNameA      = nameA;
     activeNameB      = nameB;
 
+    const displayA = (nameA && nameA !== 'N/A') ? nameA : `Resident Profile CTZ-${String(vidA).padStart(4,'0')}`;
+    const displayB = (nameB && nameB !== 'N/A') ? nameB : `Resident Profile CTZ-${String(vidB).padStart(4,'0')}`;
+
     document.getElementById('mergeOptions').innerHTML = `
-        <label class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between cursor-pointer">
+        <label class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-blue-100/50 transition">
             <div>
                 <span class="font-bold text-[#0f53d1] block text-xs">Keep Record A as Master (CTZ-${String(vidA).padStart(4,'0')})</span>
-                <span class="text-[10px] text-slate-500 font-medium">${nameA}</span>
+                <span class="text-[10px] text-slate-600 font-medium">${displayA}</span>
             </div>
             <input type="radio" name="masterRecord" value="${vidA}" checked class="w-4 h-4 text-[#0f53d1]">
         </label>
-        <label class="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between cursor-pointer">
+        <label class="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-purple-100/50 transition">
             <div>
                 <span class="font-bold text-purple-700 block text-xs">Keep Record B as Master (CTZ-${String(vidB).padStart(4,'0')})</span>
-                <span class="text-[10px] text-slate-500 font-medium">${nameB}</span>
+                <span class="text-[10px] text-slate-600 font-medium">${displayB}</span>
             </div>
             <input type="radio" name="masterRecord" value="${vidB}" class="w-4 h-4 text-purple-600">
         </label>
@@ -593,6 +596,29 @@ function showToast(type, html) {
     t.style.transform = 'translateX(-50%) translateY(0)';
     toastTimer = setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(20px)'; }, 4000);
 }
+
+// Modal Dismiss Listeners (Backdrop click and ESC key)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMergeModal();
+        closeNotDuplicateModal();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const mm = document.getElementById('mergeModal');
+    if (mm) {
+        mm.addEventListener('click', function(e) {
+            if (e.target === mm) closeMergeModal();
+        });
+    }
+    const ndm = document.getElementById('notDuplicateModal');
+    if (ndm) {
+        ndm.addEventListener('click', function(e) {
+            if (e.target === ndm) closeNotDuplicateModal();
+        });
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

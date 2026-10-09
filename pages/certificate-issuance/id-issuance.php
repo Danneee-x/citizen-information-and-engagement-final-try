@@ -289,7 +289,10 @@ $searchQuery = trim($_GET['search'] ?? '');
 $sql = "SELECT * FROM `id_issuance_applications` WHERE 1=1";
 $params = [];
 
-if ($selectedCategory !== 'all') {
+if ($selectedCategory === 'all') {
+    // Archived per panelist review preference; hidden from main view
+    $sql .= " AND `id_category` != 'solo_parent_id'";
+} else {
     $sql .= " AND `id_category` = :category";
     $params[':category'] = $selectedCategory;
 }
@@ -491,12 +494,12 @@ include '../../includes/sidebar.php';
                 <span class="px-2 py-0.5 rounded-full text-[10px] <?php echo $selectedCategory === 'barangay_id' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'; ?>"><?php echo $catCounts['barangay_id']; ?></span>
             </a>
 
-            <a href="?category=solo_parent_id&status=<?php echo urlencode($selectedStatus); ?>&type=<?php echo urlencode($selectedType); ?>&search=<?php echo urlencode($searchQuery); ?>" 
+            <?php /* Archived per panelist review preference: Solo Parent ID */ if (false): ?><a href="?category=solo_parent_id&status=<?php echo urlencode($selectedStatus); ?>&type=<?php echo urlencode($selectedType); ?>&search=<?php echo urlencode($searchQuery); ?>" 
                class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap <?php echo $selectedCategory === 'solo_parent_id' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'; ?>">
                 <i class="fa-solid fa-people-roof text-xs"></i>
                 <span>Solo Parent ID (CAL-SP)</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] <?php echo $selectedCategory === 'solo_parent_id' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'; ?>"><?php echo $catCounts['solo_parent_id']; ?></span>
-            </a>
+            </a><?php endif; ?>
 
             <a href="?category=pwd_id&status=<?php echo urlencode($selectedStatus); ?>&type=<?php echo urlencode($selectedType); ?>&search=<?php echo urlencode($searchQuery); ?>" 
                class="px-3.5 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap <?php echo $selectedCategory === 'pwd_id' ? 'bg-purple-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'; ?>">
@@ -1137,7 +1140,7 @@ include '../../includes/sidebar.php';
                     <select name="id_category" class="w-full bg-slate-50 border border-slate-200 text-slate-800 font-semibold rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500">
                         <option value="citizen_id">Citizen ID (Caloocan Citizen Unified ID Card)</option>
                         <option value="barangay_id">Barangay ID (Barangay Resident ID Card)</option>
-                        <option value="solo_parent_id">Solo Parent ID (RA 11861 Welfare Card)</option>
+                        <?php /* Archived per panelist review preference */ if (false): ?><option value="solo_parent_id">Solo Parent ID (RA 11861 Welfare Card)</option><?php endif; ?>
                         <option value="pwd_id">PWD ID (RA 10754 Disability Privilege Card)</option>
                         <option value="senior_citizen_id">Senior Citizen ID (RA 9994 OSCA Card)</option>
                     </select>

@@ -701,6 +701,7 @@ function getInitialRelativeTime($datetime) {
             </p>
           </div>
 
+<?php /* Archived per panelist review */ if (false): ?>
           <!-- Card 4: Solo Parents -->
           <div onclick="openDrilldownModal('demographics', 'solo_parents')" class="demo-kpi-card border-l-4 border-l-[#8B5CF6] group">
             <div class="flex items-center justify-between mb-1.5">
@@ -716,6 +717,7 @@ function getInitialRelativeTime($datetime) {
               <span id="demoCountSolo"><?php echo $soloParentCount; ?></span> <span class="text-[9px] font-semibold text-slate-400">residents</span>
             </p>
           </div>
+<?php endif; ?>
 
         </div>
 

@@ -504,7 +504,77 @@ function setSafeElementText(id, text) {
  * Category Resolver Function
  * Maps the applicant's category using birth_date, is_pwd, and residency flags.
  */
-function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = false) {
+function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = false, idCategory = '') {
+  const cat = (idCategory || '').toLowerCase();
+  
+  if (cat.includes('barangay')) {
+    return {
+      title: 'BARANGAY RESIDENT',
+      cardTitle: 'BARANGAY RESIDENT IDENTIFICATION CARD',
+      cardSubtitle: 'BARANGAY 178 • SANGGUNIANG BARANGAY • CITY OF CALOOCAN',
+      modalTitle: 'Barangay Resident Card',
+      type: 'BARANGAY RESIDENT',
+      stops: ['#064E3B', '#047857', '#10B981', '#059669'],
+      accentColor: '#059669',
+      badgeBg: '#DCFCE7',
+      badgeText: '#15803D',
+      hotlineLabel: 'BARANGAY HALL',
+      hotlinePhone: '(02) 8366-3101',
+      hotlineSub: 'Barangay Secretariat',
+      validityYears: 1
+    };
+  }
+  if (cat.includes('pwd') || isPwd) {
+    return {
+      title: 'PWD PRIVILEGE',
+      cardTitle: 'PERSON WITH DISABILITY (PWD) ID',
+      cardSubtitle: 'REPUBLIC ACT NO. 10754 • PERSONS WITH DISABILITY AFFAIRS OFFICE (PDAO)',
+      modalTitle: 'Civentral PWD Card',
+      type: 'PWD',
+      stops: ['#172554', '#1E40AF', '#2563EB', '#1D4ED8'],
+      accentColor: '#1E40AF',
+      badgeBg: '#DBEAFE',
+      badgeText: '#1E40AF',
+      hotlineLabel: 'PDAO OFFICE',
+      hotlinePhone: '(02) 8366-4000',
+      hotlineSub: 'Caloocan PDAO Desk',
+      validityYears: 3
+    };
+  }
+  if (cat.includes('senior') || cat.includes('osca')) {
+    return {
+      title: 'SENIOR CITIZEN (60+)',
+      cardTitle: 'SENIOR CITIZEN IDENTIFICATION CARD',
+      cardSubtitle: 'REPUBLIC ACT NO. 9994 • OFFICE OF SENIOR CITIZENS AFFAIRS (OSCA)',
+      modalTitle: 'Civentral Senior Citizen Card',
+      type: 'SENIOR CITIZEN',
+      stops: ['#450A0A', '#7F1D1D', '#DC2626', '#D97706'],
+      accentColor: '#991B1B',
+      badgeBg: '#FEF3C7',
+      badgeText: '#92400E',
+      hotlineLabel: 'OSCA OFFICE',
+      hotlinePhone: '(02) 8366-2200',
+      hotlineSub: 'Caloocan OSCA Desk',
+      validityYears: 0
+    };
+  }
+  if (cat.includes('solo')) {
+    return {
+      title: 'SOLO PARENT',
+      cardTitle: 'SOLO PARENT IDENTIFICATION CARD',
+      cardSubtitle: 'REPUBLIC ACT NO. 11861 • CITY SOCIAL WELFARE AND DEVELOPMENT (CSWDO)',
+      modalTitle: 'Solo Parent Identification Card',
+      type: 'SOLO PARENT',
+      stops: ['#4A044E', '#6B21A8', '#A855F7', '#EAB308'],
+      accentColor: '#6B21A8',
+      badgeBg: '#F3E8FF',
+      badgeText: '#6B21A8',
+      hotlineLabel: 'CSWDO WELFARE',
+      hotlinePhone: '(02) 8366-5000',
+      hotlineSub: 'Solo Parent Section',
+      validityYears: 1
+    };
+  }
   if (isNonResident) {
     return {
       title: 'NON-RESIDENT',

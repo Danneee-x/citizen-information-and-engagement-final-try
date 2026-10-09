@@ -279,7 +279,7 @@ include '../../includes/sidebar.php';
         <span class="text-brand-dark">Registered Citizens</span>
     </div>
     <!-- KPI Cards Row (2 lines x 4 boxes on desktop, responsive on smaller screens) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <!-- Card 1 -->
         <div onclick="filterByCard('all')" data-card-type="all" title="Click to view all citizens" class="kpi-stat-card bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group select-none">
             <div class="flex items-center gap-3.5">
@@ -348,7 +348,7 @@ include '../../includes/sidebar.php';
             </div>
         </div>
 
-        <!-- Card 5 -->
+        <?php /* Archived per panelist review preference: Solo Parent KPI Card */ if (false): ?><!-- Card 5 -->
         <div onclick="filterByCard('Solo Parent')" data-card-type="Solo Parent" title="Click to view solo parents" class="kpi-stat-card bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-pink-300 transition-all cursor-pointer group select-none">
             <div class="flex items-center gap-3.5">
                 <div class="w-11 h-11 rounded-xl bg-pink-50/80 flex items-center justify-center shrink-0 border border-pink-100">
@@ -363,9 +363,9 @@ include '../../includes/sidebar.php';
                 <span class="text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-arrow-up text-[10px]"></i> 1.35%</span>
                 <span class="text-slate-400">vs last month</span>
             </div>
-        </div>
+        </div><?php endif; ?>
 
-        <!-- Card 6 -->
+        <?php /* Archived per panelist review preference: 4Ps Beneficiary KPI Card */ if (false): ?><!-- Card 6 -->
         <div onclick="filterByCard('4Ps Beneficiary')" data-card-type="4Ps Beneficiary" title="Click to view 4Ps beneficiaries" class="kpi-stat-card bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-cyan-300 transition-all cursor-pointer group select-none">
             <div class="flex items-center gap-3.5">
                 <div class="w-11 h-11 rounded-xl bg-cyan-50/80 flex items-center justify-center shrink-0 border border-cyan-100">
@@ -380,7 +380,7 @@ include '../../includes/sidebar.php';
                 <span class="text-emerald-600 flex items-center gap-1"><i class="fa-solid fa-arrow-up text-[10px]"></i> 2.02%</span>
                 <span class="text-slate-400">vs last month</span>
             </div>
-        </div>
+        </div><?php endif; ?>
 
         <!-- Card 7 -->
         <div onclick="filterByCard('New Registrations')" data-card-type="New Registrations" title="Click to view new registrations" class="kpi-stat-card bg-white rounded-2xl p-4.5 border border-slate-200/80 shadow-xs flex flex-col justify-between hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group select-none">

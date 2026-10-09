@@ -56,7 +56,7 @@ try {
         `photo_2x2_url` TEXT NULL,
         `support_doc_name` VARCHAR(150) NULL,
         `support_doc_url` TEXT NULL,
-        `status` ENUM('Pending Review', 'Under Review', 'Processing & Verification', 'Approved', 'Ready for Release', 'Claimed', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
+        `status` ENUM('Pending Review', 'Under Review', 'Processing & Verification', 'Approved', 'Ready to Print', 'Ready for Release', 'Claimed', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
         `review_notes` TEXT NULL,
         `rejection_reason` TEXT NULL,
         `reviewed_by` VARCHAR(100) NULL,

@@ -407,6 +407,11 @@ foreach ($dbConcerns as $row) {
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border <?php echo $item['status_badge']; ?>">
                                         <?php echo $item['status']; ?>
                                     </span>
+                                    <?php if ($item['status'] === 'Routed'): ?>
+                                    <span class="block text-[8px] font-extrabold text-purple-600 mt-0.5 whitespace-nowrap"><i class="fa-solid fa-bolt text-[7px]"></i> AI Auto-Routed</span>
+                                    <?php elseif ($item['status'] === 'Under Review'): ?>
+                                    <span class="block text-[8px] font-bold text-amber-600 mt-0.5 whitespace-nowrap"><i class="fa-solid fa-user-clock text-[7px]"></i> Triage Needed</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="py-3.5 px-3 text-center" onclick="event.stopPropagation();">
                                     <button onclick="selectConcernRow(this.closest('tr'), '<?php echo $item['id']; ?>')" class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-[#0f53d1] hover:text-white text-slate-600 transition flex items-center justify-center cursor-pointer shadow-2xs" title="Open Concern Details Modal">

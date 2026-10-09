@@ -277,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Compute Dynamic KPIs
 $totalApplications = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications`")->fetchColumn();
 $pendingReview = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` IN ('Pending Review', 'Under Review')")->fetchColumn();
-$approvedProduction = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` = 'Approved'")->fetchColumn();
+$approvedProduction = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` IN ('Approved', 'Ready to Print')")->fetchColumn();
 $readyClaimed = (int)$pdo->query("SELECT COUNT(*) FROM `id_issuance_applications` WHERE `status` IN ('Ready for Release', 'Claimed')")->fetchColumn();
 
 // Fetch Applications
@@ -862,6 +862,12 @@ include '../../includes/sidebar.php';
                         <span>ID Release Desk</span>
                     </button>
 
+                    <!-- Action: View Official Civentral Citizen Card Modal -->
+                    <button type="button" onclick="openCiventralCitizenCardFromDetails()" class="px-4 py-3 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
+                        <i class="fa-solid fa-id-card text-sm"></i>
+                        <span>Civentral Citizen Card</span>
+                    </button>
+
                     <!-- Action 4: View ID Card & Voucher -->
                     <button type="button" onclick="openCardFromDetails()" class="px-4 py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
                         <i class="fa-solid fa-eye text-sm text-indigo-600"></i>
@@ -938,6 +944,7 @@ include '../../includes/sidebar.php';
                 <select name="status" id="reviewStatusSelect" class="w-full bg-slate-50 border border-slate-200 text-slate-800 font-semibold rounded-xl py-2.5 px-3.5 text-xs outline-none focus:border-indigo-500 focus:bg-white transition cursor-pointer">
                     <option value="Pending Review">Pending Review</option>
                     <option value="Under Review">Under Review</option>
+                    <option value="Ready to Print">Ready to Print</option>
                     <option value="Approved">Approved (Ready for Card Printing)</option>
                     <option value="Ready for Release">Ready for Release at Desk</option>
                     <option value="Claimed">Claimed / Released to Resident</option>
@@ -1390,6 +1397,36 @@ function openEditFromDetails() {
     if (selectedAppForModal) openEditModal(selectedAppForModal);
 }
 
+
+function openCiventralCitizenCardFromDetails() {
+    if (!selectedAppForModal) return;
+    if (typeof openCitizenCardModal === "function") {
+        const formatted = {
+            first_name: selectedAppForModal.first_name || "",
+            last_name: selectedAppForModal.last_name || "",
+            middle_name: selectedAppForModal.middle_name || "",
+            suffix: selectedAppForModal.suffix || "",
+            sex: selectedAppForModal.gender || "Female",
+            gender: selectedAppForModal.gender || "Female",
+            birth_date: selectedAppForModal.birthdate || "1995-10-20",
+            birthdate: selectedAppForModal.birthdate || "1995-10-20",
+            civil_status: selectedAppForModal.civil_status || "Single",
+            street_address: selectedAppForModal.street_address || "",
+            barangay: selectedAppForModal.barangay || "",
+            district: selectedAppForModal.district || "District 1",
+            citizen_id_number: selectedAppForModal.reference_no,
+            reference_no: selectedAppForModal.reference_no,
+            reviewed_at: selectedAppForModal.reviewed_at || selectedAppForModal.created_at || "2026-10-06",
+            emergency_contact: selectedAppForModal.emergency_contact_phone || "(02) 8366-3101",
+            photo_1x1_url: selectedAppForModal.photo_2x2_url || null,
+            signature_photo_url: selectedAppForModal.signature_url || null,
+        };
+        openCitizenCardModal(formatted);
+    } else {
+        alert("Citizen Card Modal is initializing, please try again in a moment.");
+    }
+}
+
 function openCardFromDetails() {
     closeCitizenDetailsModal();
     if (selectedAppForModal) openPreviewModal(selectedAppForModal);
@@ -1397,7 +1434,7 @@ function openCardFromDetails() {
 
 function goToReleaseFromDetails() {
     if (selectedAppForModal) {
-        if (selectedAppForModal.status === 'Approved') {
+        if (selectedAppForModal.status === 'Approved' || selectedAppForModal.status === 'Ready to Print') {
             alert(`Application ${selectedAppForModal.reference_no} is currently Approved (Ready for Printing). Please print the card first and change its status to 'Ready for Release' before sending to the Release Desk.`);
             return;
         }
@@ -1561,3 +1598,5 @@ function exportIDLogCSV() {
 </script>
 
 <?php include '../../includes/footer.php'; ?>
+
+<?php include_once __DIR__ . '/../../includes/citizen-card-modal.php'; ?>

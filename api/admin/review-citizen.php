@@ -155,32 +155,6 @@ try {
             ':uid'   => $citizenUserId
         ]);
 
-        // Record in id_cards_issued if table exists
-        try {
-            $idCardStmt = $pdo->prepare("INSERT INTO id_cards_issued (
-                card_control_no, application_id, reference_no, citizen_name, id_category,
-                barangay, date_issued, date_expiry, qr_security_hash, issued_by, status
-            ) VALUES (
-                :card_no, :app_id, :ref_no, :name, 'citizen_id',
-                :brgy, NOW(), DATE_ADD(NOW(), INTERVAL 5 YEAR), :qr_hash, :issued_by, 'Active'
-            ) ON DUPLICATE KEY UPDATE 
-                status = 'Active',
-                qr_security_hash = VALUES(qr_security_hash),
-                date_issued = NOW()");
-
-            $idCardStmt->execute([
-                ':card_no'   => $citizenIdNumber,
-                ':app_id'    => $verificationId,
-                ':ref_no'    => 'VER-' . str_pad($verificationId, 4, '0', STR_PAD_LEFT),
-                ':name'      => $fullName,
-                ':brgy'      => $verif['barangay'],
-                ':qr_hash'   => $qrCodeToken,
-                ':issued_by' => $reviewedBy
-            ]);
-        } catch (Exception $cardEx) {
-            // Ignore if id_cards_issued table structure varies
-        }
-
         // 3. Automatically mark any prior Rejected, Returned, or Pending records for this citizen as Superseded and Archived
         try {
             $superStmt = $pdo->prepare("UPDATE citizen_verifications SET 

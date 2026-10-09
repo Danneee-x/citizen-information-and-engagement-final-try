@@ -533,8 +533,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             :photo_evidence_url, :attachments
         )";
 
+        // 1. Dynamic Automated AI Routing Decision based on Confidence Threshold (85%)
+        $confidenceVal = 95;
+        if (!empty($confidenceScore) && preg_match('/(\d+)%?/', $confidenceScore, $cm)) {
+            $confidenceVal = (int)$cm[1];
+        }
+
+        // High Confidence (>= 85%): Automatically routed to assigned department
+        // Low Confidence (< 85%): Queued for manual triage ('Under Review')
+        $isAutoRouted = ($confidenceVal >= 85 && !empty($assignedDept));
+        $status = $isAutoRouted ? 'Routed' : 'Under Review';
+
+        $dispatchAck = 'ACK-' . strtoupper(substr(md5($ticketNumber), 0, 8));
+        if ($isAutoRouted) {
+            $aiReason = trim($aiReason) . " [Auto-Dispatch Protocol]: High confidence ({$confidenceVal}% >= 85%). Automatically routed to {$assignedDept}. Municipal Queue Dispatch Token: {$dispatchAck}.";
+        } else {
+            $aiReason = trim($aiReason) . " [Human Triage Required]: Classification confidence ({$confidenceVal}% < 85%). Flagged for Citizenship Administrator manual review.";
+        }
+
         $stmt = $pdo->prepare($sql);
-        $status = 'New';
         $stmt->execute([
             ':ticket_number' => $ticketNumber,
             ':citizen_user_id' => $citizenUserId,
@@ -564,9 +581,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         echo json_encode([
             'status' => 'success',
-            'message' => 'Concern ticket filed successfully.',
+            'message' => $isAutoRouted
+                ? "Concern ticket filed and automatically routed to {$assignedDept}."
+                : "Concern ticket filed and queued for administrative triage.",
             'ticket_number' => $ticketNumber,
             'concern_id' => (int)$insertedId,
+            'is_auto_routed' => $isAutoRouted,
+            'routing_summary' => [
+                'status' => $status,
+                'assigned_department' => $assignedDept,
+                'confidence_percent' => $confidenceVal,
+                'dispatch_acknowledgement' => $isAutoRouted ? $dispatchAck : null,
+                'human_triage_needed' => !$isAutoRouted
+            ],
             'data' => [
                 'ticket_number' => $ticketNumber,
                 'title' => $title,

@@ -1,6 +1,6 @@
 <?php
 /**
- * Civentral Official Citizen ID Card Modal Component
- * Mirror location in pages/citizen-registry/
+ * Citizen ID Card issuance and card preview modals are managed exclusively 
+ * under Certificate & ID Issuance (pages/certificate-issuance/id-issuance.php).
+ * Identity & citizenship verification does not generate or display citizen ID cards.
  */
-include_once __DIR__ . '/../../includes/citizen-card-modal.php';

@@ -507,8 +507,7 @@ include '../../includes/sidebar.php';
                     <thead>
                         <tr class="border-b border-slate-100 bg-slate-50/50">
                             <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref ID</th>
-                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Citizen ID</th>
-                            <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Applicant Name</th>
+                                                        <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Applicant Name</th>
                             <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date Submitted</th>
                             <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">District / Barangay</th>
                             <th class="p-3.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Assets</th>
@@ -519,7 +518,7 @@ include '../../includes/sidebar.php';
                     <tbody class="divide-y divide-slate-100" id="pendingTableBody">
                         <?php if (empty($applications)): ?>
                         <tr>
-                            <td colspan="8" class="p-12 text-center text-slate-400">
+                            <td colspan="7" class="p-12 text-center text-slate-400">
                                 <div class="flex flex-col items-center justify-center gap-2">
                                     <i class="fa-regular fa-folder-open text-4xl text-slate-300"></i>
                                     <p class="font-bold text-slate-700 text-sm">No records found in "<?php echo ucfirst($currentTab); ?>"</p>
@@ -535,9 +534,6 @@ include '../../includes/sidebar.php';
                             data-app='<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, "UTF-8"); ?>'
                             id="row-<?php echo $app['raw_id']; ?>">
                             <td class="p-3.5 text-xs font-bold text-slate-700"><?php echo $app['id']; ?></td>
-                            <td class="p-3.5 text-xs font-bold font-mono text-[#0f53d1]">
-                                <?php echo !empty($app['citizen_id_number']) ? $app['citizen_id_number'] : '<span class="text-slate-400 font-sans font-normal text-[11px]">—</span>'; ?>
-                            </td>
                             <td class="p-3.5">
                                 <div class="flex items-center gap-2.5">
                                     <img src="<?php echo $app['avatar']; ?>" class="w-7 h-7 rounded-full border border-slate-200 shrink-0" alt="Avatar">
@@ -574,12 +570,6 @@ include '../../includes/sidebar.php';
                             </td>
                             <td class="p-3.5 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <?php if (!empty($app['citizen_id_number']) || $app['status'] === 'Approved'): ?>
-                                    <button onclick="event.stopPropagation(); openCitizenCardModal(<?php echo htmlspecialchars(json_encode($app)); ?>)" class="px-2 py-1 text-[10px] font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1 shadow-xs" title="View Official Citizen Card">
-                                        <i class="fa-solid fa-id-card text-[10px]"></i>
-                                        <span>Card</span>
-                                    </button>
-                                    <?php endif; ?>
                                     <button class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#0f53d1] hover:text-white flex items-center justify-center text-slate-500 transition cursor-pointer shadow-2xs" title="Inspect Application in Modal">
                                         <i class="fa-solid fa-expand text-xs"></i>
                                     </button>
@@ -662,28 +652,6 @@ include '../../includes/sidebar.php';
                     </div>
                 </div>
 
-                <!-- Official Citizen ID Badge (Shown when approved) -->
-                <div id="drawerCitizenIdBadgeBox" class="hidden p-4 rounded-2xl bg-indigo-50 border border-indigo-200 space-y-2.5">
-                    <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
-                            <i class="fa-solid fa-id-card"></i> Official Citizen ID
-                        </span>
-                        <span id="drawerCitizenIdDisplay" class="text-xs font-black text-indigo-900 font-mono">CAL-2026-000001</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <div id="drawerQrBox" class="w-16 h-16 bg-white rounded-xl border border-indigo-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
-                            <img id="drawerQrImg" src="" class="w-full h-full object-contain" alt="QR Code" />
-                        </div>
-                        <div class="text-[10px] text-indigo-800 space-y-0.5 flex-1">
-                            <p class="font-bold text-xs">Digital Identity Credential</p>
-                            <p class="text-indigo-600 font-mono text-[9px] break-all line-clamp-2" id="drawerQrTokenDisplay"></p>
-                        </div>
-                    </div>
-                    <button type="button" id="viewCitizenCardBtn" data-action="view-card" class="w-full mt-2 py-2.5 px-3 bg-[#0F4C81] hover:bg-sky-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer border border-sky-400/40">
-                        <i class="fa-solid fa-id-card text-xs"></i>
-                        <span>View Citizen ID Card</span>
-                    </button>
-                </div>
 
                 <!-- Admin Action / Rework Notes Box (Shown when present) -->
                 <div id="drawerAdminNotesBox" class="hidden p-4 rounded-2xl bg-orange-50 border border-orange-200 space-y-1">
@@ -826,24 +794,24 @@ include '../../includes/sidebar.php';
                                 <i class="fa-solid fa-circle-check"></i>
                             </div>
                             <div>
-                                <h4 class="text-xs font-black text-emerald-950 uppercase tracking-wide">Application Approved</h4>
-                                <p class="text-[10px] text-emerald-600 font-medium">Verified Citizen Identity Credential Issued</p>
+                                <h4 class="text-xs font-black text-emerald-950 uppercase tracking-wide">Citizenship Verified</h4>
+                                <p class="text-[10px] text-emerald-600 font-medium">Citizen Identity & Residency Authenticated</p>
                             </div>
                         </div>
                         <span class="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-emerald-200/80 text-emerald-800 border border-emerald-300 shadow-2xs">
-                            Active / Approved
+                            Verified Resident
                         </span>
                     </div>
 
                     <div class="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-2xs flex items-center justify-between">
                         <div>
-                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">Citizen ID Number</span>
-                            <span id="drawerApprovedCitizenId" class="text-sm font-black font-mono text-emerald-950">CAL-2026-000001</span>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-emerald-600 block">Resident Verification Ref</span>
+                            <span id="drawerApprovedCitizenId" class="text-sm font-black font-mono text-emerald-950">VER-0001</span>
                         </div>
-                        <button type="button" onclick="if(activeApp) openCitizenCardModal(activeApp)" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-                            <i class="fa-solid fa-id-card"></i>
-                            <span>View ID Card</span>
-                        </button>
+                        <div class="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1">
+                            <i class="fa-solid fa-user-check text-xs"></i>
+                            <span>Citizenship Approved</span>
+                        </div>
                     </div>
 
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[10px] text-emerald-900 pt-1 border-t border-emerald-200/60 font-medium">
@@ -1137,17 +1105,6 @@ function selectPendingApplication(rowElement) {
     renderImageCard('drawerPhoto1x1Box', app.photo_1x1_url, 'fa-regular fa-image', '1x1 Photo');
     renderImageCard('drawerSignatureBox', app.signature_photo_url, 'fa-solid fa-signature', 'Digital Signature');
 
-    // Citizen ID & QR Badge (if approved)
-    const idBadgeBox = document.getElementById('drawerCitizenIdBadgeBox');
-    if (app.citizen_id_number) {
-        idBadgeBox.classList.remove('hidden');
-        document.getElementById('drawerCitizenIdDisplay').textContent = app.citizen_id_number;
-        const qrUrl = app.qr_code_image_url || ('https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' + encodeURIComponent(app.citizen_id_number));
-        document.getElementById('drawerQrImg').src = qrUrl;
-        document.getElementById('drawerQrTokenDisplay').textContent = app.qr_code_token || 'Verified Credential';
-    } else {
-        idBadgeBox.classList.add('hidden');
-    }
 
     // Admin Action Notes / Rejection Reason (if any)
     const notesBox = document.getElementById('drawerAdminNotesBox');
@@ -1186,7 +1143,7 @@ function selectPendingApplication(rowElement) {
         // Application is approved: Hide decision buttons and show official credential panel
         if (approvedBox) {
             approvedBox.classList.remove('hidden');
-            document.getElementById('drawerApprovedCitizenId').textContent = app.citizen_id_number || 'CAL-2026-XXXXXX';
+            document.getElementById('drawerApprovedCitizenId').textContent = app.id || ('VER-' + String(app.raw_id).padStart(4, '0'));
             document.getElementById('drawerApprovedByText').textContent = app.reviewer || app.reviewed_by || 'Admin';
             document.getElementById('drawerApprovedAtText').textContent = app.reviewed_at || (app.date + ' ' + app.time);
         }
@@ -1310,7 +1267,7 @@ function exportPendingListCSV() {
 // APPROVE APPLICATION
 async function handleApproveApplication() {
     if (!activeApp) return;
-    if (!confirm(`Are you sure you want to APPROVE registration for ${activeApp.applicant}?\n\nThis will generate their official Citizen ID Number and QR Credential.`)) return;
+    if (!confirm(`Are you sure you want to APPROVE citizenship verification for ${activeApp.applicant}?\n\nThis will verify their resident status and citizenship.`)) return;
 
     const btn = document.getElementById('btnApproveApp');
     if (btn) {
@@ -1356,26 +1313,12 @@ async function handleApproveApplication() {
             const approvedBox = document.getElementById('drawerApprovedNoticeBox');
             if (approvedBox) {
                 approvedBox.classList.remove('hidden');
-                document.getElementById('drawerApprovedCitizenId').textContent = result.citizen_id_number;
+                document.getElementById('drawerApprovedCitizenId').textContent = activeApp.id || ('VER-' + String(activeApp.raw_id).padStart(4, '0'));
                 document.getElementById('drawerApprovedByText').textContent = 'Admin';
                 document.getElementById('drawerApprovedAtText').textContent = result.reviewed_at || 'Just now';
             }
 
-            // Update drawer elements if open
-            const idBadgeBox = document.getElementById('drawerCitizenIdBadgeBox');
-            if (idBadgeBox) {
-                idBadgeBox.classList.remove('hidden');
-                document.getElementById('drawerCitizenIdDisplay').textContent = result.citizen_id_number;
-                if (result.qr_code_image_url) {
-                    document.getElementById('drawerQrImg').src = result.qr_code_image_url;
-                }
-                if (result.qr_code_token) {
-                    document.getElementById('drawerQrTokenDisplay').textContent = result.qr_code_token;
-                }
-            }
-
-            // Immediately launch the Official Citizen ID Card Modal!
-            openCitizenCardModal(activeApp);
+            showToast('success', 'Citizenship verification successfully approved!');
         } else {
             alert('Error: ' + (result.message || 'Failed to approve application.'));
             if (btn) {
@@ -1520,20 +1463,6 @@ function switchDrawerTab(tab) {
     }
 }
 
-// Delegated click listener for View Citizen ID Card triggers
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('#viewCitizenCardBtn, [data-action="view-card"]');
-    if (btn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const citizenData = activeApp || window.currentSelectedCitizen;
-        if (citizenData && typeof openCitizenCardModal === 'function') {
-            openCitizenCardModal(citizenData);
-        } else if (!citizenData) {
-            alert('Please select an applicant from the table to view their Citizen ID card.');
-        }
-    }
-});
 
 // Modal dismiss listeners (Backdrop click and Escape key)
 document.addEventListener('keydown', function(e) {
@@ -1568,5 +1497,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php include '../../includes/citizen-card-modal.php'; ?>
 <?php include '../../includes/footer.php'; ?>

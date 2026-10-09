@@ -582,7 +582,7 @@ include '../../includes/sidebar.php';
                         <thead>
                             <tr class="border-b border-slate-100 bg-slate-50/50">
                                 <th class="p-4 w-12 text-center"></th>
-                                <th class="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Citizen ID</th>
+                                <th class="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Resident ID</th>
                                 <th class="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Full Name</th>
                                 <th class="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Age</th>
                                 <th class="p-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sex</th>
@@ -654,9 +654,9 @@ include '../../includes/sidebar.php';
                                 <td class="p-4 text-[11px] text-slate-500 font-medium"><?php echo $c['updated']; ?></td>
                                 <td class="p-4 text-center">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        <button onclick="event.stopPropagation(); openCitizenCardModal(<?php echo htmlspecialchars(json_encode($c)); ?>)" class="px-2.5 py-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 rounded-lg transition cursor-pointer flex items-center gap-1 shadow-xs" title="View Citizen ID Card">
-                                            <i class="fa-solid fa-id-card text-xs"></i>
-                                            <span>View Card</span>
+                                        <button onclick="event.stopPropagation(); openResidentProfileModal(<?php echo htmlspecialchars(json_encode($c)); ?>)" class="px-2.5 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-2xs" title="View Resident Profile">
+                                            <i class="fa-regular fa-user text-xs text-slate-500"></i>
+                                            <span>View Profile</span>
                                         </button>
                                         <button onclick="toggleRowActionsMenu(event, this, '<?php echo $c['id']; ?>')" class="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition cursor-pointer">
                                             <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
@@ -1335,12 +1335,12 @@ function handleRowAction(event, action) {
     const citizenId = menu.dataset.activeId;
     menu.classList.add('hidden');
 
-    if (action === 'view-card') {
-        const found = (typeof registeredCitizens !== 'undefined' ? registeredCitizens : []).find(c => String(c.id) === String(citizenId) || String(c.citizen_id_number) === String(citizenId));
-        if (found && typeof openCitizenCardModal === 'function') {
-            openCitizenCardModal(found);
+    if (action === 'view-profile' || action === 'view-card') {
+        const found = (typeof registeredCitizens !== 'undefined' ? registeredCitizens : []).find(c => String(c.id) === String(citizenId) || String(c.citizen_id_number) === String(citizenId) || String(c.raw_id) === String(citizenId));
+        if (found && typeof openResidentProfileModal === 'function') {
+            openResidentProfileModal(found);
         } else {
-            alert('Citizen card details not found for ID: ' + citizenId);
+            alert('Resident record details not found for ID: ' + citizenId);
         }
         return;
     } else if (action === 'mark-validation') {
@@ -1916,7 +1916,7 @@ document.addEventListener('keydown', function(e) {
 
 <!-- Floating Global Row Actions Dropdown Overlay -->
 <div id="globalRowActionsMenu" class="hidden fixed w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 z-[9999] text-xs font-medium text-slate-600 text-left">
-    <a href="#" onclick="handleRowAction(event, 'view-card')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 text-[#0f53d1] font-bold transition"><i class="fa-solid fa-id-card text-[#0f53d1] w-4 text-center"></i> View Citizen ID Card</a>
+    <a href="#" onclick="handleRowAction(event, 'view-profile')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-blue-50 text-[#0f53d1] font-bold transition"><i class="fa-regular fa-user text-[#0f53d1] w-4 text-center"></i> View Resident Profile</a>
     <div class="border-t border-slate-100 my-1"></div>
     <a href="#" onclick="handleRowAction(event, 'view-profile')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition"><i class="fa-regular fa-user text-slate-400 w-4 text-center"></i> View Profile</a>
     <a href="#" onclick="handleRowAction(event, 'edit-citizen')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 hover:text-slate-900 transition"><i class="fa-solid fa-pen text-slate-400 w-4 text-center"></i> Edit Citizen</a>
@@ -1928,5 +1928,124 @@ document.addEventListener('keydown', function(e) {
     <a href="#" onclick="handleRowAction(event, 'archive-record')" class="flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition"><i class="fa-solid fa-trash-can opacity-80 w-4 text-center"></i> Archive Record</a>
 </div>
 
-<?php include '../../includes/citizen-card-modal.php'; ?>
+
+<!-- RESIDENT PROFILE DETAILS MODAL -->
+<div id="residentProfileModal" class="hidden fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target === this) closeResidentProfileModal()">
+    <div class="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200/80 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 shadow-xs">
+                    <i class="fa-solid fa-address-book"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="font-extrabold text-base tracking-tight text-slate-900">Resident Registry Profile</h3>
+                        <span id="rpmRegistryId" class="text-xs font-mono font-bold text-[#0f53d1] bg-blue-50 px-2.5 py-0.5 rounded-lg border border-blue-100">RES-0001</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Verified Citizen & Resident Record • City of Caloocan</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeResidentProfileModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+            <div class="flex items-center gap-4 p-4 bg-slate-50/80 rounded-2xl border border-slate-100">
+                <img id="rpmAvatar" src="" class="w-14 h-14 rounded-full border border-slate-200 shrink-0 object-cover" alt="Citizen">
+                <div class="flex-1 min-w-0">
+                    <h4 id="rpmFullName" class="text-base font-black text-slate-900 truncate">Resident Name</h4>
+                    <p id="rpmLocation" class="text-xs text-slate-500 font-medium">Barangay 171, District 1</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span id="rpmStatusBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200">Active</span>
+                        <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-600"></i>Verified Resident</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex items-start gap-2.5 text-xs text-blue-900">
+                <i class="fa-solid fa-circle-info text-blue-500 mt-0.5 shrink-0 text-sm"></i>
+                <p class="leading-relaxed">This resident has completed citizenship & identity verification. Municipal ID card issuance (e.g. Senior ID, PWD ID, Unified Citizen ID) is managed under the <a href="../certificate-issuance/id-issuance.php" class="font-bold underline text-blue-700 hover:text-blue-900">ID Issuance</a> module upon specific card application.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-xs">
+                <h3 class="text-xs font-black text-slate-800 tracking-wide uppercase border-b border-slate-100 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-user text-[#0f53d1]"></i>
+                    <span>Resident Demographics</span>
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Age</span>
+                        <span id="rpmAge" class="font-bold text-slate-800 text-xs">—</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Sex</span>
+                        <span id="rpmSex" class="font-bold text-slate-800 text-xs">—</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Civil Status</span>
+                        <span id="rpmCivilStatus" class="font-bold text-slate-800 text-xs">—</span>
+                    </div>
+                    <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Household ID</span>
+                        <span id="rpmHousehold" class="font-bold text-slate-800 text-xs">—</span>
+                    </div>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                    <span class="text-slate-400 block text-[10px] font-bold uppercase">Registered Address</span>
+                    <span id="rpmAddress" class="font-bold text-slate-800 block">—</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-xs">
+                    <span class="text-slate-400 block text-[10px] font-bold uppercase">Contact Number</span>
+                    <span id="rpmMobile" class="font-bold text-slate-800 block">—</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+            <button type="button" onclick="closeResidentProfileModal()" class="px-4 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 transition cursor-pointer">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openResidentProfileModal(citizen) {
+    if (!citizen) return;
+    document.getElementById('rpmRegistryId').textContent = citizen.id || ('RES-' + String(citizen.raw_id || '').padStart(6, '0'));
+    document.getElementById('rpmFullName').textContent = citizen.full_name || citizen.name || citizen.applicant || 'Resident';
+    document.getElementById('rpmLocation').textContent = (citizen.barangay || 'Barangay') + ', ' + (citizen.district || 'District 1');
+    document.getElementById('rpmAge').textContent = citizen.age ? (citizen.age + ' years old') : 'N/A';
+    document.getElementById('rpmSex').textContent = citizen.sex || 'Not Specified';
+    document.getElementById('rpmCivilStatus').textContent = citizen.civil_status || 'Single';
+    document.getElementById('rpmHousehold').textContent = citizen.household || 'N/A';
+    document.getElementById('rpmAddress').textContent = citizen.street_address ? (citizen.street_address + ', ' + (citizen.barangay || '')) : ((citizen.barangay || '') + ', ' + (citizen.district || ''));
+    document.getElementById('rpmMobile').textContent = citizen.mobile || 'N/A';
+
+    const avatarEl = document.getElementById('rpmAvatar');
+    if (avatarEl) {
+        avatarEl.src = citizen.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(citizen.applicant || citizen.name || 'Citizen')}&background=0f53d1&color=fff`;
+    }
+
+    const badgeEl = document.getElementById('rpmStatusBadge');
+    if (badgeEl) {
+        badgeEl.textContent = citizen.status || 'Active';
+    }
+
+    const modal = document.getElementById('residentProfileModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeResidentProfileModal() {
+    const modal = document.getElementById('residentProfileModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeResidentProfileModal();
+    }
+});
+</script>
 <?php include '../../includes/footer.php'; ?>

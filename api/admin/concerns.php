@@ -70,6 +70,20 @@ function getDbConnection() {
                 'desc' => 'Dokploy Environment Config'
             ],
             [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'group1',
+                'pass' => 'Danny@123',
+                'desc' => 'Dokploy Live MySQL (group1)'
+            ],
+            [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'root',
+                'pass' => 'Danny123@',
+                'desc' => 'Dokploy Live MySQL (root)'
+            ],
+            [
                 'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
                 'port' => 3306,
                 'user' => 'civentral_user',

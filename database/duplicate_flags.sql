@@ -1,4 +1,4 @@
-﻿-- ==============================================================================
+-- ==============================================================================
 -- DATABASE: citizen_verification
 -- TABLE:    duplicate_flags
 -- Purpose:  Persist detected duplicate citizen pairs and resolution outcomes

@@ -4,6 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
 header('Content-Type: application/json; charset=utf-8');
 
 // 1. CORS Configuration (Allow mobile apps, local dev, and cloud web admin)
@@ -75,6 +79,20 @@ function getDbConnection() {
                 'user' => getenv('DB_USER') ?: '',
                 'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '',
                 'desc' => 'Dokploy Environment Config'
+            ],
+            [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'group1',
+                'pass' => 'Danny@123',
+                'desc' => 'Dokploy Live MySQL (group1)'
+            ],
+            [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'root',
+                'pass' => 'Danny123@',
+                'desc' => 'Dokploy Live MySQL (root)'
             ],
             [
                 'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
@@ -371,6 +389,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        $textCombo = strtolower($title . ' ' . $description . ' ' . $category);
+
         // 1. Live Google Gemini Multi-Modal AI Classification
         $geminiResult = classifyConcernWithGemini($title, $description, $category, $barangay);
 
@@ -383,7 +403,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $similarConcerns = 'Analyzed by live Gemini Engine';
         } else {
             // Fallback: Rule-Based Classifier Simulation
-            $textCombo = strtolower($title . ' ' . $description . ' ' . $category);
             $detectedCategory = $category;
             $priority = 'Medium';
             $assignedDept = 'Citizenship Information & Engagement (CIE)';
@@ -579,6 +598,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $insertedId = $pdo->lastInsertId();
 
+        if (ob_get_length()) ob_clean();
         echo json_encode([
             'status' => 'success',
             'message' => $isAutoRouted
@@ -610,6 +630,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         exit;
     } catch (\Exception $e) {
+        if (ob_get_length()) ob_clean();
         http_response_code(500);
         echo json_encode([
             'status' => 'error',

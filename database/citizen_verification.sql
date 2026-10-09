@@ -1,4 +1,4 @@
-﻿-- ==============================================================================
+-- ==============================================================================
 -- DATABASE: citizen_verification
 -- Target System: Civentral Citizen Portal / Verification Module
 -- Generated for: Local MySQL / phpMyAdmin import

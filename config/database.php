@@ -66,6 +66,18 @@ function getDbConnection(): PDO {
                 'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : (getenv('MYSQL_PASSWORD') !== false ? getenv('MYSQL_PASSWORD') : getenv('MYSQL_ROOT_PASSWORD')),
             ],
             [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'group1',
+                'pass' => 'Danny@123',
+            ],
+            [
+                'host' => 'citizeninformationandengagement-citizen-azflo4',
+                'port' => 3306,
+                'user' => 'root',
+                'pass' => 'Danny123@',
+            ],
+            [
                 'host' => 'citizeninformation-citizendb-o5cfyu',
                 'port' => 3306,
                 'user' => 'mysql',
@@ -153,6 +165,8 @@ function getCertificateDbConnection(): PDO {
     } else {
         $candidates = [
             ['host' => getenv('DB_HOST') ?: getenv('MYSQL_HOST'), 'port' => getenv('DB_PORT') ?: 3306, 'user' => getenv('DB_USER') ?: getenv('MYSQL_USER'), 'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : (getenv('MYSQL_PASSWORD') ?: '')],
+            ['host' => 'citizeninformationandengagement-citizen-azflo4', 'port' => 3306, 'user' => 'group1', 'pass' => 'Danny@123'],
+            ['host' => 'citizeninformationandengagement-citizen-azflo4', 'port' => 3306, 'user' => 'root', 'pass' => 'Danny123@'],
             ['host' => 'citizeninformationandengagement-citizenregistry-ffbtjn', 'port' => 3306, 'user' => 'civentral_user', 'pass' => 'Civentral2026!'],
             ['host' => '127.0.0.1', 'port' => 3306, 'user' => 'root', 'pass' => '']
         ];

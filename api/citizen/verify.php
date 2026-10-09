@@ -52,7 +52,22 @@ function getDbConnection() {
             'pass' => getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '',
             'desc' => 'Dokploy Environment Config'
         ],
-        // Candidate 2: Dokploy Internal Docker Network (same container host)
+        // Candidate 2: Dokploy Live MySQL container
+        [
+            'host' => 'citizeninformationandengagement-citizen-azflo4',
+            'port' => 3306,
+            'user' => 'group1',
+            'pass' => 'Danny@123',
+            'desc' => 'Dokploy Live MySQL (group1)'
+        ],
+        [
+            'host' => 'citizeninformationandengagement-citizen-azflo4',
+            'port' => 3306,
+            'user' => 'root',
+            'pass' => 'Danny123@',
+            'desc' => 'Dokploy Live MySQL (root)'
+        ],
+        // Candidate 3: Dokploy Internal Docker Network (same container host)
         [
             'host' => 'citizeninformationandengagement-citizenregistry-ffbtjn',
             'port' => 3306,

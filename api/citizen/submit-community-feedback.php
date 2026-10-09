@@ -4,6 +4,10 @@
  * Endpoint: POST /api/citizen/submit-community-feedback.php
  */
 
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -136,6 +140,7 @@ try {
 
     $submissionDate = date('M j, Y • g:i A');
 
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'status' => 'success',
         'message' => 'Your community feedback has been recorded successfully.',
@@ -148,6 +153,7 @@ try {
         ],
     ]);
 } catch (Exception $e) {
+    if (ob_get_length()) ob_clean();
     http_response_code(500);
     echo json_encode([
         'status' => 'error',

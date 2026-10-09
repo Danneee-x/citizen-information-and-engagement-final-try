@@ -14,3 +14,5 @@ Thumbs.db
 *.local_bak
 citizen-backend/
 citizen-engagement-app/
+
+sessions/sess_*

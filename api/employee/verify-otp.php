@@ -1,8 +1,6 @@
 <?php
-// Prevent session lock issues during long DB queries
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../../src/Session.php';
+startSecureSession();
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -102,6 +100,8 @@ if (isset($result['body']['status']) && $result['body']['status'] === 'success')
         'audit logs system', 'audit'
     ];
     $_SESSION['user_granted_resources'] = $defaultModules;
+    persistAdminAuthCookie($_SESSION);
+    $result['body']['user'] = $_SESSION;
 }
 
 respond($result['body'], $result['code']);

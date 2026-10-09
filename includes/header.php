@@ -45,6 +45,29 @@ require_once __DIR__ . '/../src/bootstrap.php';
       } else {
         document.documentElement.classList.remove('dark');
       }
+
+      // Client-Side Session Self-Healing
+      const isSystemUserFallback = <?php echo ($headerUser['full_name'] === 'System User' || empty($_SESSION['user_id'])) ? 'true' : 'false'; ?>;
+      const savedUserSession = localStorage.getItem('civentral_user_session');
+      if (isSystemUserFallback && savedUserSession) {
+        try {
+          const uData = JSON.parse(savedUserSession);
+          if (uData && (uData.user_id || uData.employee_id || uData.email || uData.employeeId)) {
+            fetch((window.civentralBasePath || '../') + 'api/employee/restore-session.php', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user: uData })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.status === 'success') {
+                window.location.reload();
+              }
+            })
+            .catch(() => {});
+          }
+        } catch(e) {}
+      }
     })();
   </script>
 </head>
@@ -188,7 +211,7 @@ require_once __DIR__ . '/../src/bootstrap.php';
           <button onclick="closeLogoutModal()" class="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition focus:outline-none cursor-pointer border border-slate-200 dark:border-slate-700">
             Cancel
           </button>
-          <a href="<?php echo $basePath ?? '../'; ?>pages/logout.php" class="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl text-center transition focus:outline-none cursor-pointer shadow-xs">
+          <a href="<?php echo $basePath ?? '../'; ?>pages/logout.php" onclick="try{localStorage.removeItem('civentral_user_session');}catch(e){}" class="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl text-center transition focus:outline-none cursor-pointer shadow-xs">
             Yes, Sign Out
           </a>
         </div>

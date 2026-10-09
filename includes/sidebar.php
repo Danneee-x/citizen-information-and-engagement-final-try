@@ -52,8 +52,8 @@
       $hasResourceAccess = function($keywords) use ($isSuperAdmin, $isAdminRole, $userGrantedRes) {
           if ($isSuperAdmin || $isAdminRole) return true;
           if (empty($userGrantedRes)) {
-              // If user is authenticated, default to allowing module navigation
-              return !empty($_SESSION['user_id']) || !empty($_SESSION['employee_id']);
+              // If user is authenticated or has valid auth cookie, default to allowing module navigation
+              return !empty($_SESSION['user_id']) || !empty($_SESSION['employee_id']) || !empty($_COOKIE['CIVENTRAL_ADMIN_AUTH']);
           }
           if (is_string($keywords)) $keywords = [$keywords];
           foreach ($userGrantedRes as $resName) {

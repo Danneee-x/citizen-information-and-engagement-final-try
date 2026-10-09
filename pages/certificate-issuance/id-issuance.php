@@ -35,7 +35,7 @@ try {
         `photo_2x2_url` TEXT NULL,
         `support_doc_name` VARCHAR(150) NULL,
         `support_doc_url` TEXT NULL,
-        `status` ENUM('Pending Review', 'Under Review', 'Approved', 'Ready for Release', 'Claimed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
+        `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review',
         `claim_office` VARCHAR(200) NULL,
         `estimated_turnaround` VARCHAR(100) NULL,
         `review_notes` TEXT NULL,
@@ -51,6 +51,9 @@ try {
         INDEX idx_brgy (`barangay`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
+
+    // Auto-migrate status to VARCHAR(50) to support all status workflows without enum truncation
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review'");
 } catch (Exception $e) {}
 
 // Handle POST actions (Update Status, Review, or Manual Walk-in Encoding)
@@ -69,41 +72,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($appId > 0 && !empty($newStatus)) {
             $releasedAt = ($newStatus === 'Claimed') ? date('Y-m-d H:i:s') : null;
-            $stmt = $pdo->prepare("
-                UPDATE `id_issuance_applications` 
-                SET `status` = :status, 
-                    `review_notes` = :review_notes, 
-                    `rejection_reason` = :rejection_reason,
-                    `reviewed_by` = :reviewed_by,
-                    `reviewed_at` = NOW(),
-                    `released_at` = COALESCE(:released_at, `released_at`),
-                    `released_by` = CASE WHEN :new_status = 'Claimed' THEN :reviewer ELSE `released_by` END
-                WHERE `id` = :id
-            ");
-            $stmt->execute([
-                ':status' => $newStatus,
-                ':review_notes' => $reviewNotes,
-                ':rejection_reason' => $rejectionReason,
-                ':reviewed_by' => $reviewer,
-                ':released_at' => $releasedAt,
-                ':new_status' => $newStatus,
-                ':reviewer' => $reviewer,
-                ':id' => $appId
-            ]);
-
-            // Fetch reference no for direct release link
-            $refStmt = $pdo->prepare("SELECT `reference_no` FROM `id_issuance_applications` WHERE `id` = :id");
-            $refStmt->execute([':id' => $appId]);
-            $updatedRef = $refStmt->fetchColumn() ?: '';
-
-            if ($newStatus === 'Ready for Release') {
-                $alertMessage = "Application status updated to 'Ready for Release'. <a href='id-releases.php?ref=" . urlencode($updatedRef) . "' class='underline font-bold ml-2 text-indigo-700 hover:text-indigo-900'><i class='fa-solid fa-hand-holding-hand mr-1'></i>Open in ID Release Desk &rarr;</a>";
-            } elseif ($newStatus === 'Approved') {
-                $alertMessage = "Application approved! The card is now ready for printing in production. Note: It will not appear on the Release & Pick-up Desk until it has been printed and marked as 'Ready for Release'.";
-            } else {
-                $alertMessage = "Application status successfully updated to '{$newStatus}'.";
+            try {
+                $stmt = $pdo->prepare("
+                    UPDATE `id_issuance_applications` 
+                    SET `status` = :status, 
+                        `review_notes` = :review_notes, 
+                        `rejection_reason` = :rejection_reason,
+                        `reviewed_by` = :reviewed_by,
+                        `reviewed_at` = NOW(),
+                        `released_at` = COALESCE(:released_at, `released_at`),
+                        `released_by` = CASE WHEN :new_status = 'Claimed' THEN :reviewer ELSE `released_by` END
+                    WHERE `id` = :id
+                ");
+                $stmt->execute([
+                    ':status' => $newStatus,
+                    ':review_notes' => $reviewNotes,
+                    ':rejection_reason' => $rejectionReason,
+                    ':reviewed_by' => $reviewer,
+                    ':released_at' => $releasedAt,
+                    ':new_status' => $newStatus,
+                    ':reviewer' => $reviewer,
+                    ':id' => $appId
+                ]);
+            } catch (PDOException $pdoEx) {
+                // If column status caused truncation/strict error, modify column to VARCHAR(50) and retry
+                try {
+                    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review'");
+                    $stmt = $pdo->prepare("
+                        UPDATE `id_issuance_applications` 
+                        SET `status` = :status, 
+                            `review_notes` = :review_notes, 
+                            `rejection_reason` = :rejection_reason,
+                            `reviewed_by` = :reviewed_by,
+                            `reviewed_at` = NOW(),
+                            `released_at` = COALESCE(:released_at, `released_at`),
+                            `released_by` = CASE WHEN :new_status = 'Claimed' THEN :reviewer ELSE `released_by` END
+                        WHERE `id` = :id
+                    ");
+                    $stmt->execute([
+                        ':status' => $newStatus,
+                        ':review_notes' => $reviewNotes,
+                        ':rejection_reason' => $rejectionReason,
+                        ':reviewed_by' => $reviewer,
+                        ':released_at' => $releasedAt,
+                        ':new_status' => $newStatus,
+                        ':reviewer' => $reviewer,
+                        ':id' => $appId
+                    ]);
+                } catch (Exception $retryEx) {
+                    $alertMessage = "Database error updating status: " . htmlspecialchars($retryEx->getMessage());
+                    $alertType = 'error';
+                }
             }
-            $alertType = 'success';
+
+            if (empty($alertType) || $alertType !== 'error') {
+                // Fetch reference no for direct release link
+                $refStmt = $pdo->prepare("SELECT `reference_no` FROM `id_issuance_applications` WHERE `id` = :id");
+                $refStmt->execute([':id' => $appId]);
+                $updatedRef = $refStmt->fetchColumn() ?: '';
+
+                if ($newStatus === 'Ready for Release') {
+                    $alertMessage = "Application status updated to 'Ready for Release'. <a href='id-releases.php?ref=" . urlencode($updatedRef) . "' class='underline font-bold ml-2 text-indigo-700 hover:text-indigo-900'><i class='fa-solid fa-hand-holding-hand mr-1'></i>Open in ID Release Desk &rarr;</a>";
+                } elseif ($newStatus === 'Ready to Print') {
+                    $alertMessage = "Application status updated to 'Ready to Print'. The card is verified and queued for production printing.";
+                } elseif ($newStatus === 'Approved') {
+                    $alertMessage = "Application approved! The card is now ready for printing in production. Note: It will not appear on the Release & Pick-up Desk until it has been printed and marked as 'Ready for Release'.";
+                } else {
+                    $alertMessage = "Application status successfully updated to '{$newStatus}'.";
+                }
+                $alertType = 'success';
+            }
         }
     } elseif ($action === 'edit_application') {
         $appId = (int)($_POST['application_id'] ?? 0);
@@ -535,6 +573,7 @@ include '../../includes/sidebar.php';
                     <option value="all" <?php echo $selectedStatus === 'all' ? 'selected' : ''; ?>>All Statuses</option>
                     <option value="Pending Review" <?php echo $selectedStatus === 'Pending Review' ? 'selected' : ''; ?>>Pending Review</option>
                     <option value="Under Review" <?php echo $selectedStatus === 'Under Review' ? 'selected' : ''; ?>>Under Review</option>
+                    <option value="Ready to Print" <?php echo $selectedStatus === 'Ready to Print' ? 'selected' : ''; ?>>Ready to Print</option>
                     <option value="Approved" <?php echo $selectedStatus === 'Approved' ? 'selected' : ''; ?>>Approved / Production</option>
                     <option value="Ready for Release" <?php echo $selectedStatus === 'Ready for Release' ? 'selected' : ''; ?>>Ready for Release</option>
                     <option value="Claimed" <?php echo $selectedStatus === 'Claimed' ? 'selected' : ''; ?>>Claimed / Issued</option>
@@ -607,6 +646,7 @@ include '../../includes/sidebar.php';
                         $statBadge = 'bg-slate-100 text-slate-700 border-slate-200';
                         if ($stat === 'Pending Review') $statBadge = 'bg-amber-50 text-amber-700 border-amber-200';
                         elseif ($stat === 'Under Review') $statBadge = 'bg-blue-50 text-blue-700 border-blue-200';
+                        elseif ($stat === 'Ready to Print') $statBadge = 'bg-sky-50 text-sky-700 border-sky-200';
                         elseif ($stat === 'Approved') $statBadge = 'bg-indigo-50 text-indigo-700 border-indigo-200';
                         elseif ($stat === 'Ready for Release') $statBadge = 'bg-purple-50 text-purple-700 border-purple-200';
                         elseif ($stat === 'Claimed') $statBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -1381,6 +1421,7 @@ function openCitizenDetailsModal(app) {
     let badgeClass = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ';
     if (app.status === 'Pending Review') badgeClass += 'bg-amber-50 text-amber-700 border-amber-200';
     else if (app.status === 'Under Review') badgeClass += 'bg-blue-50 text-blue-700 border-blue-200';
+    else if (app.status === 'Ready to Print') badgeClass += 'bg-sky-50 text-sky-700 border-sky-200';
     else if (app.status === 'Approved') badgeClass += 'bg-indigo-50 text-indigo-700 border-indigo-200';
     else if (app.status === 'Ready for Release') badgeClass += 'bg-purple-50 text-purple-700 border-purple-200';
     else if (app.status === 'Claimed') badgeClass += 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -1402,8 +1443,8 @@ function openCitizenDetailsModal(app) {
         releaseBtn.title = "Open in ID Release Desk";
     } else {
         releaseBtn.classList.add('opacity-40', 'pointer-events-none');
-        releaseBtn.title = (app.status === 'Approved')
-            ? "Card is approved & ready to print. Print the card first, then set status to 'Ready for Release' to send to Release Desk."
+        releaseBtn.title = (app.status === 'Approved' || app.status === 'Ready to Print')
+            ? "Card is verified and ready to print. Print the card first, then mark as 'Ready for Release' to send to Release Desk."
             : "Only available when application is Ready for Release or Claimed.";
     }
 

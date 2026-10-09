@@ -43,7 +43,7 @@ try {
         `photo_2x2_url` TEXT NULL,
         `support_doc_name` VARCHAR(150) NULL,
         `support_doc_url` TEXT NULL,
-        `status` ENUM('Pending Review', 'Under Review', 'Processing & Verification', 'Approved', 'Ready for Release', 'Claimed', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
+        `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review',
         `review_notes` TEXT NULL,
         `rejection_reason` TEXT NULL,
         `reviewed_by` VARCHAR(100) NULL,
@@ -58,6 +58,9 @@ try {
         INDEX idx_ref (`reference_no`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
+
+    // Auto-migrate status to VARCHAR(50) to support all status workflows
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review'");
 } catch (Exception $e) {}
 
 $alertMessage = '';

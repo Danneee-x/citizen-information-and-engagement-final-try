@@ -127,7 +127,7 @@ try {
         `signature_url` MEDIUMTEXT NULL,
         `e_signature_name` VARCHAR(150) NULL,
         `signature_mode` VARCHAR(50) NULL DEFAULT 'upload',
-        `status` ENUM('Pending Review', 'Under Review', 'Processing & Verification', 'Approved', 'Ready to Print', 'Ready for Release', 'Claimed', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
+        `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review',
         `review_notes` TEXT NULL,
         `rejection_reason` TEXT NULL,
         `reviewed_by` VARCHAR(100) NULL,
@@ -155,6 +155,7 @@ try {
     $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `signature_url` MEDIUMTEXT NULL;");
     $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `photo_2x2_url` MEDIUMTEXT NULL;");
     $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `primary_doc_url` MEDIUMTEXT NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review';");
 } catch (Exception $e) {}
 
 // 1. GET: Retrieve applications for a citizen or by reference number

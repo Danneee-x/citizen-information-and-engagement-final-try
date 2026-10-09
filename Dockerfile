@@ -34,6 +34,8 @@ RUN echo "file_uploads = On" > /usr/local/etc/php/conf.d/custom.ini \
     && echo "max_execution_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "max_input_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "max_file_uploads = 50" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.name = CIVENTRAL_ADMIN_SESS" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.save_path = /var/www/html/sessions" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "session.gc_maxlifetime = 604800" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "session.cookie_lifetime = 604800" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "session.cookie_path = /" >> /usr/local/etc/php/conf.d/custom.ini \
@@ -45,8 +47,9 @@ WORKDIR /var/www/html
 # 6. Copy application code into web root
 COPY . /var/www/html
 
-# 7. Ensure upload directories exist, symlink /uploads to assets/uploads, and assign write permissions
-RUN mkdir -p /var/www/html/assets/uploads/verifications \
+# 7. Ensure upload and persistent session directories exist, and assign permissions
+RUN mkdir -p /var/www/html/sessions \
+    /var/www/html/assets/uploads/verifications \
     /var/www/html/assets/uploads/concerns \
     /var/www/html/assets/uploads/certificates \
     /var/www/html/assets/uploads/ids \
@@ -54,10 +57,10 @@ RUN mkdir -p /var/www/html/assets/uploads/verifications \
     /var/www/html/assets/uploads/surveys \
     /var/www/html/assets/uploads/feedbacks \
     && ln -sfn /var/www/html/assets/uploads /var/www/html/uploads \
-    && chown -R www-data:www-data /var/www/html/assets/uploads \
-    && chmod -R 777 /var/www/html/assets/uploads
+    && chown -R www-data:www-data /var/www/html/sessions /var/www/html/assets/uploads \
+    && chmod -R 777 /var/www/html/sessions /var/www/html/assets/uploads
 
-VOLUME ["/var/www/html/assets/uploads"]
+VOLUME ["/var/www/html/sessions", "/var/www/html/assets/uploads"]
 
 # 8. Expose standard HTTP port 80
 EXPOSE 80

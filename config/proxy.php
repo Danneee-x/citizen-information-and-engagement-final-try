@@ -1,4 +1,8 @@
 <?php
+$sessionHelper = __DIR__ . '/../src/Session.php';
+if (file_exists($sessionHelper)) {
+    require_once $sessionHelper;
+}
 if (function_exists('startSecureSession')) {
     startSecureSession();
 } elseif (session_status() === PHP_SESSION_NONE && !headers_sent()) {
@@ -17,7 +21,7 @@ function proxyRequest($url, $method = 'POST', $body = null, $sendCookie = true) 
         'Content-Type: application/json'
     ];
     
-    $remoteSessId = $_SESSION['remote_phpsessid'] ?? $_COOKIE['remote_phpsessid'] ?? $_COOKIE['PHPSESSID'] ?? null;
+    $remoteSessId = $_SESSION['remote_phpsessid'] ?? $_COOKIE['remote_phpsessid'] ?? null;
     if ($sendCookie && !empty($remoteSessId)) {
         $headers[] = 'Cookie: PHPSESSID=' . $remoteSessId;
     }

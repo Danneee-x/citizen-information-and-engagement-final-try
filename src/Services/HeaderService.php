@@ -30,6 +30,10 @@ class HeaderService
         ];
 
         // 1. Multi-tier authentication check
+        if (function_exists('verifyAndRestoreSession')) {
+            verifyAndRestoreSession();
+        }
+
         $isLoggedIn = $this->authService->isLoggedIn() 
             || !empty($_SESSION['user_id']) 
             || !empty($_SESSION['employee_id']) 

@@ -1,5 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/../src/Session.php';
+startSecureSession();
 
 // Record logout time via API instead of local database
 if (isset($_SESSION['login_id']) || isset($_SESSION['session_id'])) {
@@ -36,6 +37,10 @@ if (isset($_SESSION['login_id']) || isset($_SESSION['session_id'])) {
     }
 }
 
+// Clear persistent auth cookie
+clearAdminAuthCookie();
+
+// Clear and destroy server session
 $_SESSION = array();
 
 if (ini_get("session.use_cookies")) {
@@ -44,12 +49,25 @@ if (ini_get("session.use_cookies")) {
         $params["path"], $params["domain"],
         $params["secure"], $params["httponly"]
     );
+    // Also clear default PHPSESSID if any
+    setcookie('PHPSESSID', '', time() - 42000, '/', '', false, true);
 }
 
-// Finally, destroy the session.
 session_destroy();
-
-// Redirect to login page
-header("Location: ../login.php");
-exit;
 ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Logging Out | Civentral</title>
+    <script>
+        try {
+            localStorage.removeItem('civentral_user_session');
+        } catch(e) {}
+        window.location.replace('../login.php');
+    </script>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #475569;">
+    <p>Signing out safely, redirecting to login...</p>
+</body>
+</html>

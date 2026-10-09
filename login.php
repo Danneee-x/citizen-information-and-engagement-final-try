@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/src/Session.php';
+startSecureSession();
+
 // Load .env variables (no database connection needed on login page)
 $envPath = __DIR__ . '/.env';
 if (file_exists($envPath)) {

@@ -129,6 +129,10 @@ function togglePasswordVisibility() {
           }
           openOtpModal(data.email || '');
         } else if (data.status === 'success') {
+          try {
+            const userPayload = data.user || data.data || { employeeId: id, email: id };
+            localStorage.setItem('civentral_user_session', JSON.stringify(userPayload));
+          } catch(e) {}
           showStatusAlert('success', data.message || 'Login successful! Redirecting to dashboard...');
           showDashboardLoadingOverlay('Entering Dashboard...');
           setTimeout(() => {
@@ -290,6 +294,10 @@ function togglePasswordVisibility() {
         const data = await response.json();
 
         if (data.status === 'success') {
+          try {
+            const userPayload = data.user || data.data || {};
+            localStorage.setItem('civentral_user_session', JSON.stringify(userPayload));
+          } catch(e) {}
           showOtpAlert('OTP verified! Entering Dashboard...', false);
           closeOtpModal();
           showDashboardLoadingOverlay('Entering Dashboard...');

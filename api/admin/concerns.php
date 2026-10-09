@@ -325,6 +325,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
         $conn = getDbConnection();
         $pdo = $conn['pdo'];
 
+        if (!empty($data['clear_all']) || !empty($_GET['clear_all']) || (isset($data['action']) && $data['action'] === 'clear_all')) {
+            $pdo->exec("TRUNCATE TABLE `citizen_concerns`");
+            echo json_encode([
+                'status' => 'success',
+                'message' => "All concern and grievance records cleared successfully. Table structure remains intact.",
+                'cleared' => true
+            ]);
+            exit;
+        }
+
         if (!empty($data['delete_mock']) || !empty($_GET['delete_mock']) || (isset($data['action']) && $data['action'] === 'delete_mock')) {
             $delStmt = $pdo->prepare("DELETE FROM `citizen_concerns` WHERE `title` LIKE '%test%' OR `title` LIKE '%TEST%' OR `description` LIKE '%test%' OR `description` LIKE '%TEST%' OR `ticket_number` IN ('CAL-REP-2026-6120', 'CAL-REP-2026-9020', 'CAL-REP-2026-3856', 'CAL-REP-2026-9966', 'CAL-REP-2026-6010', 'CAL-REP-2026-6226')");
             $delStmt->execute();

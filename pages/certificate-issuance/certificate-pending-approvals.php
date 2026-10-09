@@ -10,12 +10,12 @@ include '../../includes/sidebar.php';
 $pdo = getCertificateDbConnection();
 
 // Compute Dynamic KPIs
-$awaitingCount = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `status` IN ('Pending', 'Under Review')")->fetchColumn();
-$approvedToday = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `status` IN ('Approved', 'Ready for Release', 'Released') AND DATE(COALESCE(`approved_at`, `released_at`, `updated_at`)) = CURDATE()")->fetchColumn();
+$awaitingCount = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `status` IN ('Pending', 'Pending Review', 'Under Review')")->fetchColumn();
+$approvedToday = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `status` IN ('Approved', 'Ready to Print', 'Ready for Release', 'Released') AND DATE(COALESCE(`approved_at`, `released_at`, `updated_at`)) = CURDATE()")->fetchColumn();
 $waivedCount = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `payment_status` = 'Waived'")->fetchColumn();
 
 // Fetch Pending Requests
-$stmt = $pdo->query("SELECT * FROM `certificate_requests` WHERE `status` IN ('Pending', 'Under Review') ORDER BY `request_id` ASC");
+$stmt = $pdo->query("SELECT * FROM `certificate_requests` WHERE `status` IN ('Pending', 'Pending Review', 'Under Review') ORDER BY `request_id` ASC");
 $dbPending = $stmt->fetchAll();
 
 $pendingApprovals = [];

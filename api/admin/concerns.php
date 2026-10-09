@@ -225,6 +225,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PAT
         $json = json_decode($raw, true);
         $data = !empty($json) ? $json : $_POST;
 
+        // Handle Complete Clearing of Citizen Concerns Table
+        if (!empty($data['action']) && in_array($data['action'], ['clear_all', 'clear_concerns', 'truncate_concerns'])) {
+            $conn = getDbConnection();
+            $pdo = $conn['pdo'];
+            $pdo->exec("TRUNCATE TABLE `citizen_concerns`");
+            echo json_encode([
+                'status' => 'success',
+                'message' => "All concern and grievance records cleared successfully. Table structure remains intact.",
+                'cleared' => true
+            ]);
+            exit;
+        }
+
         // Handle Purge/Delete of Mock Test Concerns
         if (!empty($data['action']) && in_array($data['action'], ['delete_mock', 'delete_test_data'])) {
             $conn = getDbConnection();

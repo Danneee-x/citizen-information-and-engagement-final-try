@@ -602,12 +602,8 @@ foreach ($dbConcerns as $row) {
                 </div>
             </div>
 
-            <!-- Modal Bottom Navigation (Back Button) -->
-            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <button type="button" onclick="closeConcernModal()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-arrow-left text-xs"></i>
-                    <span>Back to Concerns Queue</span>
-                </button>
+            <!-- Modal Bottom Navigation (Close Button) -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
                 <button type="button" onclick="closeConcernModal()" class="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
                     Close
                 </button>

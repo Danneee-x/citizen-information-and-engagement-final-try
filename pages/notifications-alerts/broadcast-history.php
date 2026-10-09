@@ -80,6 +80,17 @@ $broadcastsJson = [];
 try {
     $pdo = getDbConnection();
 
+    // Handle direct POST delete fallback
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_alert') {
+        $delId = (int)($_POST['id'] ?? 0);
+        if ($delId > 0) {
+            $delStmt = $pdo->prepare("DELETE FROM \`broadcast_alerts\` WHERE id = :id");
+            $delStmt->execute([':id' => $delId]);
+            header('Location: broadcast-history.php');
+            exit;
+        }
+    }
+
     // Stats
     $statsStmt = $pdo->query("
         SELECT 
@@ -587,14 +598,18 @@ include '../../includes/sidebar.php';
                     <i class="fa-solid fa-download text-slate-400"></i>
                     <span>Download Report</span>
                 </button>
+                <button type="button" onclick="deleteBroadcastAlert()" class="py-2.5 px-3.5 bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer" title="Delete Broadcast Alert">
+                    <i class="fa-solid fa-trash-can text-rose-600"></i>
+                    <span>Delete</span>
+                </button>
             </div>
         </div>
 
-        <!-- Modal Bottom Navigation (Back & Close Buttons) -->
+        <!-- Modal Bottom Navigation (Delete & Close Buttons) -->
         <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
-            <button type="button" onclick="closeDetailsDrawer()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-arrow-left text-xs"></i>
-                <span>Back to Alerts Queue</span>
+            <button type="button" onclick="deleteBroadcastAlert()" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Permanently delete this broadcast announcement">
+                <i class="fa-solid fa-trash-can text-xs text-rose-600"></i>
+                <span>Delete Announcement</span>
             </button>
             <button type="button" onclick="closeDetailsDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
                 Close
@@ -721,6 +736,50 @@ function copyAlertId(alertId) {
     const idText = alertId || document.getElementById('drawerAlertId').innerText.trim();
     navigator.clipboard.writeText(idText);
     alert(`Copied Alert ID: ${idText}`);
+}
+
+async function deleteBroadcastAlert() {
+    if (!activeBroadcastId) {
+        alert('Please select an announcement or alert first.');
+        return;
+    }
+    const data = broadcastData[activeBroadcastId];
+    const title = data ? data.title : 'this announcement';
+    if (!confirm(`Are you sure you want to permanently delete the broadcast announcement "${title}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch('../../api/admin/delete-alert.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: activeBroadcastId, alert_id: data ? data.alertId : '' })
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+            alert('Broadcast announcement deleted successfully.');
+            window.location.reload();
+        } else {
+            alert(result.message || 'Failed to delete alert.');
+        }
+    } catch (err) {
+        // Fallback to Form POST
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'broadcast-history.php';
+        const inputAction = document.createElement('input');
+        inputAction.type = 'hidden';
+        inputAction.name = 'action';
+        inputAction.value = 'delete_alert';
+        const inputId = document.createElement('input');
+        inputId.type = 'hidden';
+        inputId.name = 'id';
+        inputId.value = activeBroadcastId;
+        form.appendChild(inputAction);
+        form.appendChild(inputId);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 // Client-Side Pagination for Broadcast History

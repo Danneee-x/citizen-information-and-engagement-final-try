@@ -447,16 +447,10 @@ foreach ($dbPending as $row) {
         </div>
 
         <!-- Modal Bottom Navigation Footer -->
-        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
-            <button type="button" onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-arrow-left text-xs"></i>
-                <span>Back to Queue</span>
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end shrink-0">
+            <button type="button" onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+                Close
             </button>
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="closeCertificatePreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
-                    Close
-                </button>
-            </div>
         </div>
 
     </div>

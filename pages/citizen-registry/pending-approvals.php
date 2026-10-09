@@ -211,10 +211,10 @@ try {
             'years_resident' => $row['years_resident'] ?? 1,
             'valid_id_type' => $row['valid_id_type'] ?? 'Valid ID',
             'valid_id_number' => $row['valid_id_number'] ?? '',
-            'id_front_photo_url' => $row['id_front_photo_url'] ?? '',
-            'selfie_photo_url' => $row['selfie_photo_url'] ?? '',
-            'photo_1x1_url' => $row['photo_1x1_url'] ?? '',
-            'signature_photo_url' => $row['signature_photo_url'] ?? '',
+            'id_front_photo_url' => !empty($row['id_front_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $row['id_front_photo_url']) : '',
+            'selfie_photo_url' => !empty($row['selfie_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $row['selfie_photo_url']) : '',
+            'photo_1x1_url' => !empty($row['photo_1x1_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $row['photo_1x1_url']) : '',
+            'signature_photo_url' => !empty($row['signature_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $row['signature_photo_url']) : '',
             'qr_code_token' => $row['qr_code_token'] ?? '',
             'qr_code_image_url' => $row['qr_code_image_url'] ?? '',
             'rejection_reason' => $row['rejection_reason'] ?? '',
@@ -1148,12 +1148,31 @@ function selectPendingApplication(rowElement) {
 
     // Helper to format photo paths
     const API_BASE_URL = <?php echo json_encode($apiBase); ?>;
+    function isPdfDoc(url) {
+        if (!url || typeof url !== 'string') return false;
+        return url.toLowerCase().includes('.pdf') || url.startsWith('data:application/pdf');
+    }
+
     function formatPhotoSrc(url) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
         if (!url || url.startsWith('blob:')) return null;
 
-        if (url.startsWith('data:image/')) return url;
+        // Auto-fix obsolete domain to active API host
+        if (url.includes('citizenship.civentral.tech')) {
+            url = url.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+        }
+
+        // Support base64 data URIs of any image/document MIME type
+        if (url.startsWith('data:image/') || url.startsWith('data:application/pdf')) {
+            return url;
+        }
+
+        // If raw base64 string without data prefix
+        if (/^[A-Za-z0-9+/=]{100,}$/.test(url)) {
+            return 'data:image/jpeg;base64,' + url;
+        }
+
         if (url.startsWith('http://') || url.startsWith('https://')) {
             return url;
         }
@@ -1162,16 +1181,16 @@ function selectPendingApplication(rowElement) {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         if (isLocal) {
             if (cleanPath.startsWith('assets/')) return '../../' + cleanPath;
-            if (cleanPath.startsWith('uploads/')) return '../../assets/' + cleanPath;
-            return '../../assets/' + cleanPath;
+            if (cleanPath.startsWith('uploads/')) return '../../' + cleanPath;
+            return '../../' + cleanPath;
         }
         if (cleanPath.startsWith('uploads/')) {
-            return '/assets/' + cleanPath;
+            return '/' + cleanPath;
         }
         if (cleanPath.startsWith('assets/')) {
             return '/' + cleanPath;
         }
-        return '/assets/uploads/' + cleanPath;
+        return '/uploads/' + cleanPath;
     }
 
     function renderImageCard(boxId, photoUrl, fallbackIcon, altText) {
@@ -1179,9 +1198,46 @@ function selectPendingApplication(rowElement) {
         if (!box) return;
         const src = formatPhotoSrc(photoUrl);
         if (src) {
-            box.innerHTML = `<a href="${src}" target="_blank" title="Click to view full size"><img src="${src}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="${altText}" data-retry="0" onerror="if(!this.dataset.retry || this.dataset.retry === '0'){ this.dataset.retry = '1'; if(this.src.includes('citizenship.civentral.tech')){ this.src = this.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech'); } else if(this.src.includes('api-citizen.civentral.tech')){ this.src = this.src.replace('api-citizen.civentral.tech', 'citizenship.civentral.tech'); } else { this.src = 'https://citizenship.civentral.tech/assets/uploads/verifications/' + this.src.split('/').pop(); } } else { this.onerror=null; this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'${fallbackIcon} text-xl mb-1\\'></i><span class=\\'block text-[8px]\\'>Unavailable</span></div>'; }" /></a>`;
+            if (isPdfDoc(src)) {
+                box.innerHTML = `
+                    <a href="${src}" target="_blank" class="w-full h-full flex flex-col items-center justify-center p-2 bg-rose-50 text-rose-700 rounded-lg hover:bg-rose-100 transition border border-rose-200">
+                        <i class="fa-solid fa-file-pdf text-2xl mb-1 text-rose-600"></i>
+                        <span class="text-[9px] font-bold text-center leading-tight">View PDF Document</span>
+                        <span class="text-[8px] text-rose-500 mt-0.5">Click to Open</span>
+                    </a>
+                `;
+            } else {
+                box.innerHTML = `
+                    <a href="${src}" target="_blank" title="Click to view full size" class="block w-full h-full relative group">
+                        <img src="${src}" class="w-full h-full object-contain bg-slate-900/5 rounded-lg group-hover:opacity-90 transition cursor-pointer" alt="${altText}" data-retry="0" onerror="handleDrawerImgError(this, '${fallbackIcon}', '${altText}')" />
+                    </a>
+                `;
+            }
         } else {
             box.innerHTML = `<div class="text-center p-2 text-slate-400"><i class="${fallbackIcon} text-xl mb-1"></i><span class="block text-[8px]">Not uploaded</span></div>`;
+        }
+    }
+
+    function handleDrawerImgError(img, fallbackIcon, altText) {
+        const retryCount = parseInt(img.dataset.retry || '0', 10);
+        if (retryCount === 0) {
+            img.dataset.retry = '1';
+            if (img.src.includes('citizenship.civentral.tech')) {
+                img.src = img.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+                return;
+            }
+            if (!img.src.startsWith('data:') && !img.src.includes('api-citizen.civentral.tech')) {
+                const filename = img.src.split('/').pop().split('?')[0];
+                if (filename) {
+                    img.src = 'https://api-citizen.civentral.tech/uploads/verifications/' + filename;
+                    return;
+                }
+            }
+        }
+        img.onerror = null;
+        const parent = img.parentElement;
+        if (parent) {
+            parent.outerHTML = `<div class="w-full h-full flex flex-col items-center justify-center p-2 text-center text-slate-400 bg-slate-50 rounded-lg border border-slate-100"><i class="${fallbackIcon} text-xl mb-1 text-slate-300"></i><span class="block text-[8px] font-semibold text-slate-400">${altText || 'Unavailable'}</span></div>`;
         }
     }
 

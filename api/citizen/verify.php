@@ -224,76 +224,173 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $conn = getDbConnection();
         $pdo = $conn['pdo'];
 
-        $stmt = $pdo->prepare("INSERT INTO `citizen_verifications` (
-            `citizen_user_id`,
-            `first_name`,
-            `middle_name`,
-            `last_name`,
-            `suffix`,
-            `sex`,
-            `place_of_birth`,
-            `birth_date`,
-            `civil_status`,
-            `employment_status`,
-            `occupation`,
-            `educational_attainment`,
-            `district`,
-            `barangay`,
-            `street_address`,
-            `years_resident`,
-            `valid_id_type`,
-            `valid_id_number`,
-            `id_front_photo_url`,
-            `selfie_photo_url`,
-            `verification_status`,
-            `submitted_at`
-        ) VALUES (
-            :citizen_user_id,
-            :first_name,
-            :middle_name,
-            :last_name,
-            :suffix,
-            :sex,
-            :place_of_birth,
-            :birth_date,
-            :civil_status,
-            :employment_status,
-            :occupation,
-            :educational_attainment,
-            :district,
-            :barangay,
-            :street_address,
-            :years_resident,
-            :valid_id_type,
-            :valid_id_number,
-            :id_front_photo_url,
-            :selfie_photo_url,
-            'Pending',
-            NOW()
-        )");
+        // Helper to save base64 uploaded photos to server disk
+        if (!function_exists('saveBase64ImageVerify')) {
+            function saveBase64ImageVerify($dataUrl, $prefix = 'photo') {
+                if (empty($dataUrl)) return null;
+                $dataUrl = trim($dataUrl);
 
-        $stmt->execute([
-            ':citizen_user_id'         => !empty($data['citizen_user_id']) ? (int)$data['citizen_user_id'] : 1001,
-            ':first_name'              => trim($data['first_name']),
-            ':middle_name'             => !empty($data['middle_name']) ? trim($data['middle_name']) : null,
-            ':last_name'               => trim($data['last_name']),
-            ':suffix'                  => !empty($data['suffix']) ? trim($data['suffix']) : null,
-            ':sex'                     => !empty($data['sex']) ? $data['sex'] : 'Male',
-            ':place_of_birth'          => !empty($data['place_of_birth']) ? trim($data['place_of_birth']) : 'Caloocan City',
-            ':birth_date'              => !empty($data['birth_date']) ? $data['birth_date'] : '2000-01-01',
-            ':civil_status'            => !empty($data['civil_status']) ? $data['civil_status'] : 'Single',
-            ':employment_status'       => !empty($data['employment_status']) ? $data['employment_status'] : 'Employed',
-            ':occupation'              => !empty($data['occupation']) ? $data['occupation'] : 'Private Sector',
-            ':educational_attainment'  => !empty($data['educational_attainment']) ? $data['educational_attainment'] : 'College',
-            ':district'                => !empty($data['district']) ? $data['district'] : 'District 1',
-            ':barangay'                => trim($data['barangay']),
-            ':street_address'          => trim($data['street_address']),
-            ':years_resident'          => !empty($data['years_resident']) ? (int)$data['years_resident'] : 1,
-            ':valid_id_type'           => !empty($data['valid_id_type']) ? $data['valid_id_type'] : 'PhilSys National ID',
-            ':valid_id_number'         => trim($data['valid_id_number']),
-            ':id_front_photo_url'      => !empty($data['id_front_photo_url']) ? $data['id_front_photo_url'] : null,
-            ':selfie_photo_url'        => !empty($data['selfie_photo_url']) ? $data['selfie_photo_url'] : null,
-        ]);
+                $baseUrl = rtrim(getenv('API_BASE_URL') ?: getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+                if (strpos($dataUrl, 'https://citizenship.civentral.tech') !== false) {
+                    $dataUrl = str_replace('https://citizenship.civentral.tech', $baseUrl, $dataUrl);
+                }
+
+                if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
+                    if (preg_match('#/(?:assets/)?uploads/verifications/([^/?#]+)#', $dataUrl, $m)) {
+                        return $baseUrl . '/assets/uploads/verifications/' . $m[1];
+                    }
+                    return $dataUrl;
+                }
+
+                if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0 || strpos($dataUrl, '/uploads/') === 0 || strpos($dataUrl, '/assets/') === 0) {
+                    $clean = ltrim($dataUrl, '/');
+                    if (strpos($clean, 'uploads/') === 0) {
+                        $clean = 'assets/' . $clean;
+                    }
+                    return $baseUrl . '/' . $clean;
+                }
+
+                $ext = 'jpg';
+                $data = null;
+
+                if (preg_match('#^data:(image\/[a-zA-Z0-9\+\-]+|application\/pdf)(?:;[^,]*)?;base64,(.+)$#s', $dataUrl, $m)) {
+                    $mime = strtolower($m[1]);
+                    $data = $m[2];
+                    if (strpos($mime, 'png') !== false) $ext = 'png';
+                    elseif (strpos($mime, 'webp') !== false) $ext = 'webp';
+                    elseif (strpos($mime, 'gif') !== false) $ext = 'gif';
+                    elseif (strpos($mime, 'svg') !== false) $ext = 'svg';
+                    elseif (strpos($mime, 'pdf') !== false) $ext = 'pdf';
+                    elseif (strpos($mime, 'heic') !== false) $ext = 'heic';
+                } elseif (preg_match('#^data:[^;]+;base64,(.+)$#s', $dataUrl, $m)) {
+                    $data = $m[1];
+                } elseif (strlen($dataUrl) > 50 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
+                    $data = $dataUrl;
+                }
+
+                if ($data !== null) {
+                    $decoded = base64_decode(preg_replace('/\s+/', '', $data));
+                    if ($decoded !== false && strlen($decoded) > 0) {
+                        if ($ext === 'jpg') {
+                            if (strncmp($decoded, "\x89PNG\r\n\x1a\n", 8) === 0) $ext = 'png';
+                            elseif (strncmp($decoded, "GIF8", 4) === 0) $ext = 'gif';
+                            elseif (strncmp($decoded, "RIFF", 4) === 0 && substr($decoded, 8, 4) === "WEBP") $ext = 'webp';
+                            elseif (strncmp($decoded, "%PDF-", 5) === 0) $ext = 'pdf';
+                        }
+
+                        $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
+                        $targetDirs = [
+                            '/var/www/html/assets/uploads/verifications/',
+                            __DIR__ . '/../../assets/uploads/verifications/',
+                            '/var/www/html/uploads/verifications/',
+                            __DIR__ . '/../../uploads/verifications/',
+                            'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/verifications/'
+                        ];
+                        foreach ($targetDirs as $dir) {
+                            if (!is_dir($dir)) {
+                                @mkdir($dir, 0775, true);
+                                @chmod($dir, 0775);
+                            }
+                            if (is_dir($dir)) {
+                                @file_put_contents($dir . $filename, $decoded);
+                            }
+                        }
+                        return $baseUrl . '/assets/uploads/verifications/' . $filename;
+                    }
+                }
+                return $dataUrl;
+            }
+        }
+
+        $idFrontSaved   = saveBase64ImageVerify($data['id_front_photo_url'] ?? null, 'id_front');
+        $selfieSaved    = saveBase64ImageVerify($data['selfie_photo_url'] ?? null, 'selfie');
+        $photo1x1Saved  = saveBase64ImageVerify($data['photo_1x1_url'] ?? null, 'photo_1x1');
+        $signatureSaved = saveBase64ImageVerify($data['signature_photo_url'] ?? null, 'signature');
+
+        // Check if photo_1x1_url and signature_photo_url columns exist
+        $hasPhoto1x1 = false;
+        $hasSignature = false;
+        try {
+            $cols = $pdo->query("SHOW COLUMNS FROM `citizen_verifications`")->fetchAll(PDO::FETCH_COLUMN);
+            $hasPhoto1x1 = in_array('photo_1x1_url', $cols);
+            $hasSignature = in_array('signature_photo_url', $cols);
+        } catch (\Exception $e) {}
+
+        if ($hasPhoto1x1 && $hasSignature) {
+            $stmt = $pdo->prepare("INSERT INTO `citizen_verifications` (
+                `citizen_user_id`, `first_name`, `middle_name`, `last_name`, `suffix`,
+                `sex`, `place_of_birth`, `birth_date`, `civil_status`, `employment_status`,
+                `occupation`, `educational_attainment`, `district`, `barangay`, `street_address`,
+                `years_resident`, `valid_id_type`, `valid_id_number`, `id_front_photo_url`, `selfie_photo_url`,
+                `photo_1x1_url`, `signature_photo_url`, `verification_status`, `submitted_at`
+            ) VALUES (
+                :citizen_user_id, :first_name, :middle_name, :last_name, :suffix,
+                :sex, :place_of_birth, :birth_date, :civil_status, :employment_status,
+                :occupation, :educational_attainment, :district, :barangay, :street_address,
+                :years_resident, :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url,
+                :photo_1x1_url, :signature_photo_url, 'Pending', NOW()
+            )");
+            $stmt->execute([
+                ':citizen_user_id'         => !empty($data['citizen_user_id']) ? (int)$data['citizen_user_id'] : 1001,
+                ':first_name'              => trim($data['first_name']),
+                ':middle_name'             => !empty($data['middle_name']) ? trim($data['middle_name']) : null,
+                ':last_name'               => trim($data['last_name']),
+                ':suffix'                  => !empty($data['suffix']) ? trim($data['suffix']) : null,
+                ':sex'                     => !empty($data['sex']) ? $data['sex'] : 'Male',
+                ':place_of_birth'          => !empty($data['place_of_birth']) ? trim($data['place_of_birth']) : 'Caloocan City',
+                ':birth_date'              => !empty($data['birth_date']) ? $data['birth_date'] : '2000-01-01',
+                ':civil_status'            => !empty($data['civil_status']) ? $data['civil_status'] : 'Single',
+                ':employment_status'       => !empty($data['employment_status']) ? $data['employment_status'] : 'Employed',
+                ':occupation'              => !empty($data['occupation']) ? $data['occupation'] : 'Private Sector',
+                ':educational_attainment'  => !empty($data['educational_attainment']) ? $data['educational_attainment'] : 'College',
+                ':district'                => !empty($data['district']) ? $data['district'] : 'District 1',
+                ':barangay'                => trim($data['barangay']),
+                ':street_address'          => trim($data['street_address']),
+                ':years_resident'          => !empty($data['years_resident']) ? (int)$data['years_resident'] : 1,
+                ':valid_id_type'           => !empty($data['valid_id_type']) ? $data['valid_id_type'] : 'PhilSys National ID',
+                ':valid_id_number'         => trim($data['valid_id_number']),
+                ':id_front_photo_url'      => $idFrontSaved,
+                ':selfie_photo_url'        => $selfieSaved,
+                ':photo_1x1_url'           => $photo1x1Saved,
+                ':signature_photo_url'     => $signatureSaved,
+            ]);
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO `citizen_verifications` (
+                `citizen_user_id`, `first_name`, `middle_name`, `last_name`, `suffix`,
+                `sex`, `place_of_birth`, `birth_date`, `civil_status`, `employment_status`,
+                `occupation`, `educational_attainment`, `district`, `barangay`, `street_address`,
+                `years_resident`, `valid_id_type`, `valid_id_number`, `id_front_photo_url`, `selfie_photo_url`,
+                `verification_status`, `submitted_at`
+            ) VALUES (
+                :citizen_user_id, :first_name, :middle_name, :last_name, :suffix,
+                :sex, :place_of_birth, :birth_date, :civil_status, :employment_status,
+                :occupation, :educational_attainment, :district, :barangay, :street_address,
+                :years_resident, :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url,
+                'Pending', NOW()
+            )");
+            $stmt->execute([
+                ':citizen_user_id'         => !empty($data['citizen_user_id']) ? (int)$data['citizen_user_id'] : 1001,
+                ':first_name'              => trim($data['first_name']),
+                ':middle_name'             => !empty($data['middle_name']) ? trim($data['middle_name']) : null,
+                ':last_name'               => trim($data['last_name']),
+                ':suffix'                  => !empty($data['suffix']) ? trim($data['suffix']) : null,
+                ':sex'                     => !empty($data['sex']) ? $data['sex'] : 'Male',
+                ':place_of_birth'          => !empty($data['place_of_birth']) ? trim($data['place_of_birth']) : 'Caloocan City',
+                ':birth_date'              => !empty($data['birth_date']) ? $data['birth_date'] : '2000-01-01',
+                ':civil_status'            => !empty($data['civil_status']) ? $data['civil_status'] : 'Single',
+                ':employment_status'       => !empty($data['employment_status']) ? $data['employment_status'] : 'Employed',
+                ':occupation'              => !empty($data['occupation']) ? $data['occupation'] : 'Private Sector',
+                ':educational_attainment'  => !empty($data['educational_attainment']) ? $data['educational_attainment'] : 'College',
+                ':district'                => !empty($data['district']) ? $data['district'] : 'District 1',
+                ':barangay'                => trim($data['barangay']),
+                ':street_address'          => trim($data['street_address']),
+                ':years_resident'          => !empty($data['years_resident']) ? (int)$data['years_resident'] : 1,
+                ':valid_id_type'           => !empty($data['valid_id_type']) ? $data['valid_id_type'] : 'PhilSys National ID',
+                ':valid_id_number'         => trim($data['valid_id_number']),
+                ':id_front_photo_url'      => $idFrontSaved,
+                ':selfie_photo_url'        => $selfieSaved,
+            ]);
+        }
 
         $insertedId = $pdo->lastInsertId();
 

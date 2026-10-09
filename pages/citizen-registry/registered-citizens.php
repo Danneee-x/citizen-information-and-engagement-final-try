@@ -150,9 +150,8 @@ try {
                 if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
                 $u = trim($u);
                 if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
-                    if (strpos($u, 'api-citizen.civentral.tech') !== false) {
-                        $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';
-                        $u = str_replace('api-citizen.civentral.tech', $host, $u);
+                    if (strpos($u, 'citizenship.civentral.tech') !== false) {
+                        $u = str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $u);
                     }
                     return $u;
                 }
@@ -808,9 +807,8 @@ include '../../includes/sidebar.php';
                                     if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
                                     $u = trim($u);
                                     if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
-                                        if (strpos($u, 'api-citizen.civentral.tech') !== false) {
-                                            $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';
-                                            $u = str_replace('api-citizen.civentral.tech', $host, $u);
+                                        if (strpos($u, 'citizenship.civentral.tech') !== false) {
+                                            $u = str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $u);
                                         }
                                         return $u;
                                     }

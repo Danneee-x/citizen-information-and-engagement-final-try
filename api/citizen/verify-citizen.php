@@ -34,16 +34,21 @@ if (!function_exists('saveBase64Image')) {
         if (empty($dataUrl)) return null;
         $dataUrl = trim($dataUrl);
 
-        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
+        $baseUrl = rtrim(getenv('API_BASE_URL') ?: getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+
+        // Automatically normalize dead/stale domain references
+        if (strpos($dataUrl, 'https://citizenship.civentral.tech') !== false) {
+            $dataUrl = str_replace('https://citizenship.civentral.tech', $baseUrl, $dataUrl);
+        }
 
         if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
-            if (preg_match('#/(?:assets/)?uploads/verifications/([^/?]+)#', $dataUrl, $m)) {
+            if (preg_match('#/(?:assets/)?uploads/verifications/([^/?#]+)#', $dataUrl, $m)) {
                 return $baseUrl . '/assets/uploads/verifications/' . $m[1];
             }
             return $dataUrl;
         }
 
-        if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0 || strpos($dataUrl, '/uploads/') === 0) {
+        if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0 || strpos($dataUrl, '/uploads/') === 0 || strpos($dataUrl, '/assets/') === 0) {
             $clean = ltrim($dataUrl, '/');
             if (strpos($clean, 'uploads/') === 0) {
                 $clean = 'assets/' . $clean;
@@ -54,17 +59,47 @@ if (!function_exists('saveBase64Image')) {
         $ext = 'jpg';
         $data = null;
 
-        if (preg_match('/^data:image\/(\w+);base64,/', $dataUrl, $type)) {
-            $data = substr($dataUrl, strpos($dataUrl, ',') + 1);
-            $ext = strtolower($type[1]);
-            if ($ext === 'jpeg') $ext = 'jpg';
-        } elseif (strlen($dataUrl) > 100 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
+        // Support any base64 Data URI: JPEG, PNG, WebP, GIF, SVG, HEIC, and PDF
+        if (preg_match('#^data:(image\/[a-zA-Z0-9\+\-]+|application\/pdf)(?:;[^,]*)?;base64,(.+)$#s', $dataUrl, $m)) {
+            $mime = strtolower($m[1]);
+            $data = $m[2];
+            if (strpos($mime, 'png') !== false) {
+                $ext = 'png';
+            } elseif (strpos($mime, 'webp') !== false) {
+                $ext = 'webp';
+            } elseif (strpos($mime, 'gif') !== false) {
+                $ext = 'gif';
+            } elseif (strpos($mime, 'svg') !== false) {
+                $ext = 'svg';
+            } elseif (strpos($mime, 'pdf') !== false) {
+                $ext = 'pdf';
+            } elseif (strpos($mime, 'heic') !== false) {
+                $ext = 'heic';
+            } else {
+                $ext = 'jpg';
+            }
+        } elseif (preg_match('#^data:[^;]+;base64,(.+)$#s', $dataUrl, $m)) {
+            $data = $m[1];
+        } elseif (strlen($dataUrl) > 50 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
             $data = $dataUrl;
         }
 
         if ($data !== null) {
-            $decoded = base64_decode(trim($data));
+            $decoded = base64_decode(preg_replace('/\s+/', '', $data));
             if ($decoded !== false && strlen($decoded) > 0) {
+                // Detect extension from magic bytes if not detected or default jpg
+                if ($ext === 'jpg') {
+                    if (strncmp($decoded, "\x89PNG\r\n\x1a\n", 8) === 0) {
+                        $ext = 'png';
+                    } elseif (strncmp($decoded, "GIF8", 4) === 0) {
+                        $ext = 'gif';
+                    } elseif (strncmp($decoded, "RIFF", 4) === 0 && substr($decoded, 8, 4) === "WEBP") {
+                        $ext = 'webp';
+                    } elseif (strncmp($decoded, "%PDF-", 5) === 0) {
+                        $ext = 'pdf';
+                    }
+                }
+
                 $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
 
                 $targetDirs = [

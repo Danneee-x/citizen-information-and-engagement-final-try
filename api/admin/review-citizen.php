@@ -70,17 +70,21 @@ try {
     $qrCodeToken     = $verif['qr_code_token'];
     $qrCodeImageUrl  = $verif['qr_code_image_url'];
 
-    $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
+    $baseUrl = rtrim(getenv('API_BASE_URL') ?: getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
     $formatFullImageUrl = function($url) use ($baseUrl) {
         if (empty($url) || !is_string($url)) return null;
         $url = trim($url);
         if (empty($url)) return null;
 
-        if (preg_match('#/(?:assets/)?uploads/verifications/([^/?]+)#', $url, $m)) {
+        if (strpos($url, 'https://citizenship.civentral.tech') !== false) {
+            $url = str_replace('https://citizenship.civentral.tech', $baseUrl, $url);
+        }
+
+        if (preg_match('#/(?:assets/)?uploads/verifications/([^/?#]+)#', $url, $m)) {
             return $baseUrl . '/uploads/verifications/' . $m[1];
         }
 
-        if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) {
+        if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0 || strpos($url, 'data:') === 0) {
             return $url;
         }
 

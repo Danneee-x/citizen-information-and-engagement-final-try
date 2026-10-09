@@ -209,10 +209,10 @@ try {
             'user_mobile' => $r['user_mobile'] ?? '',
             'id_type' => $r['valid_id_type'] ?: 'PhilSys National ID',
             'id_number' => $r['valid_id_number'] ?: 'N/A',
-            'id_front_photo_url' => $r['id_front_photo_url'] ?? '',
-            'selfie_photo_url' => $r['selfie_photo_url'] ?? '',
-            'photo_1x1_url' => $r['photo_1x1_url'] ?? '',
-            'signature_photo_url' => $r['signature_photo_url'] ?? '',
+            'id_front_photo_url' => !empty($r['id_front_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $r['id_front_photo_url']) : '',
+            'selfie_photo_url' => !empty($r['selfie_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $r['selfie_photo_url']) : '',
+            'photo_1x1_url' => !empty($r['photo_1x1_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $r['photo_1x1_url']) : '',
+            'signature_photo_url' => !empty($r['signature_photo_url']) ? str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $r['signature_photo_url']) : '',
             'verifying_staff' => $verifyingStaff,
             'reviewed_by' => $r['reviewed_by'] ?? '',
             'reviewed_at' => $revDt ? $revDt->format('M j, Y • h:i A') : 'Pending / Not Reviewed',
@@ -822,23 +822,33 @@ try {
 <!-- IMAGE LIGHTBOX MODAL                                                           -->
 <!-- ============================================================================== -->
 <div id="vlogImageLightbox" class="hidden fixed inset-0 z-[10001] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4" onclick="closeImageLightbox()">
-    <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl flex flex-col my-auto" onclick="event.stopPropagation()">
-        <div class="px-5 py-3.5 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white shrink-0">
-            <div class="flex items-center gap-2">
+    <div class="relative w-full max-w-4xl max-h-[92vh] bg-slate-900 rounded-3xl border border-slate-700 overflow-hidden shadow-2xl flex flex-col my-auto" onclick="event.stopPropagation()">
+        <div class="px-5 py-3.5 bg-slate-800/90 border-b border-slate-700 flex items-center justify-between text-white shrink-0 gap-2 flex-wrap">
+            <div class="flex items-center gap-2 min-w-0">
                 <i class="fa-solid fa-id-card text-blue-400 text-sm"></i>
-                <span id="lightboxImageTitle" class="text-xs font-bold">Document Image Inspection</span>
+                <span id="lightboxImageTitle" class="text-xs font-bold truncate">Document Image Inspection</span>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <button type="button" onclick="rotateLightboxImage()" class="px-2.5 py-1.5 text-xs font-bold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition flex items-center gap-1.5 cursor-pointer" title="Rotate 90 degrees">
+                    <i class="fa-solid fa-rotate-right text-xs"></i> <span>Rotate</span>
+                </button>
+                <button type="button" onclick="zoomLightboxImage(0.25)" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition flex items-center justify-center cursor-pointer" title="Zoom In">
+                    <i class="fa-solid fa-magnifying-glass-plus text-xs"></i>
+                </button>
+                <button type="button" onclick="zoomLightboxImage(-0.25)" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition flex items-center justify-center cursor-pointer" title="Zoom Out">
+                    <i class="fa-solid fa-magnifying-glass-minus text-xs"></i>
+                </button>
                 <a id="lightboxNewTabLink" href="#" target="_blank" class="px-3 py-1.5 text-xs font-bold rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> Open Original
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> <span>Open Original</span>
                 </a>
-                <button type="button" onclick="closeImageLightbox()" class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer">
+                <button type="button" onclick="closeImageLightbox()" class="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white flex items-center justify-center transition cursor-pointer" title="Close Lightbox">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
         </div>
-        <div class="p-4 overflow-auto flex items-center justify-center bg-black/40 min-h-[300px]">
-            <img id="lightboxImageEl" src="" alt="High resolution inspection" class="max-h-[75vh] max-w-full object-contain rounded-xl shadow-lg">
+        <div class="p-4 overflow-auto flex items-center justify-center bg-black/40 min-h-[300px] max-h-[80vh]">
+            <img id="lightboxImageEl" src="" alt="High resolution inspection" class="max-h-[75vh] max-w-full object-contain rounded-xl shadow-lg transition-transform duration-200">
+            <iframe id="lightboxPdfEl" class="hidden w-full h-[75vh] rounded-xl border-0 bg-white"></iframe>
         </div>
     </div>
 </div>
@@ -847,6 +857,8 @@ try {
 const verificationLogsData = <?php echo json_encode($verificationLogs); ?>;
 const API_BASE_URL = <?php echo json_encode($apiBase); ?>;
 let activeLogIndex = null;
+let currentLightboxRotation = 0;
+let currentLightboxZoom = 1;
 
 function filterVerificationLogsTable() {
     const searchVal = document.getElementById('vlogSearchInput').value.toLowerCase();
@@ -868,28 +880,66 @@ function filterVerificationLogsTable() {
     });
 }
 
+function isPdfDoc(url) {
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.trim().toLowerCase();
+    if (clean.startsWith('data:application/pdf')) return true;
+    const path = clean.split('?')[0].split('#')[0];
+    return path.endsWith('.pdf');
+}
+
 function formatPhotoSrc(url) {
     if (!url || typeof url !== 'string') return null;
     url = url.trim();
-    if (!url || url.startsWith('blob:')) return null;
+    if (!url || url === 'null' || url === 'undefined' || url.startsWith('blob:')) return null;
 
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
-        if (url.includes('/uploads/verifications/')) {
-            return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+    // 1. Data URIs (Base64 images, SVGs, PDFs)
+    if (url.startsWith('data:image/') || url.startsWith('data:application/pdf')) {
+        return url;
+    }
+
+    // 2. Raw base64 data without data: prefix
+    if (url.startsWith('/9j/') || url.startsWith('iVBORw') || url.startsWith('UklGR') || url.startsWith('JVBERi0') || url.startsWith('PHN2Zy')) {
+        let mime = 'image/jpeg';
+        if (url.startsWith('iVBORw')) mime = 'image/png';
+        else if (url.startsWith('UklGR')) mime = 'image/webp';
+        else if (url.startsWith('JVBERi0')) mime = 'application/pdf';
+        else if (url.startsWith('PHN2Zy')) mime = 'image/svg+xml';
+        return 'data:' + mime + ';base64,' + url;
+    }
+
+    // 3. Absolute HTTP / HTTPS URLs
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        // Swap legacy/dead domain to active API base
+        if (url.includes('citizenship.civentral.tech')) {
+            url = url.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+        }
+
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocal && (url.includes('/verifications/') || url.includes('/uploads/'))) {
+            const parts = url.split('/');
+            const fname = parts[parts.length - 1].split('?')[0];
+            if (fname) {
+                return '../../assets/uploads/verifications/' + fname;
+            }
         }
         return url;
     }
 
+    // 4. Relative paths
     const cleanPath = url.replace(/^\/+/, '');
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
+
     if (isLocal) {
         if (cleanPath.startsWith('assets/')) return '../../' + cleanPath;
         if (cleanPath.startsWith('uploads/')) return '../../assets/' + cleanPath;
         if (cleanPath.startsWith('verifications/')) return '../../assets/uploads/' + cleanPath;
         if (!cleanPath.includes('/')) return '../../assets/uploads/verifications/' + cleanPath;
     }
-    
+
+    if (cleanPath.startsWith('assets/uploads/')) {
+        return API_BASE_URL + '/' + cleanPath;
+    }
     if (cleanPath.startsWith('uploads/')) {
         return API_BASE_URL + '/assets/' + cleanPath;
     }
@@ -902,39 +952,166 @@ function formatPhotoSrc(url) {
     return API_BASE_URL + '/' + cleanPath;
 }
 
+function handleDocImgError(img, fallbackIcon, title) {
+    if (!img) return;
+    const retry = parseInt(img.getAttribute('data-retry') || '0', 10);
+    const origSrc = img.getAttribute('data-src') || img.src;
+
+    if (retry === 0) {
+        img.setAttribute('data-retry', '1');
+        if (img.src.includes('citizenship.civentral.tech')) {
+            img.src = img.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+            return;
+        } else if (img.src.includes('api-citizen.civentral.tech')) {
+            if (img.src.includes('/assets/uploads/')) {
+                img.src = img.src.replace('/assets/uploads/', '/uploads/');
+                return;
+            }
+        } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            const fname = img.src.split('/').pop().split('?')[0];
+            img.src = 'https://api-citizen.civentral.tech/assets/uploads/verifications/' + fname;
+            return;
+        }
+    } else if (retry === 1) {
+        img.setAttribute('data-retry', '2');
+        if (img.src.includes('/uploads/verifications/')) {
+            img.src = img.src.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+            return;
+        } else if (img.src.includes('/assets/uploads/verifications/')) {
+            img.src = img.src.replace('/assets/uploads/verifications/', '/uploads/verifications/');
+            return;
+        }
+    }
+
+    // Final fallback: replace container with clean fallback card
+    const container = img.closest('.doc-img-wrapper') || img.parentElement;
+    if (container) {
+        container.className = "w-full h-full flex flex-col items-center justify-center p-3 text-center bg-slate-50 text-slate-400 rounded-xl border border-dashed border-slate-200 select-none";
+        container.onclick = null;
+        container.innerHTML = `
+            <div class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-base mb-1 border border-slate-200">
+                <i class="${fallbackIcon}"></i>
+            </div>
+            <span class="block text-[11px] font-bold text-slate-700">${title}</span>
+            <span class="block text-[9.5px] text-slate-400">File not accessible</span>
+            <a href="${origSrc}" target="_blank" class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-[#0f53d1] hover:underline" onclick="event.stopPropagation()">
+                <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i> Try Direct URL
+            </a>
+        `;
+    }
+}
+
 function renderDocCard(boxId, badgeId, photoUrl, fallbackIcon, docTitle) {
     const box = document.getElementById(boxId);
     const badge = document.getElementById(badgeId);
     if (!box) return;
 
     const src = formatPhotoSrc(photoUrl);
+
     if (src) {
+        const isPdf = isPdfDoc(src);
+
         if (badge) {
             badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200";
-            badge.textContent = "Uploaded";
+            badge.textContent = isPdf ? "PDF Document" : "Uploaded";
         }
-        box.innerHTML = `
-            <div class="relative w-full h-full group/img cursor-pointer" onclick="openImageLightbox('${src.replace(/'/g, "\\'")}', '${docTitle}')">
-                <img src="${src}" class="w-full h-full object-cover rounded-xl transition duration-200 group-hover/img:scale-105" alt="${docTitle}" 
-                     onerror="this.closest('.group\\/img').innerHTML='<div class=\\'text-center p-3 text-slate-400\\'><i class=\\'${fallbackIcon} text-2xl mb-1 text-slate-300\\'></i><span class=\\'block text-[10px] font-semibold\\'>Image Unavailable</span></div>';" />
-                <div class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center gap-1.5 text-white font-bold text-xs rounded-xl backdrop-blur-2xs">
-                    <i class="fa-solid fa-expand text-xs"></i>
-                    <span>Expand Full Size</span>
+
+        if (isPdf) {
+            box.innerHTML = `
+                <div class="relative w-full h-full bg-rose-50/50 rounded-xl border border-rose-100 p-4 flex flex-col items-center justify-center text-center group/pdf cursor-pointer hover:bg-rose-50 transition" onclick="openImageLightbox('${src.replace(/'/g, "\\'")}', '${docTitle}', true)">
+                    <div class="w-12 h-12 rounded-xl bg-rose-500 text-white flex items-center justify-center text-2xl mb-2 group-hover/pdf:scale-110 transition shadow-sm">
+                        <i class="fa-solid fa-file-pdf"></i>
+                    </div>
+                    <span class="text-xs font-bold text-slate-900 block truncate max-w-[90%]">${docTitle}</span>
+                    <span class="text-[10px] text-rose-600 font-bold mt-1 flex items-center gap-1">
+                        <i class="fa-solid fa-magnifying-glass text-[9px]"></i> Click to inspect document
+                    </span>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            box.innerHTML = `
+                <div class="doc-img-wrapper relative w-full h-full bg-slate-950/[0.03] rounded-xl overflow-hidden group/img cursor-pointer flex items-center justify-center border border-slate-200/80 hover:border-blue-400 transition" onclick="openImageLightbox('${src.replace(/'/g, "\\'")}', '${docTitle}', false)">
+                    <img src="${src}" data-src="${src}" data-retry="0" class="w-full h-full object-contain rounded-xl transition duration-200 group-hover/img:scale-105" alt="${docTitle}" 
+                         onerror="handleDocImgError(this, '${fallbackIcon}', '${docTitle}')" />
+                    <div class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 transition flex items-center justify-center gap-1.5 text-white font-bold text-xs rounded-xl backdrop-blur-2xs">
+                        <i class="fa-solid fa-expand text-xs"></i>
+                        <span>Expand Full Size</span>
+                    </div>
+                </div>
+            `;
+        }
     } else {
         if (badge) {
             badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200";
             badge.textContent = "Not Uploaded";
         }
         box.innerHTML = `
-            <div class="text-center p-3 text-slate-400">
-                <i class="${fallbackIcon} text-2xl mb-1 text-slate-300"></i>
-                <span class="block text-[10px] font-semibold">Not Uploaded</span>
+            <div class="w-full h-full flex flex-col items-center justify-center p-3 text-center bg-slate-50 text-slate-400 rounded-xl border border-dashed border-slate-200">
+                <i class="${fallbackIcon} text-2xl mb-1.5 text-slate-300"></i>
+                <span class="block text-[11px] font-bold text-slate-500">${docTitle}</span>
+                <span class="block text-[10px] text-slate-400 mt-0.5">Not Uploaded</span>
             </div>
         `;
     }
+}
+
+function openImageLightbox(src, title, isPdf) {
+    const box = document.getElementById('vlogImageLightbox');
+    const img = document.getElementById('lightboxImageEl');
+    const pdf = document.getElementById('lightboxPdfEl');
+    const titleEl = document.getElementById('lightboxImageTitle');
+    const link = document.getElementById('lightboxNewTabLink');
+
+    if (!box) return;
+
+    currentLightboxRotation = 0;
+    currentLightboxZoom = 1;
+
+    if (titleEl) titleEl.textContent = title || 'Document Image Inspection';
+    if (link) link.href = src;
+
+    const checkPdf = isPdf !== undefined ? isPdf : isPdfDoc(src);
+
+    if (checkPdf) {
+        if (img) img.classList.add('hidden');
+        if (pdf) {
+            pdf.classList.remove('hidden');
+            pdf.src = src;
+        }
+    } else {
+        if (pdf) {
+            pdf.classList.add('hidden');
+            pdf.src = '';
+        }
+        if (img) {
+            img.classList.remove('hidden');
+            img.src = src;
+            img.style.transform = 'rotate(0deg) scale(1)';
+        }
+    }
+
+    box.classList.remove('hidden');
+}
+
+function rotateLightboxImage() {
+    const img = document.getElementById('lightboxImageEl');
+    if (!img || img.classList.contains('hidden')) return;
+    currentLightboxRotation = (currentLightboxRotation + 90) % 360;
+    img.style.transform = `rotate(${currentLightboxRotation}deg) scale(${currentLightboxZoom})`;
+}
+
+function zoomLightboxImage(delta) {
+    const img = document.getElementById('lightboxImageEl');
+    if (!img || img.classList.contains('hidden')) return;
+    currentLightboxZoom = Math.max(0.5, Math.min(3, currentLightboxZoom + delta));
+    img.style.transform = `rotate(${currentLightboxRotation}deg) scale(${currentLightboxZoom})`;
+}
+
+function closeImageLightbox() {
+    const box = document.getElementById('vlogImageLightbox');
+    if (box) box.classList.add('hidden');
+    const pdf = document.getElementById('lightboxPdfEl');
+    if (pdf) pdf.src = '';
 }
 
 function openLogDetailModal(index) {

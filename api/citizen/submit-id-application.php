@@ -22,7 +22,12 @@ if (!function_exists('saveIdBase64Image')) {
         if (empty($dataUrl)) return null;
         $dataUrl = trim($dataUrl);
 
-        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
+        $baseUrl = rtrim(getenv('API_BASE_URL') ?: (getenv('APP_URL') ?: 'https://api-citizen.civentral.tech'), '/');
+
+        // Normalize legacy domain
+        if (strpos($dataUrl, 'https://citizenship.civentral.tech') !== false) {
+            $dataUrl = str_replace('https://citizenship.civentral.tech', $baseUrl, $dataUrl);
+        }
 
         if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
             return $dataUrl;
@@ -30,43 +35,70 @@ if (!function_exists('saveIdBase64Image')) {
 
         if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0) {
             $clean = ltrim($dataUrl, '/');
-            if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
             return $baseUrl . '/' . $clean;
         }
 
         $ext = 'jpg';
         $data = null;
 
-        if (preg_match('/^data:image\/(\w+);base64,/', $dataUrl, $type)) {
+        if (preg_match('/^data:(image\/(\w+)|application\/pdf);base64,/i', $dataUrl, $type)) {
             $data = substr($dataUrl, strpos($dataUrl, ',') + 1);
-            $ext = strtolower($type[1]);
-            if ($ext === 'jpeg') $ext = 'jpg';
-        } elseif (strlen($dataUrl) > 100 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
-            $data = $dataUrl;
+            if (isset($type[2])) {
+                $ext = strtolower($type[2]);
+                if ($ext === 'jpeg') $ext = 'jpg';
+                elseif ($ext === 'svg+xml') $ext = 'svg';
+            } else {
+                $ext = 'pdf';
+            }
+        } elseif (strlen($dataUrl) > 50) {
+            $cleanedStr = preg_replace('/\s+/', '', $dataUrl);
+            if (preg_match('/^[a-zA-Z0-9\/+=]+$/', $cleanedStr)) {
+                $data = $cleanedStr;
+            }
         }
 
         if ($data !== null) {
             $decoded = base64_decode(trim($data));
             if ($decoded !== false && strlen($decoded) > 0) {
+                // Auto-detect extension from magic bytes if default jpg
+                if ($ext === 'jpg') {
+                    if (substr($decoded, 0, 4) === "%PDF") {
+                        $ext = 'pdf';
+                    } elseif (substr($decoded, 0, 8) === "\x89PNG\r\n\x1a\n") {
+                        $ext = 'png';
+                    } elseif (substr($decoded, 0, 4) === "RIFF" && substr($decoded, 8, 4) === "WEBP") {
+                        $ext = 'webp';
+                    } elseif (substr($decoded, 0, 3) === "GIF") {
+                        $ext = 'gif';
+                    }
+                }
+
                 $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
 
                 $targetDirs = [
+                    '/var/www/html/uploads/ids/',
                     '/var/www/html/assets/uploads/ids/',
+                    __DIR__ . '/../../uploads/ids/',
                     __DIR__ . '/../../assets/uploads/ids/',
+                    'C:/xampp/htdocs/citizen-information-and-engagement-final-try/uploads/ids/',
                     'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/ids/'
                 ];
 
+                $savedDir = 'uploads/ids/';
                 foreach ($targetDirs as $dir) {
                     if (!is_dir($dir)) {
                         @mkdir($dir, 0775, true);
                         @chmod($dir, 0775);
                     }
                     if (is_dir($dir)) {
-                        @file_put_contents($dir . $filename, $decoded);
+                        $writeRes = @file_put_contents($dir . $filename, $decoded);
+                        if ($writeRes !== false && file_exists($dir . $filename)) {
+                            $savedDir = (strpos($dir, 'assets/uploads') !== false) ? 'assets/uploads/ids/' : 'uploads/ids/';
+                        }
                     }
                 }
 
-                return $baseUrl . '/assets/uploads/ids/' . $filename;
+                return $baseUrl . '/' . $savedDir . $filename;
             }
         }
 

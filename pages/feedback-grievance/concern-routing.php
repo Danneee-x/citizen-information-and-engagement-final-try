@@ -231,11 +231,15 @@ $routingRules = [
 
 // Load Live Concerns from MySQL Database (Replaces Mock Data)
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/concern_clustering.php';
 try {
     $pdo = getDbConnection();
     $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC");
     $dbRows = $stmt->fetchAll();
     if (!empty($dbRows)) {
+        // Cluster reports over same barangay, location & incident topic; auto-escalate to Urgent if count >= 2
+        $dbRows = clusterConcerns($dbRows, $pdo, true);
+
         $liveConcerns = [];
         foreach ($dbRows as $row) {
             $cat = $row['category'] ?? '';
@@ -280,6 +284,10 @@ try {
                 $stage = 'closed';
             }
 
+            $isClustered = !empty($row['is_cluster']);
+            $clusterCount = (int)($row['cluster_count'] ?? 1);
+            $isUrgent = ($row['priority'] === 'Urgent');
+
             $liveConcerns[] = [
                 'id' => $row['ticket_number'],
                 'title' => $row['title'],
@@ -289,9 +297,9 @@ try {
                 'department_name' => $row['assigned_department'] ?: ($departments[$deptKey]['name'] ?? 'Citizenship Information & Engagement (CIE)'),
                 'priority' => $row['priority'],
                 'stage' => $stage,
-                'sla_text' => '24h SLA',
-                'sla_status' => $row['priority'] === 'Urgent' ? 'urgent' : 'normal',
-                'sla_total_hours' => 24,
+                'sla_text' => $isUrgent ? '⏱ 4h SLA (Urgent Hotspot)' : '24h SLA',
+                'sla_status' => $isUrgent ? 'urgent' : 'normal',
+                'sla_total_hours' => $isUrgent ? 4 : 24,
                 'date_filed' => date('Y-m-d h:i A', strtotime($row['created_at'])),
                 'citizen_name' => $row['is_anonymous'] ? 'Anonymous Resident' : $row['citizen_name'],
                 'citizen_phone' => $row['citizen_phone'] ?: '',
@@ -304,15 +312,30 @@ try {
                 'ai_confidence' => (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96,
                 'ai_reason' => !empty($row['ai_reason']) ? $row['ai_reason'] : 'Processed from citizen submission in Caloocan CIVentral network.',
                 'ai_keywords' => array_values(array_filter(explode(' ', preg_replace('/[^a-zA-Z0-9 ]/', '', $row['title'])))),
-                'has_duplicate' => false,
-                'duplicate_text' => '',
+                'has_duplicate' => $isClustered,
+                'duplicate_text' => $isClustered ? "Multi-Report Incident Hotspot ({$clusterCount} reports in {$row['location']}, Brgy {$row['barangay']}) - Priority Escalated to Urgent" : '',
+                'is_cluster' => $isClustered,
+                'cluster_id' => $row['cluster_id'] ?? null,
+                'cluster_count' => $clusterCount,
+                'sibling_tickets' => $row['sibling_tickets'] ?? [],
+                'sibling_details' => $row['sibling_details'] ?? [],
+                'is_escalated_urgent' => !empty($row['is_escalated_urgent']),
+                'cluster_reason' => $row['cluster_escalation_reason'] ?? '',
                 'photos' => !empty($row['photo_evidence_url']) ? [$row['photo_evidence_url']] : [],
                 'resolution_notes' => $row['resolution_notes'] ?: '',
                 'resolution_photos' => [],
-                'activity_log' => (function() use ($row, $st) {
+                'activity_log' => (function() use ($row, $st, $isClustered, $clusterCount) {
                     $log = [
                         ['time' => date('Y-m-d h:i A', strtotime($row['created_at'])), 'actor' => 'Citizen Mobile App', 'action' => 'Concern filed into CIVentral system.']
                     ];
+                    if ($isClustered && $clusterCount > 1) {
+                        $sibsStr = !empty($row['sibling_tickets']) ? implode(', ', $row['sibling_tickets']) : '';
+                        $log[] = [
+                            'time' => date('Y-m-d h:i A', strtotime($row['created_at'])),
+                            'actor' => 'Caloocan Incident Convergence Engine',
+                            'action' => "🚨 Multi-Report Incident Hotspot Detected: {$clusterCount} citizen reports converge on same location ({$row['location']}, Brgy {$row['barangay']}). Priority automatically escalated to URGENT with expedited 4-hour SLA. Linked tickets: {$sibsStr}."
+                        ];
+                    }
                     if ($st === 'Routed') {
                         $deptName = !empty($row['assigned_department']) ? $row['assigned_department'] : 'Designated Department';
                         $confScore = !empty($row['ai_confidence_score']) ? $row['ai_confidence_score'] : '96%';
@@ -761,6 +784,52 @@ try {
                 <!-- 7 Stages Visual Step Bar -->
                 <div class="grid grid-cols-7 gap-1.5 pt-1" id="modalStageTrackerBar">
                     <!-- Injected by JS -->
+                </div>
+            </div>
+
+            <!-- Multi-Report Incident Cluster & Hotspot Banner -->
+            <div id="modalRoutingClusterBanner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-rose-50 via-rose-50/80 to-amber-50/50 dark:from-rose-950/40 dark:via-rose-950/20 dark:to-slate-900 border-2 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-200 space-y-3 shadow-sm">
+                <div class="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+                    <div class="flex items-start gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center text-base shrink-0 shadow-md shadow-rose-500/20 animate-pulse">
+                            <i class="fa-solid fa-fire"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h5 class="font-black text-xs text-rose-950 dark:text-rose-100 flex items-center gap-1.5">
+                                    <span>Multi-Report Incident Hotspot Detected</span>
+                                </h5>
+                                <span id="modalRoutingClusterCountBadge" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white shadow-xs">
+                                    Multiple Reports
+                                </span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700 shadow-2xs">
+                                    <i class="fa-solid fa-bolt text-rose-500 mr-1"></i> Auto-Escalated to Urgent (4h SLA)
+                                </span>
+                            </div>
+                            <p id="modalRoutingClusterReasonText" class="text-[11px] text-rose-800 dark:text-rose-300 mt-1 font-medium leading-relaxed">
+                                System detected multiple resident reports on the same issue in the same barangay and street. Prioritization escalated to Urgent.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="px-2.5 py-1 bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-200 font-extrabold text-[10px] rounded-lg border border-rose-300 dark:border-rose-700">
+                            Expedited Dispatch
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Linked Sibling Tickets in Cluster -->
+                <div class="pt-2 border-t border-rose-200/80 dark:border-rose-800/80">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-extrabold text-rose-900 dark:text-rose-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-network-wired text-rose-600"></i>
+                            <span>Connected Reports for this Incident (Click to Switch):</span>
+                        </span>
+                        <span class="text-[10px] text-rose-700 dark:text-rose-400 font-bold">Same Hazard / Location</span>
+                    </div>
+                    <div id="modalRoutingSiblingChips" class="flex flex-wrap gap-1.5">
+                        <!-- Chips injected by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -1501,7 +1570,12 @@ function renderQueueTable() {
                             <i class="fa-solid fa-brain text-[8px]"></i>
                             <span>${item.ai_confidence}% Match</span>
                         </span>
-                        ${item.has_duplicate ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><i class="fa-solid fa-clone text-[8px]"></i> Duplicate Alert</span>` : ''}
+                        ${item.is_cluster && item.cluster_count > 1 ? `
+                            <span class="px-2 py-0.5 rounded text-[9px] font-black bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 flex items-center gap-1 animate-pulse">
+                                <i class="fa-solid fa-fire text-rose-500 text-[8px]"></i>
+                                <span>${item.cluster_count} Reports • Urgent Hotspot</span>
+                            </span>
+                        ` : (item.has_duplicate ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><i class="fa-solid fa-clone text-[8px]"></i> Duplicate Alert</span>` : '')}
                     </div>
                     <p class="font-bold text-slate-900 dark:text-white leading-snug line-clamp-1 text-xs">
                         ${escapeHtml(item.title)}
@@ -1525,6 +1599,11 @@ function renderQueueTable() {
             <!-- Priority -->
             <td class="py-3.5 px-4 text-center whitespace-nowrap">
                 ${priorityBadge}
+                ${item.is_cluster && item.cluster_count > 1 ? `
+                    <div class="text-[8px] font-black uppercase text-rose-600 dark:text-rose-400 mt-1 flex items-center justify-center gap-0.5 tracking-tight">
+                        <i class="fa-solid fa-bolt text-[8px]"></i> Hotspot Escalated
+                    </div>
+                ` : ''}
             </td>
 
             <!-- SLA Countdown -->
@@ -1592,7 +1671,15 @@ function renderLifecycleBoard() {
             <div class="bg-white dark:bg-slate-800/90 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs p-3 space-y-2.5 hover:border-blue-300 dark:hover:border-blue-600 transition cursor-pointer" onclick="openConcernDetailModal('${item.id}')">
                 
                 <div class="flex items-center justify-between text-[10px]">
-                    <span class="font-mono font-bold text-blue-600 dark:text-blue-400">${item.id}</span>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <span class="font-mono font-bold text-blue-600 dark:text-blue-400">${item.id}</span>
+                        ${item.is_cluster && item.cluster_count > 1 ? `
+                            <span class="px-1.5 py-0.5 rounded text-[8px] font-black bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800 flex items-center gap-1">
+                                <i class="fa-solid fa-fire text-rose-500 text-[8px]"></i>
+                                <span>${item.cluster_count} Reports</span>
+                            </span>
+                        ` : ''}
+                    </div>
                     ${priorityBadge}
                 </div>
 
@@ -1681,14 +1768,51 @@ function openConcernDetailModal(id) {
     // 7-Stage Horizontal Step Bar
     renderModalStepBar(item.stage);
 
-    // Duplicate alert
+    // Multi-Report Incident Cluster Banner
+    const clusterBanner = document.getElementById('modalRoutingClusterBanner');
+    const clusterCountBadge = document.getElementById('modalRoutingClusterCountBadge');
+    const clusterReasonText = document.getElementById('modalRoutingClusterReasonText');
+    const siblingChips = document.getElementById('modalRoutingSiblingChips');
     const dupAlert = document.getElementById('modalDuplicateAlert');
     const dupText = document.getElementById('modalDuplicateText');
-    if (item.has_duplicate) {
-        dupAlert?.classList.remove('hidden');
-        if (dupText) dupText.innerText = item.duplicate_text || 'Duplicate reports detected nearby.';
+
+    if (item.is_cluster && item.cluster_count > 1) {
+        if (clusterBanner) clusterBanner.classList.remove('hidden');
+        if (clusterCountBadge) clusterCountBadge.innerText = `${item.cluster_count} Reports Converged`;
+        if (clusterReasonText) {
+            clusterReasonText.innerText = item.cluster_reason || `System detected ${item.cluster_count} citizen reports on the same issue in ${item.barangay} (${item.landmark}). Automatic escalation to Urgent (4-hour SLA) applied.`;
+        }
+        if (dupAlert) dupAlert.classList.add('hidden');
+
+        if (siblingChips) {
+            const sibs = item.sibling_details || [];
+            if (sibs.length > 0) {
+                siblingChips.innerHTML = sibs.map(s => `
+                    <button type="button" onclick="openConcernDetailModal('${s.ticket_number}')" class="px-2.5 py-1 rounded-lg text-[10px] font-bold ${s.ticket_number === item.id ? 'bg-rose-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700 hover:bg-rose-100 dark:hover:bg-slate-700'} transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-ticket text-[9px]"></i>
+                        <span>${s.ticket_number}</span>
+                        <span class="opacity-75 font-normal">(${escapeHtml(s.citizen_name || 'Resident')})</span>
+                        ${s.ticket_number === item.id ? '<span class="text-[8px] bg-white text-rose-600 rounded px-1 font-extrabold">Active</span>' : ''}
+                    </button>
+                `).join('');
+            } else if (item.sibling_tickets && item.sibling_tickets.length > 0) {
+                siblingChips.innerHTML = item.sibling_tickets.map(t => `
+                    <button type="button" onclick="openConcernDetailModal('${t}')" class="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold ${t === item.id ? 'bg-rose-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-700 hover:bg-rose-100'} transition cursor-pointer flex items-center gap-1">
+                        <i class="fa-solid fa-ticket text-[9px]"></i>
+                        <span>${t}</span>
+                        ${t === item.id ? '<span class="text-[8px] bg-white text-rose-600 rounded px-1 font-extrabold">Active</span>' : ''}
+                    </button>
+                `).join('');
+            }
+        }
     } else {
-        dupAlert?.classList.add('hidden');
+        if (clusterBanner) clusterBanner.classList.add('hidden');
+        if (item.has_duplicate) {
+            dupAlert?.classList.remove('hidden');
+            if (dupText) dupText.innerText = item.duplicate_text || 'Duplicate reports detected nearby.';
+        } else {
+            dupAlert?.classList.add('hidden');
+        }
     }
 
     // Concern Details
@@ -1727,7 +1851,11 @@ function openConcernDetailModal(id) {
     document.getElementById('modalAiConfidenceBadge').innerText = `${item.ai_confidence}% Match`;
     document.getElementById('modalConfidenceScore').innerText = `${item.ai_confidence}%`;
     document.getElementById('modalConfidenceBar').style.width = `${item.ai_confidence}%`;
-    document.getElementById('modalAiReasonText').innerText = item.ai_reason || 'Keyword and sentiment parameters analyzed by Gemini multi-modal engine.';
+    const baseAiReason = item.ai_reason || 'Keyword and sentiment parameters analyzed by Gemini multi-modal engine.';
+    const finalAiReason = (item.is_cluster && item.cluster_count > 1)
+        ? `${baseAiReason}\n\n🚨 Multi-Report Incident Hotspot: ${item.cluster_count} citizen reports converge on this exact location (${item.barangay}, ${item.landmark}). Triage priority automatically escalated to Urgent (4-hour SLA).`
+        : baseAiReason;
+    document.getElementById('modalAiReasonText').innerText = finalAiReason;
 
     const keywordsContainer = document.getElementById('modalAiKeywordsList');
     if (keywordsContainer) {

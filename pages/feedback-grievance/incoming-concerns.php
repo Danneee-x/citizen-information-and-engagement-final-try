@@ -41,13 +41,6 @@ foreach ($requiredConcernCols as $col => $def) {
     } catch (Throwable $e) {}
 }
 
-// Fetch summary metrics
-$totalTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns`")->fetchColumn();
-$newUnroutedTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `status` IN ('New', 'Under Review')")->fetchColumn();
-$urgentTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `priority` IN ('Urgent', 'High')")->fetchColumn();
-$anonymousTickets = (int)$pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `is_anonymous` = 1")->fetchColumn();
-$anonPct = $totalTickets > 0 ? round(($anonymousTickets / $totalTickets) * 100, 1) : 0;
-
 // Dynamic primary key detection (supports either concern_id or id)
 $pkCol = 'id';
 try {
@@ -59,9 +52,37 @@ try {
     }
 } catch (Throwable $e) {}
 
+require_once __DIR__ . '/../../includes/concern_clustering.php';
+
 // Fetch all concerns from MySQL
 $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `{$pkCol}` DESC");
 $dbConcerns = $stmt->fetchAll();
+
+// Intelligent Incident Clustering & Multi-Report Dynamic Escalation
+$dbConcerns = clusterConcerns($dbConcerns, $pdo, true);
+
+// Fetch summary metrics (reflecting escalated urgent priority)
+$totalTickets = count($dbConcerns);
+$newUnroutedTickets = 0;
+$urgentTickets = 0;
+$anonymousTickets = 0;
+$multiReportHotspotsCount = 0;
+
+foreach ($dbConcerns as $c) {
+    if (in_array($c['status'] ?? 'New', ['New', 'Under Review'])) {
+        $newUnroutedTickets++;
+    }
+    if (in_array($c['priority'] ?? 'Medium', ['Urgent', 'High'])) {
+        $urgentTickets++;
+    }
+    if (!empty($c['is_anonymous'])) {
+        $anonymousTickets++;
+    }
+    if (!empty($c['is_cluster'])) {
+        $multiReportHotspotsCount++;
+    }
+}
+$anonPct = $totalTickets > 0 ? round(($anonymousTickets / $totalTickets) * 100, 1) : 0;
 
 // Available Caloocan Official Municipal Departments (Reference from Department Management)
 $caloocanDepartments = [];
@@ -160,7 +181,15 @@ foreach ($dbConcerns as $row) {
         'ai_confidence_score' => $row['ai_confidence_score'] ?? '95%',
         'resolution_notes' => $row['resolution_notes'] ?? '',
         'resolved_at' => $row['resolved_at'] ? date('M j, Y • h:i A', strtotime($row['resolved_at'])) : null,
-        'updates_count' => ($row['status'] === 'Resolved' ? 4 : ($row['status'] === 'In Progress' ? 3 : ($row['status'] === 'Routed' ? 2 : 1)))
+        'updates_count' => ($row['status'] === 'Resolved' ? 4 : ($row['status'] === 'In Progress' ? 3 : ($row['status'] === 'Routed' ? 2 : 1))),
+        'is_cluster' => !empty($row['is_cluster']),
+        'cluster_count' => !empty($row['cluster_count']) ? (int)$row['cluster_count'] : 1,
+        'cluster_id' => $row['cluster_id'] ?? null,
+        'cluster_title' => $row['cluster_title'] ?? '',
+        'sibling_tickets' => $row['sibling_tickets'] ?? [],
+        'sibling_details' => $row['sibling_details'] ?? [],
+        'is_escalated_urgent' => !empty($row['is_escalated_urgent']),
+        'cluster_escalation_reason' => $row['cluster_escalation_reason'] ?? ''
     ];
 }
 ?>
@@ -256,10 +285,10 @@ foreach ($dbConcerns as $row) {
                 </div>
             </div>
             <div>
-                <h3 class="text-2xl font-black text-slate-900 tracking-tight"><?php echo number_format($urgentTickets); ?> High Priority</h3>
+                <h3 class="text-2xl font-black text-slate-900 tracking-tight"><?php echo number_format($urgentTickets); ?> Urgent / High</h3>
                 <p class="text-[11px] font-semibold text-rose-600 flex items-center gap-1 mt-1">
                     <i class="fa-solid fa-bolt"></i>
-                    <span>Fast-track SLA dispatch</span>
+                    <span><?php echo $multiReportHotspotsCount > 0 ? "{$multiReportHotspotsCount} in Multi-Report Hotspots" : 'Fast-track SLA dispatch'; ?></span>
                 </p>
             </div>
         </div>
@@ -372,8 +401,16 @@ foreach ($dbConcerns as $row) {
                                         <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center shrink-0 font-black text-xs border border-blue-100">
                                             <i class="fa-solid fa-ticket"></i>
                                         </div>
-                                        <div class="min-w-0">
-                                            <p class="font-bold text-slate-900 text-xs truncate max-w-xs"><?php echo htmlspecialchars($item['title']); ?></p>
+                                        <div class="min-w-0 space-y-0.5">
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <p class="font-bold text-slate-900 text-xs truncate max-w-xs"><?php echo htmlspecialchars($item['title']); ?></p>
+                                                <?php if (!empty($item['is_cluster'])): ?>
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-700 border border-rose-200" title="<?php echo htmlspecialchars($item['cluster_escalation_reason']); ?>">
+                                                    <i class="fa-solid fa-fire text-rose-500 animate-pulse"></i>
+                                                    <span><?php echo $item['cluster_count']; ?> Reports • Urgent Hotspot</span>
+                                                </span>
+                                                <?php endif; ?>
+                                            </div>
                                             <span class="text-[10px] font-bold text-[#0f53d1]"><?php echo $item['id']; ?></span>
                                         </div>
                                     </div>
@@ -402,6 +439,11 @@ foreach ($dbConcerns as $row) {
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border <?php echo $item['priority_badge']; ?>">
                                         <?php echo $item['priority']; ?>
                                     </span>
+                                    <?php if (!empty($item['is_cluster'])): ?>
+                                    <span class="block text-[8px] font-extrabold text-rose-600 mt-0.5 whitespace-nowrap">
+                                        <i class="fa-solid fa-bolt text-[7px]"></i> Hotspot Escalated
+                                    </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="py-3.5 px-3 text-center">
                                     <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border <?php echo $item['status_badge']; ?>">
@@ -476,6 +518,37 @@ foreach ($dbConcerns as $row) {
                 <h4 id="modalTitle" class="text-base font-black text-slate-900 leading-snug">Concern Subject Title</h4>
                 <div class="bg-white p-3.5 rounded-xl border border-slate-200 text-xs text-slate-700 font-normal leading-relaxed">
                     <p id="modalFullText" class="whitespace-pre-line">Detailed concern description will display here...</p>
+                </div>
+            </div>
+
+            <!-- Multi-Report Incident Convergence Banner -->
+            <div id="modalClusterBanner" class="hidden bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50 rounded-2xl p-4.5 border border-rose-200 shadow-xs space-y-3">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xs shadow-xs shrink-0">
+                            <i class="fa-solid fa-fire-flame-curved animate-pulse"></i>
+                        </span>
+                        <div>
+                            <h5 id="modalClusterTitle" class="text-xs font-black text-rose-950 uppercase tracking-tight">Multiple Citizen Reports Detected (4 Reports)</h5>
+                            <span class="text-[10px] text-rose-700 font-semibold">Incident Convergence Hotspot • Same Barangay & Location</span>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-600 text-white shadow-xs flex items-center gap-1">
+                        <i class="fa-solid fa-bolt"></i> Auto-Escalated to Urgent
+                    </span>
+                </div>
+                
+                <div class="bg-white/80 rounded-xl p-3 border border-rose-100 text-xs text-rose-900 leading-relaxed font-medium">
+                    <p id="modalClusterReason">Multiple independent citizen reports have been filed for this identical incident. Priority automatically elevated to Urgent for emergency municipal dispatch.</p>
+                </div>
+
+                <div class="pt-1 border-t border-rose-200/60">
+                    <span class="text-[10px] font-black uppercase text-slate-500 block mb-1.5 flex items-center gap-1">
+                        <i class="fa-solid fa-link text-[#0f53d1]"></i> Linked Sibling Reports in this Incident Cluster:
+                    </span>
+                    <div id="modalSiblingTicketsContainer" class="flex flex-wrap gap-2">
+                        <!-- Dynamic sibling ticket buttons injected by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -695,6 +768,37 @@ function selectConcernRow(rowElement, id) {
     if (statusBadge) {
         statusBadge.innerText = (data.status || 'NEW').toUpperCase();
         statusBadge.className = "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border " + data.status_badge;
+    }
+
+    // Incident Clustering & Multi-Report Banner
+    const clusterBanner = document.getElementById('modalClusterBanner');
+    if (clusterBanner) {
+        if (data.is_cluster && data.cluster_count >= 2) {
+            clusterBanner.classList.remove('hidden');
+            const cTitle = document.getElementById('modalClusterTitle');
+            if (cTitle) cTitle.innerText = `Multiple Citizen Reports Detected (${data.cluster_count} Reports)`;
+            const cReason = document.getElementById('modalClusterReason');
+            if (cReason) cReason.innerText = data.cluster_escalation_reason || `Multiple independent citizen reports received for identical incident. Priority dynamically elevated to Urgent for fast-track municipal dispatch.`;
+            
+            const siblingsCont = document.getElementById('modalSiblingTicketsContainer');
+            if (siblingsCont) {
+                siblingsCont.innerHTML = '';
+                (data.sibling_details || []).forEach(sib => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white hover:bg-blue-50 text-[#0f53d1] border border-blue-200 hover:border-blue-400 transition cursor-pointer flex items-center gap-1 shadow-2xs';
+                    btn.innerHTML = `<i class="fa-solid fa-ticket text-[9px]"></i><span>${sib.ticket_number}</span><span class="text-slate-400 text-[9px] font-normal">(${sib.citizen_name})</span>`;
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        const targetRow = document.querySelector(`.concern-row[data-id="${sib.ticket_number}"]`);
+                        selectConcernRow(targetRow, sib.ticket_number);
+                    };
+                    siblingsCont.appendChild(btn);
+                });
+            }
+        } else {
+            clusterBanner.classList.add('hidden');
+        }
     }
 
     // Attachments

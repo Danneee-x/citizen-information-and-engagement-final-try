@@ -114,6 +114,8 @@ $clustersByGroup = [];
 
 // Load Live Concerns from MySQL Database
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/concern_clustering.php';
+
 try {
     $pdo = getDbConnection();
 
@@ -125,11 +127,8 @@ try {
     $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC");
     $dbRows = $stmt->fetchAll();
     if (!empty($dbRows)) {
-        // Group by barangay + category for intelligent proximity clustering
-        foreach ($dbRows as $r) {
-            $grpKey = trim($r['barangay']) . '|' . trim($r['category']);
-            $clustersByGroup[$grpKey][] = $r['ticket_number'];
-        }
+        // Run intelligent multi-report incident clustering & dynamic Urgent escalation
+        $dbRows = clusterConcerns($dbRows, $pdo, true);
 
         $liveAi = [];
         foreach ($dbRows as $row) {
@@ -161,11 +160,11 @@ try {
 
             $deptName = !empty($row['assigned_department']) ? $row['assigned_department'] : ($departments[$deptKey]['name'] ?? 'Citizenship Information & Engagement (CIE)');
             $hasPhoto = !empty($row['photo_evidence_url']);
-            $isUrgent = (!empty($row['priority']) && ($row['priority'] === 'Urgent' || $row['priority'] === 'High'));
 
-            $grpKey = trim($row['barangay']) . '|' . trim($row['category']);
-            $grpTickets = $clustersByGroup[$grpKey] ?? [$row['ticket_number']];
-            $hasDups = count($grpTickets) > 1;
+            $isCluster = !empty($row['is_cluster']);
+            $clusterCount = !empty($row['cluster_count']) ? (int)$row['cluster_count'] : 1;
+            $isUrgent = ($row['priority'] === 'Urgent');
+            $priorityVal = $row['priority']; // 'Urgent' if multi-report incident
 
             $confVal = (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96;
 
@@ -181,9 +180,17 @@ try {
             $dispatchToken = 'ACK-' . strtoupper(substr(md5($row['ticket_number']), 0, 8));
             $isTaglish = (bool)preg_match('/(po|opo|ang|mga|sa|ng|may|walang|baha|basura|ilaw|kalsada|lubak|tubig|dumi)/i', $row['title'] . ' ' . $row['description']);
             $langDetected = $isTaglish ? 'Filipino / Taglish' : 'English (PH)';
-            $priorityVal = !empty($row['priority']) ? $row['priority'] : ($isUrgent ? 'Urgent' : 'Medium');
-            $slaVal = $departments[$deptKey]['default_sla'] ?? ($isUrgent ? '4 Hours' : '48 Hours');
-            $cleanReason = !empty($row['ai_reason']) ? $row['ai_reason'] : 'Multi-modal NLP classification and proximity cluster evaluation complete.';
+            $slaVal = $isUrgent ? '4 Hours' : ($departments[$deptKey]['default_sla'] ?? '48 Hours');
+
+            if ($isCluster) {
+                $sentiment = "Critical Hazard • Incident Hotspot ({$clusterCount} Reports)";
+                $sentimentBadge = 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800';
+                $cleanReason = !empty($row['cluster_escalation_reason']) ? $row['cluster_escalation_reason'] : "Multi-Modal AI detected {$clusterCount} convergent citizen reports for this identical incident in {$row['barangay']}. Priority escalated to Urgent for immediate municipal intervention.";
+            } else {
+                $sentiment = $isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report';
+                $sentimentBadge = $isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
+                $cleanReason = !empty($row['ai_reason']) ? $row['ai_reason'] : 'Multi-modal NLP classification and proximity cluster evaluation complete.';
+            }
 
             $liveAi[] = [
                 'id' => $row['ticket_number'],
@@ -197,14 +204,17 @@ try {
                 'ai_confidence' => (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96,
                 'vision_verified' => $hasPhoto,
                 'vision_summary' => $hasPhoto ? 'Gemini Vision verified citizen uploaded photo evidence.' : 'Intake verified from citizen mobile app report text.',
-                'sentiment' => $isUrgent ? 'Critical Public Safety Hazard' : 'Community Service Report',
-                'sentiment_badge' => $isUrgent ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 dark:border-rose-800' : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+                'sentiment' => $sentiment,
+                'sentiment_badge' => $sentimentBadge,
                 'barangay' => !empty($row['barangay']) ? $row['barangay'] : 'Caloocan City',
+                'location' => !empty($row['location']) ? $row['location'] : '',
                 'cluster' => [
-                    'has_duplicates' => $hasDups,
-                    'cluster_count' => count($grpTickets),
-                    'cluster_name' => $hasDups ? ('Cluster: ' . $row['category'] . ' (' . $row['barangay'] . ')') : ('Citizen Report #' . $row['ticket_number']),
-                    'duplicate_ids' => $grpTickets
+                    'has_duplicates' => $isCluster,
+                    'cluster_count' => $clusterCount,
+                    'cluster_id' => $row['cluster_id'] ?? null,
+                    'cluster_name' => $isCluster ? ("⚡ Incident Hotspot: {$clusterCount} Reports (" . (!empty($row['barangay']) ? $row['barangay'] : 'Caloocan') . ")") : ('Citizen Report #' . $row['ticket_number']),
+                    'duplicate_ids' => $row['sibling_tickets'] ?? [],
+                    'sibling_details' => $row['sibling_details'] ?? []
                 ],
                 'status' => $currentStatus,
                 'analyzed_at' => $analyzedAt,
@@ -234,25 +244,25 @@ $autoDispatchedCount = 0;
 
 if ($totalTickets > 0) {
     $sumConf = 0;
+    $seenClusters = [];
     foreach ($initialAiClassifications as $item) {
         $sumConf += (int)($item['ai_confidence'] ?? 95);
-        if (!empty($item['sentiment_badge']) && strpos($item['sentiment_badge'], 'rose') !== false) {
+        if (!empty($item['priority']) && $item['priority'] === 'Urgent') {
             $urgentFlagsCount++;
         }
         if (!empty($item['cluster']['has_duplicates'])) {
             $totalDuplicatesCount++;
+            $cid = $item['cluster']['cluster_id'] ?? $item['cluster']['cluster_name'];
+            if (!in_array($cid, $seenClusters)) {
+                $seenClusters[] = $cid;
+                $duplicateClustersCount++;
+            }
         }
         if ($item['status'] === 'Auto-Dispatched' || $item['status'] === 'Accepted' || $item['status'] === 'Overridden') {
             $autoDispatchedCount++;
         }
     }
     $avgConfidenceVal = round($sumConf / $totalTickets, 1);
-
-    foreach ($clustersByGroup as $g => $tList) {
-        if (count($tList) > 1) {
-            $duplicateClustersCount++;
-        }
-    }
 }
 $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalTickets) * 100, 1) : 0;
 ?>
@@ -838,16 +848,22 @@ function renderAiTable() {
                 <span class="px-2.5 py-1 rounded-xl font-bold text-[10px] border ${item.sentiment_badge} inline-block">
                     ${item.sentiment}
                 </span>
+                ${hasCluster ? `
+                <span class="block text-[8px] font-black text-rose-600 dark:text-rose-400 mt-0.5 uppercase tracking-wider">
+                    <i class="fa-solid fa-bolt text-[7px]"></i> Hotspot Auto-Escalated
+                </span>
+                ` : ''}
             </td>
 
             <!-- Cluster -->
             <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
                 ${hasCluster ? `
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800">
-                    ${item.cluster.cluster_count} Similar
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-900/50 dark:text-rose-300 dark:border-rose-800 shadow-2xs">
+                    <i class="fa-solid fa-fire text-rose-500 animate-pulse text-[9px]"></i>
+                    <span>${item.cluster.cluster_count} Reports • Urgent</span>
                 </span>
                 ` : `
-                <span class="text-slate-400 text-[11px] font-medium">Solo</span>
+                <span class="text-slate-400 text-[11px] font-medium">Single Report</span>
                 `}
             </td>
 
@@ -1019,10 +1035,11 @@ function openAnalysisReportModal(id) {
     const clusterMatched = document.getElementById('modalReportClusterMatched');
     if (item.cluster && item.cluster.has_duplicates) {
         clusterBadge.classList.remove('hidden');
-        clusterBadge.innerText = `${item.cluster.cluster_count} Similar Reports in Radius`;
+        clusterBadge.className = 'px-2 py-0.5 rounded-md bg-rose-600 text-white font-black text-[9px] flex items-center gap-1 shadow-2xs';
+        clusterBadge.innerHTML = `<i class="fa-solid fa-fire text-amber-300"></i> ${item.cluster.cluster_count} Reports • Auto-Escalated to Urgent`;
         clusterName.innerText = item.cluster.cluster_name;
         clusterMatched.classList.remove('hidden');
-        clusterMatched.innerText = `Matched Tickets: ${item.cluster.duplicate_ids.join(', ')}`;
+        clusterMatched.innerHTML = `Linked Incident Reports: <strong>${item.cluster.duplicate_ids.join(', ')}</strong>`;
     } else {
         clusterBadge.classList.add('hidden');
         clusterName.innerText = item.cluster?.cluster_name || ('Report #' + item.id);
@@ -1034,7 +1051,9 @@ function openAnalysisReportModal(id) {
     document.getElementById('modalReportLang').innerText = item.language_detected;
     document.getElementById('modalReportModel').innerText = item.model_name;
     document.getElementById('modalReportModelConf').innerText = `Confidence: ${item.ai_confidence}%`;
-    document.getElementById('modalReportPriority').innerText = `${item.priority} Priority`;
+    document.getElementById('modalReportPriority').innerHTML = item.cluster && item.cluster.has_duplicates ? 
+        `<span class="text-rose-600 dark:text-rose-400 font-black">Urgent</span> <span class="text-[9px] font-bold text-rose-500">(Hotspot Escalation)</span>` : 
+        `${item.priority} Priority`;
     document.getElementById('modalReportSla').innerText = `Est. SLA: ${item.sla_target}`;
     document.getElementById('modalReportDispatchDept').innerHTML = `<i class="fa-solid fa-circle-check text-[9px]"></i> ${escapeHtml(deptInfo.short)}`;
     document.getElementById('modalReportToken').innerText = `Ref: ${item.dispatch_token}`;

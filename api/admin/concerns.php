@@ -123,24 +123,13 @@ function getDbConnection() {
     throw new \Exception("Database connection failure: " . $lastError);
 }
 
+require_once __DIR__ . '/../../includes/concern_clustering.php';
+
 // 4. Handle GET: Query Concerns & Aggregated Stats
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $conn = getDbConnection();
         $pdo = $conn['pdo'];
-
-        // Aggregate KPIs
-        $totalStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns`");
-        $totalTickets = (int)$totalStmt->fetchColumn();
-
-        $newStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `status` IN ('New', 'Under Review')");
-        $newUnrouted = (int)$newStmt->fetchColumn();
-
-        $urgentStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `priority` IN ('Urgent', 'High')");
-        $urgentCount = (int)$urgentStmt->fetchColumn();
-
-        $anonStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `is_anonymous` = 1");
-        $anonCount = (int)$anonStmt->fetchColumn();
 
         // Filters
         $where = [];
@@ -186,13 +175,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute($params);
         $rows = $stmt->fetchAll();
 
+        // Process incident clustering & auto-escalate multi-reports to Urgent
+        $rows = clusterConcerns($rows, $pdo, true);
+
+        // Aggregate KPIs (reflecting escalated urgent tickets)
+        $totalStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns`");
+        $totalTickets = (int)$totalStmt->fetchColumn();
+
+        $newStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `status` IN ('New', 'Under Review')");
+        $newUnrouted = (int)$newStmt->fetchColumn();
+
+        $urgentStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `priority` IN ('Urgent', 'High')");
+        $urgentCount = (int)$urgentStmt->fetchColumn();
+
+        $anonStmt = $pdo->query("SELECT COUNT(*) FROM `citizen_concerns` WHERE `is_anonymous` = 1");
+        $anonCount = (int)$anonStmt->fetchColumn();
+
+        $clusteredCount = 0;
+        foreach ($rows as $r) {
+            if (!empty($r['is_cluster'])) {
+                $clusteredCount++;
+            }
+        }
+
         echo json_encode([
             'status' => 'success',
             'kpis' => [
                 'total_tickets' => $totalTickets,
                 'new_unrouted' => $newUnrouted,
                 'urgent_tickets' => $urgentCount,
-                'anonymous_count' => $anonCount
+                'anonymous_count' => $anonCount,
+                'clustered_tickets' => $clusteredCount
             ],
             'count' => count($rows),
             'concerns' => $rows

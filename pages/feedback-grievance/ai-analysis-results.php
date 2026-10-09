@@ -457,6 +457,23 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <h4 class="text-sm font-bold text-slate-800 dark:text-white">No analyzed reports match your filter</h4>
                 <p class="text-xs text-slate-500 max-w-sm mx-auto">Try resetting search keywords or filter dropdown.</p>
             </div>
+
+            <!-- Pagination & Bottom Controls (Matches Registered Citizens pattern) -->
+            <div id="aiPaginationSection" class="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <span class="text-xs text-slate-500 font-medium">Rows per page</span>
+                    <select id="rowsPerPageSelect" onchange="onRowsPerPageChange(this.value)" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs rounded-lg py-1.5 px-2 outline-none font-medium cursor-pointer">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                    <span id="showingEntriesText" class="text-xs text-slate-500 font-medium ml-1 mr-2">Showing 1 to 10 of 13 entries</span>
+                </div>
+
+                <div id="paginationButtonsContainer" class="flex items-center gap-1 flex-wrap">
+                    <!-- Rendered by JavaScript -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -702,6 +719,10 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 let aiClassificationsData = <?php echo json_encode($initialAiClassifications, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 let departmentsMap = <?php echo json_encode($departments, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
+// Pagination state (defaults to 10 items per page like registered citizens)
+let currentPage = 1;
+let rowsPerPage = 10;
+
 document.addEventListener('DOMContentLoaded', function() {
     renderAiTable();
 
@@ -713,26 +734,56 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Render the AI Analysis Records into Table Rows
+function onRowsPerPageChange(val) {
+    rowsPerPage = parseInt(val, 10) || 10;
+    currentPage = 1;
+    renderAiTable();
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderAiTable();
+}
+
+// Render the AI Analysis Records into Table Rows with 10-Row Pagination
 function renderAiTable() {
     const tableBody = document.getElementById('aiFeedTableBody');
     const emptyState = document.getElementById('aiEmptyState');
     const countBadge = document.getElementById('aiFeedCountBadge');
+    const paginationSection = document.getElementById('aiPaginationSection');
+    const showingEntriesText = document.getElementById('showingEntriesText');
     if (!tableBody) return;
 
     const filtered = getFilteredAiItems();
-    if (countBadge) countBadge.innerText = `(${filtered.length} reports recorded)`;
+    const totalMatching = filtered.length;
+    if (countBadge) countBadge.innerText = `(${totalMatching} reports recorded)`;
 
-    if (filtered.length === 0) {
+    if (totalMatching === 0) {
         tableBody.innerHTML = '';
         if (emptyState) emptyState.classList.remove('hidden');
+        if (showingEntriesText) showingEntriesText.textContent = 'Showing 0 entries';
+        renderPaginationControls(1, 1);
         return;
     }
 
     if (emptyState) emptyState.classList.add('hidden');
 
+    const totalPages = Math.ceil(totalMatching / rowsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    const pageItems = filtered.slice(startIndex, endIndex);
+
+    if (showingEntriesText) {
+        const fromNum = startIndex + 1;
+        const toNum = Math.min(endIndex, totalMatching);
+        showingEntriesText.textContent = `Showing ${fromNum} to ${toNum} of ${totalMatching} entries`;
+    }
+
     let html = '';
-    filtered.forEach(item => {
+    pageItems.forEach(item => {
         const deptInfo = departmentsMap[item.department_key] || { short: item.suggested_routing, badge: 'bg-slate-100 text-slate-700', icon: 'fa-solid fa-building' };
         const hasCluster = item.cluster && item.cluster.has_duplicates;
 
@@ -817,6 +868,32 @@ function renderAiTable() {
     });
 
     tableBody.innerHTML = html;
+    renderPaginationControls(currentPage, totalPages);
+}
+
+function renderPaginationControls(page, totalPages) {
+    const container = document.getElementById('paginationButtonsContainer');
+    if (!container) return;
+
+    let html = '';
+
+    const prevDisabled = page === 1 ? 'disabled opacity-40 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer';
+    html += `<button onclick="goToPage(1)" ${page === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 transition ${prevDisabled}" title="First Page"><i class="fa-solid fa-angles-left text-[10px]"></i></button>`;
+    html += `<button onclick="goToPage(${page - 1})" ${page === 1 ? 'disabled' : ''} class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 transition ${prevDisabled}" title="Previous Page"><i class="fa-solid fa-angle-left text-[10px]"></i></button>`;
+
+    for (let p = 1; p <= totalPages; p++) {
+        if (p === page) {
+            html += `<button class="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-indigo-600 font-bold text-xs shadow-xs">${p}</button>`;
+        } else {
+            html += `<button onclick="goToPage(${p})" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer">${p}</button>`;
+        }
+    }
+
+    const nextDisabled = page === totalPages ? 'disabled opacity-40 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer';
+    html += `<button onclick="goToPage(${page + 1})" ${page === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 transition ${nextDisabled}" title="Next Page"><i class="fa-solid fa-angle-right text-[10px]"></i></button>`;
+    html += `<button onclick="goToPage(${totalPages})" ${page === totalPages ? 'disabled' : ''} class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 transition ${nextDisabled}" title="Last Page"><i class="fa-solid fa-angles-right text-[10px]"></i></button>`;
+
+    container.innerHTML = html;
 }
 
 // Filter engine for analysis records
@@ -850,6 +927,7 @@ function getFilteredAiItems() {
 }
 
 function applyAiFilters() {
+    currentPage = 1;
     renderAiTable();
 }
 

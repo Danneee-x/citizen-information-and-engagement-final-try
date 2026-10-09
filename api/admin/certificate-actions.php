@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fee = (float)$target['fee_amount'];
             $isWaived = ($fee == 0.00) || stripos($type, 'Indigency') !== false || stripos($type, 'Jobseeker') !== false;
             $orNo = $isWaived ? "WAIVED-{$prefix}" : ("OR-" . mt_rand(984000, 984999));
-            $pStatus = $isWaived ? ($fee == 0 ? 'Waived (Indigent)' : 'Waived') : 'Paid';
+            $pStatus = $isWaived ? 'Waived' : 'Paid';
 
             // 1. Update certificate_requests
             $upSql = "UPDATE `certificate_requests` SET 
@@ -175,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtUp->execute([
                 ':staff' => $staffName,
                 ':or_no' => $orNo,
-                ':pstatus' => $isWaived ? 'Waived' : 'Paid',
+                ':pstatus' => $pStatus,
                 ':ref' => $refNo
             ]);
 
@@ -195,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':control_no' => $controlNo,
                 ':req_id' => $target['request_id'],
                 ':ref_no' => $refNo,
-                ':citizen_id' => 'CTZ-2026-' . mt_rand(100, 999),
+                ':citizen_id' => !empty($target['citizen_user_id']) ? 'CTZ-2026-' . str_pad($target['citizen_user_id'], 4, '0', STR_PAD_LEFT) : ('CTZ-2026-' . mt_rand(100, 999)),
                 ':citizen_name' => $target['citizen_name'],
                 ':cert_type' => $target['certificate_type'],
                 ':purpose' => $target['purpose'],

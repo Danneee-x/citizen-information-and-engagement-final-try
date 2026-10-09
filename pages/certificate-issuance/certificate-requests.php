@@ -1036,8 +1036,10 @@ async function executeIssueRequest() {
     const originalText = btnText ? btnText.textContent : 'Confirm';
 
     try {
+        const btnIcon = document.getElementById('issueModalConfirmBtnIcon');
         if (btn) btn.disabled = true;
-        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Processing...';
+        if (btnIcon) btnIcon.className = 'fa-solid fa-spinner fa-spin text-[11px]';
+        if (btnText) btnText.textContent = 'Processing...';
 
         const res = await fetch('../../api/admin/certificate-actions.php', {
             method: 'POST',
@@ -1055,11 +1057,14 @@ async function executeIssueRequest() {
         } else {
             showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Operation failed'}`);
             if (btn) btn.disabled = false;
+            if (btnIcon) btnIcon.className = action === 'approve' ? 'fa-solid fa-file-circle-check text-[11px]' : 'fa-solid fa-stamp text-[11px]';
             if (btnText) btnText.textContent = originalText;
         }
     } catch (err) {
         showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
         if (btn) btn.disabled = false;
+        const btnIcon = document.getElementById('issueModalConfirmBtnIcon');
+        if (btnIcon) btnIcon.className = action === 'approve' ? 'fa-solid fa-file-circle-check text-[11px]' : 'fa-solid fa-stamp text-[11px]';
         if (btnText) btnText.textContent = originalText;
     }
 }
@@ -1112,8 +1117,10 @@ async function executeRejectRequest() {
     const originalText = btnText ? btnText.textContent : 'Confirm Rejection';
 
     try {
+        const btnIcon = document.getElementById('rejectModalConfirmBtnIcon');
         if (btn) btn.disabled = true;
-        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Processing...';
+        if (btnIcon) btnIcon.className = 'fa-solid fa-spinner fa-spin text-[11px]';
+        if (btnText) btnText.textContent = 'Processing...';
 
         const res = await fetch('../../api/admin/certificate-actions.php', {
             method: 'POST',
@@ -1131,11 +1138,14 @@ async function executeRejectRequest() {
         } else {
             showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Failed to reject request'}`);
             if (btn) btn.disabled = false;
+            if (btnIcon) btnIcon.className = 'fa-solid fa-xmark text-[11px]';
             if (btnText) btnText.textContent = originalText;
         }
     } catch (err) {
         showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
         if (btn) btn.disabled = false;
+        const btnIcon = document.getElementById('rejectModalConfirmBtnIcon');
+        if (btnIcon) btnIcon.className = 'fa-solid fa-xmark text-[11px]';
         if (btnText) btnText.textContent = originalText;
     }
 }

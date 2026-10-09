@@ -47,6 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $where[] = "`contact_number` = :phone";
             $params[':phone'] = $phone;
         }
+        $email = $_GET['email'] ?? null;
+        if ($email) {
+            $where[] = "`email` = :email";
+            $params[':email'] = $email;
+        }
 
         $sql = "SELECT * FROM `certificate_requests`";
         if (!empty($where)) {

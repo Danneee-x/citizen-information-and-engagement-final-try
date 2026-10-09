@@ -456,6 +456,173 @@ foreach ($dbPending as $row) {
     </div>
 </div>
 
+<!-- APPROVE CONFIRMATION MODAL -->
+<div id="approveConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Approve Certificate Request</h3>
+                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Official Administrative Authorization</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeApproveConfirmModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <!-- Request Summary Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Document Type</span>
+                    <span id="approveModalCertType" class="font-extrabold text-slate-800 text-xs">Barangay Clearance</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Applicant</span>
+                    <span id="approveModalApplicantName" class="font-bold text-slate-800">Citizen Applicant</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Reference No</span>
+                    <span id="approveModalApplicantRef" class="font-mono font-bold text-[#0f53d1]">CAL-DOC-2026-0000</span>
+                </div>
+            </div>
+
+            <!-- Confirmation Prompt -->
+            <div class="space-y-2.5">
+                <p class="text-xs font-semibold text-slate-700 leading-snug">
+                    Are you sure you want to officially <span class="text-emerald-600 font-black uppercase">approve</span> document request <span id="approveModalRefText" class="font-mono font-bold text-slate-900"></span>?
+                </p>
+                <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
+                    <p class="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                        This will officially authorize the certificate request and queue it for printing and dry seal release at the pick-up counter.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeApproveConfirmModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="approveModalConfirmBtn" onclick="executeApproveRequest()" class="px-4.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-check text-[11px]"></i>
+                <span id="approveModalConfirmBtnText">Confirm Approval</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- REJECT CONFIRMATION MODAL -->
+<div id="rejectConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg border border-rose-100 ring-2 ring-rose-50 shadow-xs">
+                    <i class="fa-solid fa-file-circle-xmark"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Reject Certificate Request</h3>
+                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Administrative Rejection</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeRejectConfirmModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <!-- Request Summary Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Document Type</span>
+                    <span id="rejectModalCertType" class="font-extrabold text-slate-800 text-xs">Barangay Clearance</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Applicant</span>
+                    <span id="rejectModalApplicantName" class="font-bold text-slate-800">Citizen Applicant</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Reference No</span>
+                    <span id="rejectModalApplicantRef" class="font-mono font-bold text-rose-600">CAL-DOC-2026-0000</span>
+                </div>
+            </div>
+
+            <!-- Reason Input -->
+            <div class="space-y-1.5">
+                <label for="rejectReasonInput" class="block text-xs font-bold text-slate-700">Reason for Rejection <span class="text-rose-500">*</span></label>
+                <textarea id="rejectReasonInput" rows="3" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition" placeholder="State reason for rejecting this document request (e.g., Incomplete or unverified requirements)..."></textarea>
+                <p class="text-[10px] text-slate-400">This rationale will be recorded in the system audit trail.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeRejectConfirmModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="rejectModalConfirmBtn" onclick="executeRejectRequest()" class="px-4.5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-xmark text-[11px]"></i>
+                <span id="rejectModalConfirmBtnText">Confirm Rejection</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- BULK APPROVE CONFIRMATION MODAL -->
+<div id="bulkApproveConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs">
+                    <i class="fa-solid fa-check-double"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Bulk Approve Queue</h3>
+                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Batch Authorization</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeBulkApproveModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <p class="text-xs font-semibold text-slate-700 leading-snug">
+                Are you sure you want to approve all <span id="bulkModalCount" class="font-bold text-emerald-600">0</span> pending requests currently in the queue?
+            </p>
+            <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
+                <p class="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                    All queued requests will be authorized and queued for release pick-up at the Barangay desk.
+                </p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeBulkApproveModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="bulkApproveConfirmBtn" onclick="executeBulkApprove()" class="px-4.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-check-double text-[11px]"></i>
+                <span id="bulkApproveConfirmBtnText">Approve All</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 </main>
 
 <script>
@@ -579,14 +746,249 @@ function closeCertificatePreview() {
     if (modal) modal.classList.add('hidden');
 }
 
+let pendingActionRefId = null;
+let pendingRejectRefId = null;
+
+function showToast(type, html) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.className = `fixed bottom-5 right-5 z-[100000] px-4 py-3 rounded-xl shadow-lg text-xs font-bold transition-all transform flex items-center gap-2 ${
+        type === 'success' ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 
+        type === 'error' ? 'bg-rose-600 text-white shadow-rose-500/20' : 
+        'bg-slate-900 text-white'
+    }`;
+    toast.innerHTML = html;
+    toast.style.display = 'flex';
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, 4000);
+}
+
+function openApproveConfirmModal(refId) {
+    pendingActionRefId = refId;
+    const item = pendingApprovalsData[refId] || {};
+    
+    const refBadge = document.getElementById('approveModalApplicantRef');
+    if (refBadge) refBadge.textContent = refId;
+    const refText = document.getElementById('approveModalRefText');
+    if (refText) refText.textContent = refId;
+    const nameText = document.getElementById('approveModalApplicantName');
+    if (nameText) nameText.textContent = item.requester || 'Citizen Applicant';
+    const typeText = document.getElementById('approveModalCertType');
+    if (typeText) typeText.textContent = item.cert_type || 'Barangay Document';
+
+    const modal = document.getElementById('approveConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeApproveConfirmModal() {
+    const modal = document.getElementById('approveConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    pendingActionRefId = null;
+}
+
+async function executeApproveRequest() {
+    if (!pendingActionRefId) return;
+    const refId = pendingActionRefId;
+    const btn = document.getElementById('approveModalConfirmBtn');
+    const btnText = document.getElementById('approveModalConfirmBtnText');
+    const originalText = btnText ? btnText.textContent : 'Confirm Approval';
+
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Approving...';
+
+        const res = await fetch('../../api/admin/certificate-actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action: 'approve', reference_no: refId })
+        });
+        const data = await res.json();
+        if (data && data.status === 'success') {
+            closeApproveConfirmModal();
+            closeCertificatePreview();
+            showToast('success', `<i class="fa-solid fa-circle-check"></i> ${data.message || 'Request successfully approved!'}`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Failed to approve request'}`);
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = originalText;
+        }
+    } catch (err) {
+        showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = originalText;
+    }
+}
+
+function openRejectConfirmModal(refId) {
+    pendingRejectRefId = refId;
+    const item = pendingApprovalsData[refId] || {};
+
+    const refBadge = document.getElementById('rejectModalApplicantRef');
+    if (refBadge) refBadge.textContent = refId;
+    const nameText = document.getElementById('rejectModalApplicantName');
+    if (nameText) nameText.textContent = item.requester || 'Citizen Applicant';
+    const typeText = document.getElementById('rejectModalCertType');
+    if (typeText) typeText.textContent = item.cert_type || 'Barangay Document';
+    const reasonInput = document.getElementById('rejectReasonInput');
+    if (reasonInput) reasonInput.value = 'Incomplete or unverified requirements';
+
+    const modal = document.getElementById('rejectConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeRejectConfirmModal() {
+    const modal = document.getElementById('rejectConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    pendingRejectRefId = null;
+}
+
+async function executeRejectRequest() {
+    if (!pendingRejectRefId) return;
+    const refId = pendingRejectRefId;
+    const reasonInput = document.getElementById('rejectReasonInput');
+    const reason = reasonInput ? reasonInput.value.trim() : '';
+
+    if (!reason) {
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> Please enter a reason for rejection.');
+        return;
+    }
+
+    const btn = document.getElementById('rejectModalConfirmBtn');
+    const btnText = document.getElementById('rejectModalConfirmBtnText');
+    const originalText = btnText ? btnText.textContent : 'Confirm Rejection';
+
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Rejecting...';
+
+        const res = await fetch('../../api/admin/certificate-actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action: 'reject', reference_no: refId, reason: reason })
+        });
+        const data = await res.json();
+        if (data && data.status === 'success') {
+            closeRejectConfirmModal();
+            closeCertificatePreview();
+            showToast('success', `<i class="fa-solid fa-circle-check"></i> ${data.message || 'Request successfully rejected.'}`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 800);
+        } else {
+            showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Failed to reject request'}`);
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = originalText;
+        }
+    } catch (err) {
+        showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = originalText;
+    }
+}
+
+function openBulkApproveModal() {
+    const ids = Object.keys(pendingApprovalsData);
+    if (!ids || ids.length === 0) {
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> No pending requests in queue.');
+        return;
+    }
+    const countEl = document.getElementById('bulkModalCount');
+    if (countEl) countEl.textContent = ids.length;
+
+    const modal = document.getElementById('bulkApproveConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeBulkApproveModal() {
+    const modal = document.getElementById('bulkApproveConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+async function executeBulkApprove() {
+    const ids = Object.keys(pendingApprovalsData);
+    if (!ids || ids.length === 0) {
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> No pending requests to approve.');
+        closeBulkApproveModal();
+        return;
+    }
+
+    const btn = document.getElementById('bulkApproveConfirmBtn');
+    const btnText = document.getElementById('bulkApproveConfirmBtnText');
+    const originalText = btnText ? btnText.textContent : 'Approve All';
+
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Processing...';
+
+        let successCount = 0;
+        for (const refId of ids) {
+            try {
+                const res = await fetch('../../api/admin/certificate-actions.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ action: 'approve', reference_no: refId })
+                });
+                const data = await res.json();
+                if (data && data.status === 'success') {
+                    successCount++;
+                }
+            } catch (e) {
+                console.error('Error approving', refId, e);
+            }
+        }
+
+        closeBulkApproveModal();
+        showToast('success', `<i class="fa-solid fa-circle-check"></i> Bulk approval complete: ${successCount} of ${ids.length} requests approved.`);
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    } catch (err) {
+        showToast('error', '<i class="fa-solid fa-triangle-exclamation"></i> Bulk approval encountered an error.');
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = originalText;
+    }
+}
+
+function approveRequestSingle(refId) {
+    openApproveConfirmModal(refId);
+}
+
+function rejectRequestSingle(refId) {
+    openRejectConfirmModal(refId);
+}
+
+function bulkApproveQueue() {
+    openBulkApproveModal();
+}
+
 function approveFromPreview() {
     if (!activePendingId) return;
-    approveRequestSingle(activePendingId);
+    openApproveConfirmModal(activePendingId);
 }
 
 function rejectFromPreview() {
     if (!activePendingId) return;
-    rejectRequestSingle(activePendingId);
+    openRejectConfirmModal(activePendingId);
 }
 
 function previewCertificateRecord(id, name, type, purpose) {
@@ -600,95 +1002,42 @@ function escapeHtml(text) {
     });
 }
 
-async function approveRequestSingle(refId) {
-    if (!confirm(`Are you sure you want to officially APPROVE document request ${refId}?`)) return;
-
-    try {
-        const res = await fetch('../../api/admin/certificate-actions.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ action: 'approve', reference_no: refId })
-        });
-        const data = await res.json();
-        if (data && data.status === 'success') {
-            alert(data.message);
-            window.location.reload();
-        } else {
-            alert('Failed to approve: ' + (data.message || 'Unknown error'));
-        }
-    } catch (err) {
-        alert('Network error connecting to backend.');
-    }
-}
-
-async function rejectRequestSingle(refId) {
-    const reason = prompt(`Enter rejection rationale for ${refId}:`, 'Incomplete or unverified requirements');
-    if (!reason) return;
-
-    try {
-        const res = await fetch('../../api/admin/certificate-actions.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ action: 'reject', reference_no: refId, reason: reason })
-        });
-        const data = await res.json();
-        if (data && data.status === 'success') {
-            alert(data.message);
-            window.location.reload();
-        } else {
-            alert('Failed: ' + (data.message || 'Unknown error'));
-        }
-    } catch (err) {
-        alert('Network error connecting to backend.');
-    }
-}
-
-async function bulkApproveQueue() {
-    const ids = Object.keys(pendingApprovalsData);
-    if (!ids || ids.length === 0) {
-        alert('No pending requests to approve.');
-        return;
-    }
-
-    if (!confirm(`Are you sure you want to approve all ${ids.length} pending requests in queue?`)) return;
-
-    let successCount = 0;
-    for (const refId of ids) {
-        try {
-            const res = await fetch('../../api/admin/certificate-actions.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify({ action: 'approve', reference_no: refId })
-            });
-            const data = await res.json();
-            if (data && data.status === 'success') {
-                successCount++;
-            }
-        } catch (e) {
-            console.error('Error approving', refId, e);
-        }
-    }
-
-    alert(`Bulk approval complete. ${successCount} of ${ids.length} requests approved.`);
-    window.location.reload();
-}
-
 // Modal dismiss listeners (Backdrop click and Escape key)
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        const approveModal = document.getElementById('approveConfirmModal');
+        if (approveModal && !approveModal.classList.contains('hidden')) {
+            closeApproveConfirmModal();
+            return;
+        }
+        const rejectModal = document.getElementById('rejectConfirmModal');
+        if (rejectModal && !rejectModal.classList.contains('hidden')) {
+            closeRejectConfirmModal();
+            return;
+        }
+        const bulkModal = document.getElementById('bulkApproveConfirmModal');
+        if (bulkModal && !bulkModal.classList.contains('hidden')) {
+            closeBulkApproveModal();
+            return;
+        }
         closeCertificatePreview();
     }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('previewCertificateModal');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeCertificatePreview();
-            }
-        });
-    }
+    ['previewCertificateModal', 'approveConfirmModal', 'rejectConfirmModal', 'bulkApproveConfirmModal'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    if (id === 'approveConfirmModal') closeApproveConfirmModal();
+                    else if (id === 'rejectConfirmModal') closeRejectConfirmModal();
+                    else if (id === 'bulkApproveConfirmModal') closeBulkApproveModal();
+                    else closeCertificatePreview();
+                }
+            });
+        }
+    });
 });
 </script>
 

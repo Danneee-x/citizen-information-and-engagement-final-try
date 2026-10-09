@@ -98,7 +98,7 @@ if (typeof QRCode === 'undefined') {
                     />
 
                     <!-- Wavy Header Ribbon (100% Width Vector Ribbon with Gold Under-stripe) -->
-                    <svg class="absolute top-0 left-0 w-full h-[84px] pointer-events-none z-0" viewBox="0 0 500 84" preserveAspectRatio="none">
+                    <svg class="absolute top-0 left-0 w-full h-[90px] pointer-events-none z-0" viewBox="0 0 500 90" preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="headerWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                           <stop id="cardRibbonStop1" offset="0%" stop-color="#881337" />
@@ -112,31 +112,31 @@ if (typeof QRCode === 'undefined') {
                           <stop offset="100%" stop-color="#D97706" />
                         </linearGradient>
                       </defs>
-                      <path d="M 0,0 L 500,0 L 500,62 Q 370,72 250,66 T 0,80 Z" fill="url(#headerWaveGrad)" />
-                      <path d="M 0,80 Q 130,66 250,66 T 500,62 L 500,66 Q 370,76 250,70 T 0,84 Z" fill="url(#goldWaveStripe)" />
+                      <path d="M 0,0 L 500,0 L 500,66 Q 370,78 250,72 T 0,86 Z" fill="url(#headerWaveGrad)" />
+                      <path d="M 0,86 Q 130,72 250,72 T 500,66 L 500,70 Q 370,82 250,76 T 0,90 Z" fill="url(#goldWaveStripe)" />
                     </svg>
 
                     <!-- CARD FRONT CONTENT CONTAINER -->
-                    <div class="relative z-10 p-3.5 sm:p-4 flex flex-col justify-between h-full" style="height: 100%;">
+                    <div class="relative z-10 px-3.5 pt-2 pb-3.5 sm:px-4 sm:pt-2.5 sm:pb-4 flex flex-col justify-between h-full" style="height: 100%;">
                         
                         <!-- TOP HEADER BLOCK -->
-                        <div class="relative mb-1.5">
+                        <div class="relative mb-1 -mt-0.5">
                             <div class="text-center w-full">
-                                <span class="text-[7.5px] font-bold uppercase tracking-[2px] text-[#FEE2E2] drop-shadow-xs">
+                                <span class="text-[7.5px] font-extrabold uppercase tracking-[2px] text-[#FEE2E2] leading-none block drop-shadow-xs">
                                     Republic of the Philippines
                                 </span>
                             </div>
 
-                            <div class="flex items-center mt-0.5 pr-8">
-                                <div class="w-10 h-10 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 border-[1.5px] border-amber-400 ml-1">
+                            <div class="flex items-center -mt-0.5 pr-8">
+                                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 border-[1.5px] border-amber-400 ml-1 -mt-1">
                                     <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-full h-full object-contain" alt="Civentral Seal" />
                                 </div>
 
                                 <div class="flex-1 flex flex-col items-center justify-center text-center">
-                                    <h3 id="cardModalHeaderTitle" class="text-[14px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
+                                    <h3 id="cardModalHeaderTitle" class="text-[12.5px] sm:text-[13.5px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
                                         Civentral Citizen Card
                                     </h3>
-                                    <p id="cardModalHeaderSubtitle" class="text-[7.5px] font-bold text-[#FDE047] uppercase tracking-[1px] leading-tight mt-0.5 drop-shadow-xs">
+                                    <p id="cardModalHeaderSubtitle" class="text-[7.5px] sm:text-[8px] font-black text-[#FDE047] uppercase tracking-[0.8px] leading-tight mt-0.5 drop-shadow-xs">
                                         Kasama Ka Sa Pag-Unlad &bull; City of Caloocan
                                     </p>
                                 </div>

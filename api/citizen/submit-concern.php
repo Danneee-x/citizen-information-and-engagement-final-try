@@ -128,9 +128,9 @@ function getDbConnection() {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
             ]);
 
-            // Ensure database and table exist
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
             $pdo->exec("USE `{$dbName}`;");
+            $pdo->exec("SET time_zone = '+08:00';");
             $pdo->exec("CREATE TABLE IF NOT EXISTS `citizen_concerns` (
                 `concern_id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 `ticket_number` VARCHAR(50) UNIQUE NOT NULL,
@@ -164,6 +164,14 @@ function getDbConnection() {
                 INDEX `idx_barangay` (`barangay`),
                 INDEX `idx_created` (`created_at`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+
+            // Auto-synchronize past test submissions that were stored in UTC during Oct 9-10 testing
+            try {
+                $pdo->exec("UPDATE `citizen_concerns` 
+                            SET `created_at` = DATE_ADD(`created_at`, INTERVAL 8 HOUR), 
+                                `updated_at` = DATE_ADD(`updated_at`, INTERVAL 8 HOUR) 
+                            WHERE `created_at` >= '2026-10-09 12:00:00' AND `created_at` <= '2026-10-09 23:59:59'");
+            } catch (\Exception $tzFixEx) {}
 
             return ['pdo' => $pdo, 'target' => $cand['desc'], 'host' => $cand['host']];
         } catch (\Exception $e) {
@@ -318,15 +326,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 $sql = "SELECT * FROM `citizen_concerns` WHERE (" . implode(' OR ', $clauses) . ") ORDER BY `concern_id` DESC";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute($bindings);
-                $recent = $stmt->fetchAll();
+                $rawRecent = $stmt->fetchAll();
             } else {
                 // If neither citizen ID, email, nor phone was provided, return empty list!
                 // Do NOT return other citizens' reports!
-                $recent = [];
+                $rawRecent = [];
             }
         }
 
-        $totalForUser = count($recent);
+        $formattedRecent = [];
+        foreach ($rawRecent as $r) {
+            $cRaw = !empty($r['created_at']) ? $r['created_at'] : date('Y-m-d H:i:s');
+            $uRaw = !empty($r['updated_at']) ? $r['updated_at'] : $cRaw;
+
+            $cTime = strtotime($cRaw);
+            $uTime = strtotime($uRaw);
+
+            $r['created_at_formatted'] = date('M j, Y • h:i A', $cTime);
+            $r['updated_at_formatted'] = date('M j, Y • h:i A', $uTime);
+            $r['created_at_iso'] = date('c', $cTime);
+            $r['updated_at_iso'] = date('c', $uTime);
+
+            $formattedRecent[] = $r;
+        }
+
+        $totalForUser = count($formattedRecent);
 
         if (ob_get_length()) ob_clean();
         echo json_encode([
@@ -335,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             'connected_to' => $conn['target'],
             'message' => 'Civentral Citizen Grievance & Concern API is online and healthy.',
             'total_concerns_stored' => $totalForUser,
-            'recent_submissions' => $recent
+            'recent_submissions' => $formattedRecent
         ]);
         exit;
     } catch (\Exception $e) {
@@ -569,18 +593,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ticketNumber = 'CAL-REP-2026-' . rand(10000, 99999);
         }
 
+        $phNow = date('Y-m-d H:i:s');
+
         $sql = "INSERT INTO `citizen_concerns` (
             `ticket_number`, `citizen_user_id`, `citizen_name`, `citizen_phone`, `citizen_email`,
             `is_anonymous`, `category`, `sub_category`, `title`, `description`,
             `location`, `barangay`, `district`, `gps_coordinates`, `status`,
             `priority`, `assigned_department`, `ai_detected_category`, `ai_confidence_score`, `ai_reason`,
-            `photo_evidence_url`, `attachments`
+            `photo_evidence_url`, `attachments`, `created_at`, `updated_at`
         ) VALUES (
             :ticket_number, :citizen_user_id, :citizen_name, :citizen_phone, :citizen_email,
             :is_anonymous, :category, :sub_category, :title, :description,
             :location, :barangay, :district, :gps_coordinates, :status,
             :priority, :assigned_department, :ai_detected_category, :ai_confidence_score, :ai_reason,
-            :photo_evidence_url, :attachments
+            :photo_evidence_url, :attachments, :created_at, :updated_at
         )";
 
         // 1. Dynamic Automated AI Routing Decision based on Confidence Threshold (85%)
@@ -624,14 +650,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':ai_confidence_score' => $confidenceScore,
             ':ai_reason' => $aiReason,
             ':photo_evidence_url' => $photoEvidenceUrl,
-            ':attachments' => $attachmentsJson
+            ':attachments' => $attachmentsJson,
+            ':created_at' => $phNow,
+            ':updated_at' => $phNow
         ]);
 
         $insertedId = $pdo->lastInsertId();
 
         if (ob_get_length()) ob_clean();
         if (ob_get_length()) ob_clean();
-    echo json_encode([
+        echo json_encode([
             'status' => 'success',
             'message' => $isAutoRouted
                 ? "Concern ticket filed and automatically routed to {$assignedDept}."
@@ -657,7 +685,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'confidence_score' => $confidenceScore,
                 'ai_reasoning' => $aiReason,
                 'similar_concerns' => $similarConcerns,
-                'submission_date' => date('M j, Y • h:i A')
+                'created_at' => $phNow,
+                'created_at_iso' => date('c', strtotime($phNow)),
+                'submission_date' => date('M j, Y • h:i A', strtotime($phNow))
             ]
         ]);
         exit;

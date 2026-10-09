@@ -126,9 +126,9 @@ function getDbConnection() {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
             ]);
 
-            // Ensure database and table exist
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
             $pdo->exec("USE `{$dbName}`;");
+            $pdo->exec("SET time_zone = '+08:00';");
             $pdo->exec("CREATE TABLE IF NOT EXISTS `citizen_verifications` (
                 `verification_id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 `citizen_user_id` INT UNSIGNED NULL,

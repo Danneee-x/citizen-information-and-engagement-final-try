@@ -113,6 +113,7 @@ function getDbConnection() {
             ]);
 
             $pdo->exec("USE `{$dbName}`;");
+            $pdo->exec("SET time_zone = '+08:00';");
             return ['pdo' => $pdo, 'target' => $cand['desc']];
         } catch (\Exception $e) {
             $lastError = $cand['desc'] . ': ' . $e->getMessage();

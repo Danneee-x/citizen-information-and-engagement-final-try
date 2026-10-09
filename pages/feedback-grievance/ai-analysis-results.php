@@ -417,7 +417,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
         </div>
     </div>
 
-    <!-- AI Classification Feed Cards List -->
+    <!-- AI Analysis History Table Section -->
     <div class="space-y-4">
         <div class="flex items-center justify-between px-1">
             <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
@@ -425,20 +425,38 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
                 <span>AI Analysis History & Audit Log</span>
                 <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(13 reports recorded)</span>
             </h3>
-            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Read-only intelligence log of autonomous NLP evaluations, multi-modal evidence parsing, and department routing history</span>
+            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Click any row or "View Analysis" to inspect the full multi-modal intelligence audit trail in a modal</span>
         </div>
 
-        <div id="aiFeedContainer" class="grid grid-cols-1 gap-4">
-            <!-- Injected dynamically by JavaScript for interactive accept/override/merge actions -->
-        </div>
-
-        <!-- Empty State -->
-        <div id="aiEmptyState" class="hidden py-16 px-4 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
-            <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-slate-800 text-indigo-600 mx-auto flex items-center justify-center text-2xl">
-                <i class="fa-solid fa-brain"></i>
+        <!-- Responsive AI Analysis Table -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                            <th class="py-3.5 px-4 whitespace-nowrap">Ref ID / Time</th>
+                            <th class="py-3.5 px-4">Concern Subject & Barangay</th>
+                            <th class="py-3.5 px-4 whitespace-nowrap">AI Classification & Bureau</th>
+                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Confidence</th>
+                            <th class="py-3.5 px-4 whitespace-nowrap">Urgency / Sentiment</th>
+                            <th class="py-3.5 px-4 text-center whitespace-nowrap">Cluster</th>
+                            <th class="py-3.5 px-4 text-right whitespace-nowrap">Analysis Audit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aiFeedTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs font-medium">
+                        <!-- Populated reactively by JavaScript -->
+                    </tbody>
+                </table>
             </div>
-            <h4 class="text-sm font-bold text-slate-800 dark:text-white">No analyzed reports match your filter</h4>
-            <p class="text-xs text-slate-500 max-w-sm mx-auto">Try resetting search keywords or status filter.</p>
+
+            <!-- Table Empty State -->
+            <div id="aiEmptyState" class="hidden py-16 px-4 text-center space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-slate-800 text-indigo-600 mx-auto flex items-center justify-center text-2xl">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <h4 class="text-sm font-bold text-slate-800 dark:text-white">No analyzed reports match your filter</h4>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto">Try resetting search keywords or filter dropdown.</p>
+            </div>
         </div>
     </div>
 
@@ -446,113 +464,208 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 
 <!-- ========================================================================= -->
 <!-- ========================================================================= -->
-<!-- AI INTELLIGENCE & ANALYSIS AUDIT REPORT MODAL (READ-ONLY INFORMATIONAL)    -->
+<!-- AI INTELLIGENCE & ANALYSIS AUDIT REPORT MODAL (NO BACKDROP BLUR)           -->
 <!-- ========================================================================= -->
-<div id="analysisReportModal" class="hidden fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto custom-scrollbar">
+<div id="analysisReportModal" onclick="if(event.target === this) closeAnalysisReportModal()" class="hidden fixed inset-0 z-[110] bg-slate-900/60 flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto custom-scrollbar">
         
+        <!-- Modal Top Bar -->
         <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-sm">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-sm shadow-sm shrink-0">
                     <i class="fa-solid fa-brain"></i>
                 </div>
                 <div>
                     <h3 class="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                        <span>AI Analysis Audit Report</span>
+                        <span>AI Analysis Audit & Intelligence Modal</span>
                         <span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            Read-Only Intelligence Log
+                            Read-Only Audit Trail
                         </span>
                     </h3>
-                    <p class="text-[11px] text-slate-400 font-medium">Detailed audit breakdown of Gemini multi-modal inference and triage decisions</p>
+                    <p class="text-[11px] text-slate-400 font-medium">Multi-modal NLP evaluation, confidence metrics, and autonomous routing details</p>
                 </div>
             </div>
-            <button onclick="closeAnalysisReportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer">
+            <button onclick="closeAnalysisReportModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center cursor-pointer transition">
                 <i class="fa-solid fa-xmark text-sm"></i>
             </button>
         </div>
 
+        <!-- The Modal Content (Matches Full Original Rich Card Details) -->
         <div class="space-y-4 text-xs">
-            <!-- Header Metadata Card -->
-            <div class="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700 space-y-2">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-700/60 pb-2.5">
+            
+            <!-- Card Top Header Strip -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-3">
+                    <span id="modalReportId" class="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900">
+                        CAL-REP-2026-6120
+                    </span>
                     <div>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Report Reference Number</span>
-                        <span id="modalReportId" class="font-mono font-black text-indigo-600 dark:text-indigo-400 text-base">CAL-REP-2026-4821</span>
-                    </div>
-                    <div class="sm:text-right">
-                        <span class="text-[10px] text-slate-400 font-bold uppercase block">Analysis Timestamp</span>
-                        <span id="modalReportDate" class="font-mono text-slate-600 dark:text-slate-300 font-bold text-xs">Oct 10, 2026 • 03:45 AM</span>
+                        <h4 id="modalReportTitle" class="text-sm font-black text-slate-900 dark:text-white leading-snug">Report Title</h4>
+                        <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium mt-0.5 flex-wrap">
+                            <span class="flex items-center gap-1">
+                                <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
+                                <span id="modalReportBarangay">Barangay</span>
+                            </span>
+                            <span class="flex items-center gap-1 font-mono text-[10px]">
+                                <i class="fa-regular fa-clock text-slate-400"></i>
+                                <span id="modalReportDate">Analyzed: Oct 10, 2026 • 03:40 AM</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Barangay</span>
-                        <span id="modalReportBarangay" class="font-bold text-slate-800 dark:text-slate-200">Barangay 8</span>
-                    </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Model Engine</span>
-                        <span class="font-bold text-indigo-600 dark:text-indigo-400">Gemini 3.5 Flash</span>
-                    </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Confidence Score</span>
-                        <span id="modalReportConfidence" class="font-bold text-emerald-600 dark:text-emerald-400">97.1% Match</span>
-                    </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Urgency / Priority</span>
-                        <span id="modalReportPriority" class="font-bold text-rose-600 dark:text-rose-400">High Priority</span>
+                <div class="flex items-center gap-2 flex-wrap sm:justify-end">
+                    <!-- AI Confidence Badge -->
+                    <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-extrabold text-[11px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 shadow-2xs">
+                        <i class="fa-solid fa-sparkles text-indigo-500"></i>
+                        <span id="modalReportConfidence">Gemini 3.5 Flash • 98%</span>
+                    </span>
+
+                    <!-- Sentiment Badge -->
+                    <span id="modalReportSentimentBadge" class="px-2.5 py-1 rounded-xl font-bold text-[11px] border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                        Community Service Report
+                    </span>
+
+                    <!-- Status Pill -->
+                    <span id="modalReportStatusPill" class="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                        <i class="fa-solid fa-bolt-lightning text-emerald-500"></i> <span id="modalReportStatusText">Auto-Dispatched</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Citizen Narrative & Detected Keywords -->
+            <div class="space-y-2 text-xs">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Citizen Report Narrative:</span>
+                <p id="modalReportNarrative" class="text-slate-600 dark:text-slate-300 font-medium leading-relaxed bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 p-3.5 rounded-xl italic">
+                    "Testing narrative"
+                </p>
+
+                <div class="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Semantic Keywords:</span>
+                    <div id="modalReportKeywords" class="flex items-center gap-1.5 flex-wrap"></div>
+                </div>
+
+                <!-- Vision Multi-Modal Verification -->
+                <div id="modalReportVisionContainer" class="p-2.5 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 rounded-xl flex items-center gap-2 text-[11px] text-purple-900 dark:text-purple-200 font-medium">
+                    <i class="fa-solid fa-eye text-purple-600 dark:text-purple-400"></i>
+                    <span><strong>Vision Multi-Modal Verification:</strong> <span id="modalReportVisionSummary">Gemini Vision verified citizen uploaded photo evidence.</span></span>
+                </div>
+
+                <!-- Photo Evidence Preview (if present) -->
+                <div id="modalReportPhotoContainer" class="hidden space-y-1.5 pt-1">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Visual Evidence:</span>
+                    <div class="w-full max-h-48 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+                        <img id="modalReportPhoto" src="" alt="Evidence" class="w-full h-48 object-cover">
                     </div>
                 </div>
             </div>
 
-            <!-- Subject & Narrative -->
-            <div class="space-y-1.5">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Citizen Report Narrative</span>
-                <h4 id="modalReportTitle" class="font-bold text-slate-900 dark:text-white text-sm">Large Pothole Hazard along 10th Avenue</h4>
-                <p id="modalReportNarrative" class="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800 font-medium leading-relaxed italic"></p>
-            </div>
+            <!-- AI Classification & Proximity Summary Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <!-- AI Classification Box -->
+                <div class="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl space-y-1.5">
+                    <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">AI Classification & Bureau Match</span>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 dark:text-slate-400">Category:</span>
+                        <span id="modalReportCategory" class="font-extrabold text-slate-900 dark:text-white">Streetlights</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-slate-500 dark:text-slate-400">Target Bureau:</span>
+                        <span id="modalReportDept" class="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                            <i id="modalReportDeptIcon" class="fa-solid fa-building text-[10px]"></i>
+                            <span id="modalReportDeptText">Public Assets & Facilities Management (PAFM)</span>
+                        </span>
+                    </div>
+                </div>
 
-            <!-- Photo Evidence Preview (if present) -->
-            <div id="modalReportPhotoContainer" class="hidden space-y-1.5">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Attached Visual Evidence</span>
-                <div class="w-full max-h-48 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
-                    <img id="modalReportPhoto" src="" alt="Evidence" class="w-full h-48 object-cover">
+                <!-- Duplicate Cluster Box -->
+                <div class="p-3.5 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Proximity Cluster Evaluation</span>
+                        <span id="modalReportClusterBadge" class="px-2 py-0.5 rounded-md bg-purple-600 text-white font-black text-[9px]">
+                            6 Similar Reports in Radius
+                        </span>
+                    </div>
+
+                    <p id="modalReportClusterName" class="font-bold text-slate-800 dark:text-slate-200 text-xs">Streetlights (171)</p>
+                    <p id="modalReportClusterMatched" class="text-[10px] text-purple-700 dark:text-purple-300 font-mono pt-0.5">Matched Tickets: CAL-REP-2026-6120, CAL-REP-2026-9020...</p>
                 </div>
             </div>
 
-            <!-- NLP Keyword Extraction -->
-            <div class="space-y-1.5">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Extracted NLP Semantic Keywords</span>
-                <div id="modalReportKeywords" class="flex items-center gap-1.5 flex-wrap"></div>
-            </div>
+            <!-- AI Analysis History & Autonomous Triage Audit Trail (4-Step Timeline Box) -->
+            <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                        <span>Analysis History & Autonomous Triage Trail</span>
+                    </span>
+                    <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="modalReportTrailDate">Oct 10, 2026 • 03:40 AM</span>
+                    </span>
+                </div>
 
-            <!-- Model Reasoning & Autonomous Routing Details -->
-            <div class="bg-indigo-50/50 dark:bg-indigo-950/30 p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/50 space-y-2">
-                <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">AI Model Inference & Reasoning Log</span>
-                <p id="modalReportReason" class="text-slate-700 dark:text-slate-200 leading-relaxed font-medium"></p>
-                
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-indigo-100 dark:border-indigo-900/40 text-[11px]">
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Target Bureau</span>
-                        <span id="modalReportDept" class="font-bold text-slate-800 dark:text-slate-100">Public Assets & Facilities (PAFM)</span>
+                <!-- Audit Steps / History Sequence -->
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px]">
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">1. Intake & NLP</span>
+                        <p id="modalReportLang" class="font-bold text-slate-800 dark:text-slate-200">Filipino / Taglish</p>
+                        <span class="text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <i class="fa-solid fa-check text-[8px]"></i> Multi-Modal Tokenized
+                        </span>
                     </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Municipal Token</span>
-                        <span id="modalReportToken" class="font-mono font-bold text-indigo-600 dark:text-indigo-400">ACK-74F2A19B</span>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">2. Model Engine</span>
+                        <p id="modalReportModel" class="font-bold text-slate-800 dark:text-slate-200">Google Gemini 3.5 Flash</p>
+                        <span id="modalReportModelConf" class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold">
+                            Confidence: 98%
+                        </span>
                     </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 font-bold uppercase block">Estimated SLA</span>
-                        <span id="modalReportSla" class="font-bold text-slate-800 dark:text-slate-100">24 Hours</span>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">3. Urgency & Impact</span>
+                        <p id="modalReportPriority" class="font-bold text-slate-800 dark:text-slate-200">Medium Priority</p>
+                        <span id="modalReportSla" class="text-[9px] text-slate-500">Est. SLA: 24 Hours</span>
+                    </div>
+
+                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
+                        <span class="text-[9px] font-bold text-slate-400 uppercase block">4. Municipal Dispatch</span>
+                        <p id="modalReportDispatchDept" class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
+                            <i class="fa-solid fa-circle-check text-[9px]"></i> PAFM
+                        </p>
+                        <span id="modalReportToken" class="text-[9px] font-mono text-slate-400 block truncate">Ref: ACK-EDB1C390</span>
+                    </div>
+                </div>
+
+                <!-- Model Reasoning Summary -->
+                <div class="text-[11px] text-slate-600 dark:text-slate-300 bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 flex items-start gap-2">
+                    <i class="fa-solid fa-brain text-indigo-500 text-xs shrink-0 mt-0.5"></i>
+                    <div class="space-y-0.5">
+                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">AI Reasoning Log:</span>
+                        <p id="modalReportReason" class="leading-relaxed italic">"Infrastructure hazard assigned to Public Assets & Facilities team."</p>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-            <span class="text-[11px] text-slate-400 font-medium">To route or re-assign this concern, use the Concern Routing Desk.</span>
-            <button onclick="closeAnalysisReportModal()" class="px-5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer">
-                Close Report
-            </button>
+            <!-- Informational Modal Footer -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Autonomous Dispatch Complete &bull; Token: <code id="modalReportFooterToken" class="font-mono font-bold text-slate-700 dark:text-slate-200">ACK-EDB1C390</code></span>
+                </div>
+
+                <div class="flex items-center gap-2 justify-end">
+                    <a href="concern-routing.php" class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800">
+                        <span>Concern Routing Desk</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                    </a>
+                    <button onclick="closeAnalysisReportModal()" class="px-4 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer">
+                        Close
+                    </button>
+                </div>
+            </div>
+
         </div>
 
     </div>
@@ -560,7 +673,7 @@ $autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalT
 <!-- ========================================================================= -->
 <!-- BATCH RE-ANALYZE SIMULATION PROGRESS MODAL                                -->
 <!-- ========================================================================= -->
-<div id="batchProgressModal" class="hidden fixed inset-0 z-[120] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+<div id="batchProgressModal" class="hidden fixed inset-0 z-[120] bg-slate-900/60 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
         <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 mx-auto flex items-center justify-center text-xl">
             <i class="fa-solid fa-wand-magic-sparkles fa-spin"></i>
@@ -590,20 +703,28 @@ let aiClassificationsData = <?php echo json_encode($initialAiClassifications, JS
 let departmentsMap = <?php echo json_encode($departments, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
 
 document.addEventListener('DOMContentLoaded', function() {
-    renderAiFeed();
+    renderAiTable();
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeAnalysisReportModal();
+        }
+    });
 });
 
-// Render Dynamic Feed Cards (Strictly Informational AI Analysis History)
-function renderAiFeed() {
-    const container = document.getElementById('aiFeedContainer');
+// Render the AI Analysis Records into Table Rows
+function renderAiTable() {
+    const tableBody = document.getElementById('aiFeedTableBody');
     const emptyState = document.getElementById('aiEmptyState');
     const countBadge = document.getElementById('aiFeedCountBadge');
+    if (!tableBody) return;
 
     const filtered = getFilteredAiItems();
     if (countBadge) countBadge.innerText = `(${filtered.length} reports recorded)`;
 
     if (filtered.length === 0) {
-        container.innerHTML = '';
+        tableBody.innerHTML = '';
         if (emptyState) emptyState.classList.remove('hidden');
         return;
     }
@@ -613,193 +734,89 @@ function renderAiFeed() {
     let html = '';
     filtered.forEach(item => {
         const deptInfo = departmentsMap[item.department_key] || { short: item.suggested_routing, badge: 'bg-slate-100 text-slate-700', icon: 'fa-solid fa-building' };
-        const isHighConfidence = (item.ai_confidence || 0) >= 85;
+        const hasCluster = item.cluster && item.cluster.has_duplicates;
 
         html += `
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition">
+        <tr onclick="openAnalysisReportModal('${item.id}')" class="hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition cursor-pointer group">
             
-            <!-- Card Top Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3.5">
-                <div class="flex items-center gap-3">
-                    <span class="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-lg border border-indigo-100 dark:border-indigo-900">
-                        ${item.id}
-                    </span>
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900 dark:text-white leading-snug">${escapeHtml(item.title)}</h4>
-                        <div class="flex items-center gap-3 text-[11px] text-slate-400 font-medium mt-0.5 flex-wrap">
-                            <span class="flex items-center gap-1">
-                                <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
-                                <span>${escapeHtml(item.barangay)}</span>
-                            </span>
-                            <span class="flex items-center gap-1 font-mono text-[10px]">
-                                <i class="fa-regular fa-clock text-slate-400"></i>
-                                <span>Analyzed: ${escapeHtml(item.analyzed_at)}</span>
-                            </span>
-                        </div>
-                    </div>
+            <!-- Ref ID & Time -->
+            <td class="py-3 px-4 whitespace-nowrap align-middle">
+                <span class="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-900 block w-max">
+                    ${item.id}
+                </span>
+                <span class="text-[10px] text-slate-400 flex items-center gap-1 mt-1 font-mono">
+                    <i class="fa-regular fa-clock text-[9px]"></i>
+                    <span>${escapeHtml(item.analyzed_at)}</span>
+                </span>
+            </td>
+
+            <!-- Citizen Concern Subject & Barangay -->
+            <td class="py-3 px-4 align-middle max-w-xs sm:max-w-sm">
+                <div class="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition leading-snug line-clamp-1">
+                    ${escapeHtml(item.title)}
                 </div>
-
-                <div class="flex items-center gap-2 flex-wrap sm:justify-end">
-                    <!-- AI Confidence Badge -->
-                    <span class="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-extrabold text-[11px] border border-indigo-200 dark:border-indigo-800 flex items-center gap-1.5 shadow-2xs">
-                        <i class="fa-solid fa-sparkles text-indigo-500"></i>
-                        <span>Gemini 3.5 Flash • ${item.ai_confidence}%</span>
+                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                    <span class="flex items-center gap-1 font-medium text-slate-500 dark:text-slate-400">
+                        <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i>
+                        <span>${escapeHtml(item.barangay)}</span>
                     </span>
-
-                    <!-- Sentiment Badge -->
-                    <span class="px-2.5 py-1 rounded-xl font-bold text-[11px] border ${item.sentiment_badge}">
-                        ${item.sentiment}
-                    </span>
-
-                    <!-- Status Pill (Autonomous Dispatch Confirmation) -->
-                    <span class="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                        <i class="fa-solid fa-bolt-lightning text-emerald-500"></i> Auto-Dispatched to ${escapeHtml(deptInfo.short)}
+                    <span class="text-slate-300 dark:text-slate-700">•</span>
+                    <span class="truncate max-w-[200px] text-[10px] italic text-slate-400">
+                        "${escapeHtml(item.text)}"
                     </span>
                 </div>
-            </div>
+            </td>
 
-            <!-- Citizen Narrative & Detected Keywords -->
-            <div class="space-y-2 text-xs">
-                <p class="text-slate-600 dark:text-slate-300 font-medium leading-relaxed bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 p-3.5 rounded-xl">
-                    "${escapeHtml(item.text)}"
-                </p>
-
-                <div class="flex items-center gap-2 flex-wrap pt-0.5">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Semantic Keywords:</span>
-                    ${item.detected_keywords.map(kw => `
-                        <span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-[10px] border border-indigo-100 dark:border-indigo-800">
-                            #${escapeHtml(kw)}
-                        </span>
-                    `).join('')}
+            <!-- AI Classification & Bureau -->
+            <td class="py-3 px-4 whitespace-nowrap align-middle">
+                <div class="font-bold text-slate-800 dark:text-slate-200">
+                    ${escapeHtml(item.ai_category)}
                 </div>
-
-                ${item.vision_verified ? `
-                <div class="p-2.5 bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 rounded-xl flex items-center gap-2 text-[11px] text-purple-900 dark:text-purple-200 font-medium">
-                    <i class="fa-solid fa-eye text-purple-600 dark:text-purple-400"></i>
-                    <span><strong>Vision Multi-Modal Verification:</strong> ${escapeHtml(item.vision_summary)}</span>
+                <div class="text-[11px] font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1 mt-0.5">
+                    <i class="${deptInfo.icon} text-[10px]"></i>
+                    <span>${escapeHtml(deptInfo.short)}</span>
                 </div>
-                ` : ''}
-            </div>
+            </td>
 
-            <!-- AI Classification & Proximity Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <!-- AI Classification Box -->
-                <div class="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-xl space-y-1.5">
-                    <span class="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">AI Classification & Bureau Match</span>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500 dark:text-slate-400">Category:</span>
-                        <span class="font-extrabold text-slate-900 dark:text-white">${escapeHtml(item.ai_category)} <span class="text-slate-400 text-[10px] font-normal">(${escapeHtml(item.sub_category)})</span></span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-slate-500 dark:text-slate-400">Target Bureau:</span>
-                        <span class="font-bold text-blue-700 dark:text-blue-400 flex items-center gap-1">
-                            <i class="${deptInfo.icon} text-[10px]"></i>
-                            <span>${escapeHtml(item.suggested_routing)}</span>
-                        </span>
-                    </div>
-                </div>
+            <!-- Confidence -->
+            <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 font-extrabold text-[11px] border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+                    <i class="fa-solid fa-sparkles text-indigo-500 text-[9px]"></i>
+                    <span>${item.ai_confidence}%</span>
+                </span>
+            </td>
 
-                <!-- Duplicate Cluster Box -->
-                <div class="p-3.5 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 rounded-xl space-y-1.5">
-                    <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">Proximity Cluster Evaluation</span>
-                        ${item.cluster.has_duplicates ? `
-                        <span class="px-2 py-0.5 rounded-md bg-purple-600 text-white font-black text-[9px]">
-                            ${item.cluster.cluster_count} Similar Reports in Radius
-                        </span>
-                        ` : ''}
-                    </div>
+            <!-- Urgency / Sentiment -->
+            <td class="py-3 px-4 whitespace-nowrap align-middle">
+                <span class="px-2.5 py-1 rounded-xl font-bold text-[10px] border ${item.sentiment_badge} inline-block">
+                    ${item.sentiment}
+                </span>
+            </td>
 
-                    <p class="font-bold text-slate-800 dark:text-slate-200 text-xs">${escapeHtml(item.cluster.cluster_name)}</p>
-                    
-                    ${item.cluster.has_duplicates ? `
-                    <p class="text-[10px] text-purple-700 dark:text-purple-300 font-mono pt-0.5">Matched Tickets: ${item.cluster.duplicate_ids.join(', ')}</p>
-                    ` : `
-                    <p class="text-[10px] text-slate-400">No duplicate reports detected in neighborhood radius.</p>
-                    `}
-                </div>
-            </div>
+            <!-- Cluster -->
+            <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
+                ${hasCluster ? `
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:border-purple-800">
+                    ${item.cluster.cluster_count} Similar
+                </span>
+                ` : `
+                <span class="text-slate-400 text-[11px] font-medium">Solo</span>
+                `}
+            </td>
 
-            <!-- AI Analysis History & Autonomous Triage Audit Trail (Informational Log) -->
-            <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 space-y-2.5">
-                <div class="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-2">
-                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
-                        <span>Analysis History & Autonomous Triage Trail</span>
-                    </span>
-                    <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-                        <i class="fa-regular fa-clock"></i>
-                        <span>${escapeHtml(item.analyzed_at)}</span>
-                    </span>
-                </div>
+            <!-- Action: View Analysis Audit in Modal -->
+            <td class="py-3 px-4 text-right whitespace-nowrap align-middle">
+                <button onclick="event.stopPropagation(); openAnalysisReportModal('${item.id}')" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl transition inline-flex items-center gap-1.5 border border-indigo-200/80 dark:border-indigo-800 shadow-2xs cursor-pointer">
+                    <i class="fa-solid fa-file-waveform text-indigo-500"></i>
+                    <span>View Analysis</span>
+                </button>
+            </td>
 
-                <!-- Audit Steps / History Sequence -->
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-[11px]">
-                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase block">1. Intake & NLP</span>
-                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.language_detected)}</p>
-                        <span class="text-[9px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <i class="fa-solid fa-check text-[8px]"></i> Multi-Modal Tokenized
-                        </span>
-                    </div>
-
-                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase block">2. Model Engine</span>
-                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.model_name)}</p>
-                        <span class="text-[9px] text-indigo-600 dark:text-indigo-400 font-bold">
-                            Confidence: ${item.ai_confidence}%
-                        </span>
-                    </div>
-
-                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase block">3. Urgency & Impact</span>
-                        <p class="font-bold text-slate-800 dark:text-slate-200">${escapeHtml(item.priority)} Priority</p>
-                        <span class="text-[9px] text-slate-500">Est. SLA: ${escapeHtml(item.sla_target)}</span>
-                    </div>
-
-                    <div class="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 space-y-0.5">
-                        <span class="text-[9px] font-bold text-slate-400 uppercase block">4. Municipal Dispatch</span>
-                        <p class="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 truncate">
-                            <i class="fa-solid fa-circle-check text-[9px]"></i> ${escapeHtml(deptInfo.short)}
-                        </p>
-                        <span class="text-[9px] font-mono text-slate-400 block truncate">Ref: ${escapeHtml(item.dispatch_token)}</span>
-                    </div>
-                </div>
-
-                <!-- Model Reasoning Summary -->
-                <div class="text-[11px] text-slate-600 dark:text-slate-300 bg-white/70 dark:bg-slate-900/60 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800 flex items-start gap-2">
-                    <i class="fa-solid fa-brain text-indigo-500 text-xs shrink-0 mt-0.5"></i>
-                    <div class="space-y-0.5">
-                        <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">AI Reasoning Log:</span>
-                        <p class="leading-relaxed italic">"${escapeHtml(item.ai_reason)}"</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Informational Footer (Strictly Informational, NO ACTION BUTTONS) -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Autonomous Dispatch Complete &bull; Municipal Token: <code class="font-mono font-bold text-slate-700 dark:text-slate-200">${item.dispatch_token}</code></span>
-                </div>
-
-                <div class="flex items-center gap-2 justify-end">
-                    <button onclick="openAnalysisReportModal('${item.id}')" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-file-waveform text-indigo-500"></i>
-                        <span>View Analysis Breakdown</span>
-                    </button>
-                    <a href="concern-routing.php" class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800">
-                        <span>Concern Routing Desk</span>
-                        <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                    </a>
-                </div>
-            </div>
-
-        </div>
+        </tr>
         `;
     });
 
-    container.innerHTML = html;
+    tableBody.innerHTML = html;
 }
 
 // Filter engine for analysis records
@@ -833,7 +850,7 @@ function getFilteredAiItems() {
 }
 
 function applyAiFilters() {
-    renderAiFeed();
+    renderAiTable();
 }
 
 // Dynamically Recalculate KPI Analytics in Real-Time
@@ -869,36 +886,88 @@ function updateAiKpis() {
     if (elAcceptSub) elAcceptSub.innerText = autoDispatched > 0 ? 'Zero-touch autonomous dispatch' : 'Autonomous AI routing active';
 }
 
-// Open Read-Only Analysis Report Modal
+// Open Read-Only Analysis Report Modal with Complete Card Information (No Background Blur)
 function openAnalysisReportModal(id) {
     const item = aiClassificationsData.find(c => c.id === id);
     if (!item) return;
 
+    const deptInfo = departmentsMap[item.department_key] || { short: item.suggested_routing, badge: 'bg-slate-100 text-slate-700', icon: 'fa-solid fa-building' };
+
+    // 1. Header Details
     document.getElementById('modalReportId').innerText = item.id;
-    document.getElementById('modalReportDate').innerText = item.analyzed_at;
     document.getElementById('modalReportTitle').innerText = item.title;
     document.getElementById('modalReportBarangay').innerText = item.barangay;
-    document.getElementById('modalReportNarrative').innerText = '"' + item.text + '"';
-    document.getElementById('modalReportConfidence').innerText = item.ai_confidence + '% Confidence';
-    document.getElementById('modalReportPriority').innerText = item.priority;
-    document.getElementById('modalReportDept').innerText = item.suggested_routing;
-    document.getElementById('modalReportReason').innerText = item.ai_reason;
-    document.getElementById('modalReportToken').innerText = item.dispatch_token;
-    document.getElementById('modalReportSla').innerText = item.sla_target;
+    document.getElementById('modalReportDate').innerText = 'Analyzed: ' + item.analyzed_at;
+    document.getElementById('modalReportConfidence').innerText = (item.model_name || 'Gemini 3.5 Flash') + ' • ' + item.ai_confidence + '%';
+    
+    // Sentiment Badge
+    const sentBadge = document.getElementById('modalReportSentimentBadge');
+    sentBadge.className = 'px-2.5 py-1 rounded-xl font-bold text-[11px] border ' + (item.sentiment_badge || 'bg-blue-50 text-blue-700 border-blue-200');
+    sentBadge.innerText = item.sentiment;
 
+    // Status Pill
+    document.getElementById('modalReportStatusText').innerText = 'Auto-Dispatched to ' + (deptInfo.short || item.suggested_routing);
+
+    // 2. Citizen Narrative
+    document.getElementById('modalReportNarrative').innerText = '"' + item.text + '"';
+
+    // Semantic Keywords
+    const keywordsBox = document.getElementById('modalReportKeywords');
+    keywordsBox.innerHTML = (item.detected_keywords || []).map(kw => 
+        `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-[10px] border border-indigo-100 dark:border-indigo-800">#${escapeHtml(kw)}</span>`
+    ).join(' ') || '<span class="text-slate-400 italic">None detected</span>';
+
+    // Vision Evidence
+    const visionContainer = document.getElementById('modalReportVisionContainer');
     const photoContainer = document.getElementById('modalReportPhotoContainer');
-    if (item.photo_evidence_url) {
+    if (item.vision_verified && item.photo_evidence_url) {
+        visionContainer.classList.remove('hidden');
+        document.getElementById('modalReportVisionSummary').innerText = item.vision_summary;
         photoContainer.classList.remove('hidden');
         document.getElementById('modalReportPhoto').src = item.photo_evidence_url;
+    } else if (item.vision_verified) {
+        visionContainer.classList.remove('hidden');
+        document.getElementById('modalReportVisionSummary').innerText = item.vision_summary;
+        photoContainer.classList.add('hidden');
     } else {
+        visionContainer.classList.add('hidden');
         photoContainer.classList.add('hidden');
     }
 
-    const keywordsBox = document.getElementById('modalReportKeywords');
-    keywordsBox.innerHTML = item.detected_keywords.map(kw => 
-        `<span class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 font-bold text-[10px] border border-indigo-100 dark:border-indigo-800">#${escapeHtml(kw)}</span>`
-    ).join(' ');
+    // 3. AI Classification & Bureau Box
+    document.getElementById('modalReportCategory').innerHTML = `${escapeHtml(item.ai_category)} <span class="text-slate-400 text-[10px] font-normal">(${escapeHtml(item.sub_category)})</span>`;
+    document.getElementById('modalReportDeptIcon').className = deptInfo.icon + ' text-[10px]';
+    document.getElementById('modalReportDeptText').innerText = item.suggested_routing;
 
+    // 4. Proximity Cluster Box
+    const clusterBadge = document.getElementById('modalReportClusterBadge');
+    const clusterName = document.getElementById('modalReportClusterName');
+    const clusterMatched = document.getElementById('modalReportClusterMatched');
+    if (item.cluster && item.cluster.has_duplicates) {
+        clusterBadge.classList.remove('hidden');
+        clusterBadge.innerText = `${item.cluster.cluster_count} Similar Reports in Radius`;
+        clusterName.innerText = item.cluster.cluster_name;
+        clusterMatched.classList.remove('hidden');
+        clusterMatched.innerText = `Matched Tickets: ${item.cluster.duplicate_ids.join(', ')}`;
+    } else {
+        clusterBadge.classList.add('hidden');
+        clusterName.innerText = item.cluster?.cluster_name || ('Report #' + item.id);
+        clusterMatched.classList.add('hidden');
+    }
+
+    // 5. 4-Step Analysis History Trail
+    document.getElementById('modalReportTrailDate').innerText = item.analyzed_at;
+    document.getElementById('modalReportLang').innerText = item.language_detected;
+    document.getElementById('modalReportModel').innerText = item.model_name;
+    document.getElementById('modalReportModelConf').innerText = `Confidence: ${item.ai_confidence}%`;
+    document.getElementById('modalReportPriority').innerText = `${item.priority} Priority`;
+    document.getElementById('modalReportSla').innerText = `Est. SLA: ${item.sla_target}`;
+    document.getElementById('modalReportDispatchDept').innerHTML = `<i class="fa-solid fa-circle-check text-[9px]"></i> ${escapeHtml(deptInfo.short)}`;
+    document.getElementById('modalReportToken').innerText = `Ref: ${item.dispatch_token}`;
+    document.getElementById('modalReportReason').innerText = `"${item.ai_reason}"`;
+    document.getElementById('modalReportFooterToken').innerText = item.dispatch_token;
+
+    // Show modal without background blur
     document.getElementById('analysisReportModal').classList.remove('hidden');
 }
 

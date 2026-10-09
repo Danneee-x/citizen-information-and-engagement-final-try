@@ -701,33 +701,68 @@ function selectConcernRow(rowElement, id) {
     const attachContainer = document.getElementById('modalAttachmentsContainer');
     if (attachContainer) {
         attachContainer.innerHTML = '';
-        if (data.photo_evidence_url) {
-            let fullImgUrl = data.photo_evidence_url;
-            if (fullImgUrl.includes('api-citizen.civentral.tech')) {
-                fullImgUrl = fullImgUrl.replace('api-citizen.civentral.tech', window.location.host);
-            } else if (!fullImgUrl.startsWith('http://') && !fullImgUrl.startsWith('https://') && !fullImgUrl.startsWith('data:image/')) {
-                const clean = fullImgUrl.replace(/^\/+/, '');
-                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                if (isLocal) {
-                    fullImgUrl = clean.startsWith('assets/') ? '../../' + clean : '../../assets/' + clean;
-                } else {
-                    fullImgUrl = clean.startsWith('uploads/') ? '/assets/' + clean : '/' + clean;
-                }
+        const allPhotos = [];
+
+        function formatEvidenceSrc(url) {
+            if (!url || typeof url !== 'string') return '';
+            url = url.trim();
+            if (url.startsWith('data:image/')) return url;
+            if (url.startsWith('http://') || url.startsWith('https://')) return url;
+            const clean = url.replace(/^\/+/, '');
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isLocal) {
+                return clean.startsWith('assets/') ? '../../' + clean : '../../assets/' + clean;
             }
-            attachContainer.innerHTML = `
-                <a href="${fullImgUrl}" target="_blank" class="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-85 transition relative group shadow-2xs">
-                    <img src="${fullImgUrl}" class="w-full h-full object-cover" alt="Evidence" onerror="this.onerror=null; this.src='../../assets/images/placeholder-image.png';">
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">
-                        <i class="fa-solid fa-magnifying-glass-plus"></i>
-                    </div>
-                </a>
-            `;
-        } else if (data.attachments && data.attachments.length > 0) {
+            return clean.startsWith('assets/') ? '/' + clean : '/assets/' + clean;
+        }
+
+        if (data.photo_evidence_url) {
+            allPhotos.push(data.photo_evidence_url);
+        }
+
+        if (Array.isArray(data.attachments)) {
             data.attachments.forEach(att => {
+                if (typeof att === 'string' && att.trim()) {
+                    const cleanAtt = att.trim();
+                    if (!allPhotos.includes(cleanAtt) && !allPhotos.some(p => p.includes(cleanAtt))) {
+                        const path = cleanAtt.startsWith('http') || cleanAtt.startsWith('data:') || cleanAtt.includes('/') 
+                            ? cleanAtt 
+                            : 'assets/uploads/concerns/' + cleanAtt;
+                        allPhotos.push(path);
+                    }
+                }
+            });
+        }
+
+        if (allPhotos.length > 0) {
+            allPhotos.forEach(rawPhoto => {
+                const src = formatEvidenceSrc(rawPhoto);
+                const filename = rawPhoto.split('/').pop() || 'evidence.jpg';
                 attachContainer.innerHTML += `
-                    <div class="w-20 h-20 rounded-xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center text-slate-400 p-2 text-center shadow-2xs">
-                        <i class="fa-solid fa-file-image text-xl text-blue-500"></i>
-                        <span class="text-[9px] font-bold mt-1.5 truncate w-full text-slate-600">${att}</span>
+                    <div class="relative group">
+                        <a href="${src}" target="_blank" class="w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-90 transition block relative shadow-xs">
+                            <img src="${src}" class="w-full h-full object-cover" alt="Evidence" 
+                                data-fallback-attempt="0"
+                                onerror="
+                                    if (!this.dataset.fallbackAttempt || this.dataset.fallbackAttempt === '0') {
+                                        this.dataset.fallbackAttempt = '1';
+                                        if (this.src.includes('citizenship.civentral.tech')) {
+                                            this.src = this.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+                                        } else if (this.src.includes('api-citizen.civentral.tech')) {
+                                            this.src = this.src.replace('api-citizen.civentral.tech', 'citizenship.civentral.tech');
+                                        } else {
+                                            this.src = 'https://citizenship.civentral.tech/assets/uploads/concerns/${filename}';
+                                        }
+                                    } else {
+                                        this.onerror = null;
+                                        this.src = '../../assets/images/placeholder-image.png';
+                                    }
+                                ">
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </a>
+                        <span class="block text-[9px] text-slate-400 font-semibold truncate max-w-[96px] mt-1 text-center">${filename}</span>
                     </div>
                 `;
             });

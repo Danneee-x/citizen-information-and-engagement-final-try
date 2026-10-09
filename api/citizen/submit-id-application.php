@@ -300,9 +300,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $emergencyName = trim($data['emergency_contact_name'] ?? '');
         $emergencyPhone = trim($data['emergency_contact_phone'] ?? '');
         $emergencyRelation = trim($data['emergency_contact_relation'] ?? 'Next of Kin');
-        $signatureUrl = trim($data['signature_url'] ?? '');
+        $rawSignature = trim($data['signature_url'] ?? '');
+        $signatureUrl = saveIdBase64Image($rawSignature, 'signature');
         $eSignatureName = trim($data['e_signature_name'] ?? '');
         $signatureMode = trim($data['signature_mode'] ?? 'upload');
+
+        $savedPhoto2x2 = saveIdBase64Image($data['photo_2x2_url'] ?? null, 'photo_2x2');
+        $savedPrimaryDoc = saveIdBase64Image($data['primary_doc_url'] ?? null, 'primary_doc');
 
         
         $photo2x2Saved   = saveIdBase64Image($data['photo_2x2_url'] ?? '', 'id_photo_2x2');

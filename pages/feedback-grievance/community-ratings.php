@@ -358,6 +358,15 @@ include '../../includes/sidebar.php';
                             <p class="text-xs text-slate-600 font-medium line-clamp-2 leading-relaxed">
                                 <?php echo !empty($r['comments']) ? htmlspecialchars($r['comments']) : '<span class="text-slate-400 italic">No written comment</span>'; ?>
                             </p>
+                            <?php if (!empty($r['attachment_url'])): 
+                                $attSrc = strpos($r['attachment_url'], 'http') === 0 ? $r['attachment_url'] : ('../../' . ltrim($r['attachment_url'], '/'));
+                            ?>
+                            <div class="mt-1">
+                                <a href="<?php echo htmlspecialchars($attSrc); ?>" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-md">
+                                    <i class="fa-solid fa-paperclip text-[9px]"></i> View Attachment
+                                </a>
+                            </div>
+                            <?php endif; ?>
                         </td>
                         <td class="py-3.5 px-3 text-center">
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border <?php echo $sentimentClass; ?>">

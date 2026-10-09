@@ -155,10 +155,10 @@ try {
         $attachmentUrl = null;
         if (!empty($rawAttachment)) {
             if (strpos($rawAttachment, 'http://') === 0 || strpos($rawAttachment, 'https://') === 0) {
-                $attachmentUrl = str_replace('api-citizen.civentral.tech', 'civentral.tech', $rawAttachment);
+                $attachmentUrl = str_replace(['https://civentral.tech/', 'http://civentral.tech/', 'api-citizen.civentral.tech'], ['https://citizenship.civentral.tech/', 'https://citizenship.civentral.tech/', 'citizenship.civentral.tech'], $rawAttachment);
             } else {
                 $cleanPath = ltrim($rawAttachment, '/');
-                $attachmentUrl = 'https://civentral.tech/' . $cleanPath;
+                $attachmentUrl = 'https://citizenship.civentral.tech/' . $cleanPath;
             }
         }
 

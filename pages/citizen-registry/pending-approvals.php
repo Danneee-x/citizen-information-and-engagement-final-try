@@ -1093,13 +1093,10 @@ function selectPendingApplication(rowElement) {
         url = url.trim();
         if (!url || url.startsWith('blob:')) return null;
 
+        if (url.startsWith('data:image/')) return url;
         if (url.startsWith('http://') || url.startsWith('https://')) {
-            if (url.includes('api-citizen.civentral.tech')) {
-                url = url.replace('api-citizen.civentral.tech', window.location.host);
-            }
             return url;
         }
-        if (url.startsWith('data:image/')) return url;
 
         const cleanPath = url.replace(/^\/+/, '');
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -1122,7 +1119,7 @@ function selectPendingApplication(rowElement) {
         if (!box) return;
         const src = formatPhotoSrc(photoUrl);
         if (src) {
-            box.innerHTML = `<a href="${src}" target="_blank" title="Click to view full size"><img src="${src}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="${altText}" onerror="this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'${fallbackIcon} text-xl mb-1\\'></i><span class=\\'block text-[8px]\\'>Unavailable</span></div>';" /></a>`;
+            box.innerHTML = `<a href="${src}" target="_blank" title="Click to view full size"><img src="${src}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="${altText}" data-retry="0" onerror="if(!this.dataset.retry || this.dataset.retry === '0'){ this.dataset.retry = '1'; if(this.src.includes('citizenship.civentral.tech')){ this.src = this.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech'); } else if(this.src.includes('api-citizen.civentral.tech')){ this.src = this.src.replace('api-citizen.civentral.tech', 'citizenship.civentral.tech'); } else { this.src = 'https://citizenship.civentral.tech/assets/uploads/verifications/' + this.src.split('/').pop(); } } else { this.onerror=null; this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'${fallbackIcon} text-xl mb-1\\'></i><span class=\\'block text-[8px]\\'>Unavailable</span></div>'; }" /></a>`;
         } else {
             box.innerHTML = `<div class="text-center p-2 text-slate-400"><i class="${fallbackIcon} text-xl mb-1"></i><span class="block text-[8px]">Not uploaded</span></div>`;
         }

@@ -370,7 +370,7 @@ include '../../includes/sidebar.php';
                             ?>
                             <tr class="broadcast-row hover:bg-slate-50/80 transition cursor-pointer" onclick="selectBroadcastRow(this, <?php echo $b['id']; ?>)" data-category="<?php echo htmlspecialchars($cat['label']); ?>" data-status="<?php echo htmlspecialchars($st['label']); ?>" data-channels="<?php echo htmlspecialchars($b['channels'] ?: ''); ?>">
                                 <td class="py-3.5 px-4 font-bold text-slate-900 max-w-xs">
-                                    <div class="truncate text-xs font-bold text-slate-900"><?php echo htmlspecialchars($b['title']); ?></div>
+                                    <div class="truncate text-xs font-bold text-slate-900 flex items-center gap-1.5"><?php echo htmlspecialchars($b['title']); ?><?php if (!empty($b['attachment_url'])): ?><span class="px-1.5 py-0.5 rounded-md bg-blue-50 text-[#0f53d1] font-bold text-[9px] border border-blue-200 shrink-0 inline-flex items-center gap-1"><i class="fa-solid fa-paperclip text-[8px]"></i> File</span><?php endif; ?></div>
                                     <div class="text-[10px] text-slate-400 font-semibold truncate mt-0.5">ID: <?php echo htmlspecialchars($b['alert_id'] ?: 'ALERT-' . $b['id']); ?></div>
                                 </td>
                                 <td class="py-3.5 px-3">
@@ -489,6 +489,16 @@ include '../../includes/sidebar.php';
             <div class="bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2 shadow-xs">
                 <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">MESSAGE CONTENT</h4>
                 <div id="drawerMessageContent" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 font-medium leading-relaxed space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                </div>
+            </div>
+
+            <!-- Attached Media & Document Card -->
+            <div id="drawerAttachmentSection" class="hidden bg-white rounded-2xl border border-slate-200 p-4.5 space-y-2 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ATTACHED MEDIA / DOCUMENT</h4>
+                    <span id="drawerAttachmentBadge" class="px-2 py-0.5 rounded-full bg-blue-50 text-[#0f53d1] font-bold text-[9px] border border-blue-200">Attachment</span>
+                </div>
+                <div id="drawerAttachmentContainer" class="p-2 bg-slate-50 border border-slate-200 rounded-xl">
                 </div>
             </div>
 
@@ -678,6 +688,54 @@ function selectBroadcastRow(rowElement, id) {
     // Metadata
     document.getElementById('drawerCreatedBy').innerHTML = `${data.sender}`;
     document.getElementById('drawerAlertId').innerHTML = `<span>${data.alertId}</span> <i class="fa-regular fa-copy text-slate-400 hover:text-slate-700 cursor-pointer" onclick="copyAlertId('${data.alertId}')"></i>`;
+
+    // Attachment Display in Modal
+    const attachSection = document.getElementById('drawerAttachmentSection');
+    const attachContainer = document.getElementById('drawerAttachmentContainer');
+    if (attachSection && attachContainer) {
+        if (data.attachmentUrl && data.attachmentUrl.trim()) {
+            let fullUrl = data.attachmentUrl.trim();
+            if (!fullUrl.startsWith('http://') && !fullUrl.startsWith('https://') && !fullUrl.startsWith('data:image/')) {
+                const clean = fullUrl.replace(/^\/+/, '');
+                fullUrl = '../../' + (clean.startsWith('assets/') ? clean : 'assets/' + clean);
+            }
+            const isPdf = fullUrl.toLowerCase().endsWith('.pdf');
+            if (isPdf) {
+                attachContainer.innerHTML = `
+                    <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-file-pdf text-rose-500 text-xl"></i>
+                            <div>
+                                <p class="text-xs font-bold text-slate-800">Official Attached Document (PDF)</p>
+                                <a href="${fullUrl}" target="_blank" class="text-[10px] text-blue-600 font-semibold hover:underline">Click to view / download document</a>
+                            </div>
+                        </div>
+                        <a href="${fullUrl}" target="_blank" class="px-3 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+                            <span>Open</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                `;
+            } else {
+                attachContainer.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="w-full max-h-60 rounded-xl overflow-hidden border border-slate-200 bg-slate-900/5 flex items-center justify-center">
+                            <img src="${fullUrl}" alt="Alert Graphic" class="w-full h-auto max-h-60 object-cover" onerror="this.onerror=null; this.src='../../assets/images/placeholder-image.png';">
+                        </div>
+                        <div class="flex items-center justify-between px-1">
+                            <span class="text-[10px] text-slate-400 font-medium truncate">${fullUrl.split('/').pop()}</span>
+                            <a href="${fullUrl}" target="_blank" class="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1">
+                                <span>View Full Size</span> <i class="fa-solid fa-magnifying-glass-plus text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+            attachSection.classList.remove('hidden');
+        } else {
+            attachSection.classList.add('hidden');
+            attachContainer.innerHTML = '';
+        }
+    }
 
     // Unhide modal
     drawer.classList.remove('hidden');

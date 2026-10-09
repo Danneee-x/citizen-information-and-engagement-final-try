@@ -504,9 +504,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Process Photos / Attachments
+        $targetDirs = [
+            __DIR__ . '/../../assets/uploads/concerns/',
+            '/var/www/html/assets/uploads/concerns/',
+            '/var/www/html/uploads/concerns/',
+            'C:/xampp/htdocs/citizen-backend/assets/uploads/concerns/',
+            'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/concerns/'
+        ];
         $uploadDir = __DIR__ . '/../../assets/uploads/concerns/';
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
+        foreach ($targetDirs as $td) {
+            if (!is_dir($td)) {
+                @mkdir($td, 0777, true);
+                @chmod($td, 0777);
+            }
         }
 
         $savedAttachments = [];
@@ -523,7 +533,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $decoded = base64_decode($base64);
                     if ($decoded !== false) {
                         $filename = 'concern_' . time() . '_' . rand(1000, 9999) . '_' . ($idx + 1) . '.jpg';
-                        file_put_contents($uploadDir . $filename, $decoded);
+                        foreach ($targetDirs as $td) {
+                            if (is_dir($td)) @file_put_contents($td . $filename, $decoded);
+                        }
                         $savedAttachments[] = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         if (!$photoEvidenceUrl) {
                             $photoEvidenceUrl = $baseUrl . '/assets/uploads/concerns/' . $filename;
@@ -534,7 +546,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $decoded = base64_decode($base64);
                     if ($decoded !== false) {
                         $filename = 'concern_' . time() . '_' . rand(1000, 9999) . '_' . ($idx + 1) . '.jpg';
-                        file_put_contents($uploadDir . $filename, $decoded);
+                        foreach ($targetDirs as $td) {
+                            if (is_dir($td)) @file_put_contents($td . $filename, $decoded);
+                        }
                         $savedAttachments[] = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         if (!$photoEvidenceUrl) {
                             $photoEvidenceUrl = $baseUrl . '/assets/uploads/concerns/' . $filename;

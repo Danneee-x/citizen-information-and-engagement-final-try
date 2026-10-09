@@ -57,8 +57,8 @@ foreach ($dbRequests as $row) {
         if (is_array($decoded)) {
             foreach ($decoded as $d) {
                 if (is_array($d)) {
-                    $u = $d['url'] ?? null;
-                    if ($u && strpos($u, 'http') !== 0) {
+                    $u = $d['url'] ?? ($d['data'] ?? ($d['uri'] ?? null));
+                    if ($u && strpos($u, 'http') !== 0 && strpos($u, 'data:') !== 0) {
                         $clean = ltrim($u, '/');
                         if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
                         $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';

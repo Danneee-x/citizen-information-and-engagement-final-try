@@ -37,6 +37,7 @@ $readyForRelease = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests`
 $releasedToday = (int)$pdo->query("SELECT COUNT(*) FROM `certificate_requests` WHERE `status` = 'Released' AND DATE(`released_at`) = CURDATE()")->fetchColumn();
 
 // Fetch Live Certificate Requests
+$targetRef = trim($_GET['ref'] ?? $_GET['voucher'] ?? $_GET['reference'] ?? '');
 $stmt = $pdo->query("SELECT * FROM `certificate_requests` ORDER BY `request_id` DESC");
 $dbRequests = $stmt->fetchAll();
 
@@ -84,6 +85,7 @@ foreach ($dbRequests as $row) {
         'request_id' => $row['request_id'],
         'citizen_id' => $row['citizen_user_id'] ? 'CTZ-2026-' . str_pad($row['citizen_user_id'], 4, '0', STR_PAD_LEFT) : 'CTZ-WALK-IN',
         'requester' => $row['citizen_name'],
+        'barangay' => !empty($row['barangay']) ? $row['barangay'] : 'Barangay 171',
         'address' => $row['street_address'] . (!empty($row['barangay']) ? ', ' . $row['barangay'] : ''),
         'cert_type' => $row['certificate_type'],
         'purpose' => $row['purpose'],
@@ -113,6 +115,24 @@ foreach ($dbRequests as $row) {
     .custom-scrollbar::-webkit-scrollbar-thumb {
         background-color: #cbd5e1;
         border-radius: 20px;
+    }
+    @media print {
+        body * {
+            visibility: hidden !important;
+        }
+        #printableCertificateVoucher, #printableCertificateVoucher * {
+            visibility: visible !important;
+        }
+        #printableCertificateVoucher {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: white !important;
+            padding: 24px;
+            z-index: 999999;
+        }
     }
 </style>
 
@@ -333,6 +353,7 @@ foreach ($dbRequests as $row) {
                                 <td class="py-3.5 px-3 text-center" onclick="event.stopPropagation();">
                                     <div class="flex items-center justify-center gap-1">
                                         <button onclick="selectRequestRow(this.closest('tr'), '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-[#0f53d1] flex items-center justify-center transition cursor-pointer" title="View Request Details"><i class="fa-regular fa-eye text-xs"></i></button>
+                                        <button onclick="openCertificateClaimVoucher('<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-amber-50 text-slate-400 hover:text-amber-600 flex items-center justify-center transition cursor-pointer" title="View Digital Claim Voucher & QR Barcode"><i class="fa-solid fa-receipt text-xs"></i></button>
                                         <?php if ($req['status'] !== 'Released' && $req['status'] !== 'Claimed' && $req['status'] !== 'Rejected'): ?>
                                         <?php if ($req['status'] !== 'Ready for Release'): ?>
                                         <button onclick="processQuickAction('approve', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition cursor-pointer" title="Mark Ready for Release"><i class="fa-solid fa-file-circle-check text-xs"></i></button>
@@ -434,6 +455,39 @@ foreach ($dbRequests as $row) {
                 </span>
                 <div id="drawerDocsList" class="space-y-2">
                     <span class="text-xs text-slate-400 italic">No attachments provided</span>
+                </div>
+            </div>
+
+            <!-- Digital Claim Voucher & Pick-up Station Card -->
+            <div class="bg-gradient-to-r from-amber-50/70 via-emerald-50/40 to-blue-50/50 rounded-2xl border border-amber-200/80 p-4.5 space-y-3 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-receipt text-amber-600"></i>
+                        <span>Digital Claim Voucher & Desk</span>
+                    </span>
+                    <span id="drawerVoucherRefBadge" class="text-[11px] font-mono font-black text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-200">CAL-DOC-2026-0000</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-2.5 bg-white/80 rounded-xl border border-slate-200/80">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Designated Claim Center</span>
+                        <span id="drawerVoucherDesk" class="font-bold text-slate-800 text-xs block">Barangay Hall - Records Desk</span>
+                    </div>
+                    <div class="p-2.5 bg-white/80 rounded-xl border border-slate-200/80">
+                        <span class="text-slate-400 block text-[10px] font-bold uppercase">Estimated Turnaround</span>
+                        <span id="drawerVoucherTurnaround" class="font-bold text-blue-600 text-xs block">1 to 2 Business Days</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-3 pt-1 border-t border-amber-200/50">
+                    <p class="text-[11px] text-slate-500 font-medium">
+                        <i class="fa-solid fa-qrcode text-amber-600 mr-1"></i>
+                        Citizen digital voucher with cryptographic barcode.
+                    </p>
+                    <button type="button" onclick="openCertificateClaimVoucher(activeRequestId)" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-2 shrink-0 cursor-pointer">
+                        <i class="fa-solid fa-receipt text-xs"></i>
+                        <span>View Claim Voucher</span>
+                    </button>
                 </div>
             </div>
 
@@ -685,6 +739,322 @@ foreach ($dbRequests as $row) {
     </div>
 </div>
 
+<!-- ============================================================================== -->
+<!-- MODAL: DIGITAL CLAIM VOUCHER FOR CERTIFICATE REQUESTS                          -->
+<!-- (Mirrors Citizen Mobile App Certificate Claim Voucher & id-releases.php)       -->
+<!-- ============================================================================== -->
+<div id="certificateVoucherModal" class="fixed inset-0 z-[9999] hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all my-8 animate-in fade-in zoom-in-95 duration-150">
+        
+        <!-- Header with LGU Seal & Branding -->
+        <div class="bg-white px-6 py-4 flex items-center justify-between border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-black border border-blue-100">
+                    <i class="fa-solid fa-building-columns"></i>
+                </div>
+                <div>
+                    <h3 class="font-extrabold text-sm text-slate-900 leading-tight">Civentral</h3>
+                    <p class="text-[10px] text-slate-400 font-semibold">City of Caloocan • Certificate Release Desk</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wide bg-blue-50 text-blue-700 border border-blue-200 uppercase">
+                    VERIFIED STUB
+                </span>
+                <button type="button" onclick="closeCertificateClaimVoucher()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-xs" title="Close Voucher">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+
+            <!-- Designated Release Counter Box (Emerald Tint matching mobile app & id-releases.php) -->
+            <div class="bg-emerald-50/60 rounded-2xl p-4 border border-emerald-100/80 space-y-2.5">
+                <div class="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
+                    <i class="fa-solid fa-id-badge text-emerald-600"></i>
+                    <span>Designated Release Counter & Pick-up</span>
+                </div>
+                
+                <div class="space-y-1.5 text-[11px] pt-1 border-t border-emerald-200/50">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-medium">Designated Claim Center:</span>
+                        <strong class="text-slate-800 text-right" id="cVoucherClaimCenter">Barangay 171 Hall - Administrative Records Desk</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-medium">Estimated Turnaround:</span>
+                        <strong class="text-blue-600" id="cVoucherTurnaround">1 to 2 Business Days</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-medium">Applicant:</span>
+                        <strong class="text-slate-800" id="cVoucherApplicantName">Danny Espelita Jr</strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500 font-medium">Barangay:</span>
+                        <strong class="text-slate-700" id="cVoucherBarangay">Barangay 171</strong>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-500 font-medium">Fee & Status:</span>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-800" id="cVoucherFee">₱50.00</span>
+                            <span id="cVoucherPaymentStatus" class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">PAID</span>
+                        </div>
+                    </div>
+                    <div class="pt-1 text-slate-600 text-[10px] leading-relaxed">
+                        <strong class="text-slate-700">Claim Requirements:</strong> Present proof of barangay residency (lease/utility bill), any valid government ID, and this claim voucher at your Barangay Hall.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Lifecycle Tracking (5 Stages Stepper Mirroring CertificateClaimVoucherModal.tsx) -->
+            <div class="bg-white rounded-2xl p-4 border border-slate-200/80 space-y-3 shadow-xs">
+                <div class="border-b border-slate-100 pb-2">
+                    <h4 class="font-extrabold text-xs text-slate-900">Application Lifecycle Tracking</h4>
+                    <p class="text-[9px] text-slate-400 font-medium">Submitted → Document Review → Processing → Ready for Release → Completed</p>
+                </div>
+
+                <div class="space-y-3 pt-1">
+                    <!-- Step 1: Submitted -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" id="cStep1Icon">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-800" id="cStep1Title">Submitted ✓</div>
+                            <div class="text-[10px] text-slate-400">Application filed online / walk-in desk</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Document Review -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" id="cStep2Icon">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-800" id="cStep2Title">Document Review</div>
+                            <div class="text-[10px] text-slate-400">Issuing bureau evaluating records</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Processing & Verification -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" id="cStep3Icon">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-800" id="cStep3Title">Processing & Verification</div>
+                            <div class="text-[10px] text-slate-400">Registry clearance & credential coding</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Ready for Release -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" id="cStep4Icon">
+                            <i class="fa-solid fa-circle-dot"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-blue-700" id="cStep4Title">Ready for Release</div>
+                            <div class="text-[10px] text-slate-400">Available at designated release desk</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Completed -->
+                    <div class="flex items-start gap-3">
+                        <div class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" id="cStep5Icon">
+                            <i class="fa-solid fa-circle"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-xs text-slate-500" id="cStep5Title">Completed</div>
+                            <div class="text-[10px] text-slate-400">Certificate claimed & released</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Digital Claim Voucher Card -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm space-y-4">
+                <div class="text-center space-y-1">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">DIGITAL CLAIM VOUCHER</span>
+                    <h4 class="text-xs font-extrabold text-[#0f53d1]" id="cVoucherCertType">Barangay Clearance</h4>
+                    <h2 class="text-lg font-black text-slate-900 tracking-tight font-mono" id="cVoucherRefNo">CAL-DOC-2026-1413</h2>
+                    
+                    <!-- SVG Barcode Representation -->
+                    <div class="flex items-center justify-center py-2">
+                        <svg class="h-12 w-64 max-w-full" viewBox="0 0 200 40" preserveAspectRatio="none">
+                            <rect x="0" y="0" width="3.5" height="40" fill="#0f172a"/>
+                            <rect x="5.5" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="10" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="16" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="20" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="28" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="33" y="0" width="3.5" height="40" fill="#0f172a"/>
+                            <rect x="39" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="46" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="52" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="58" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="64" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="71" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="75" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="83" y="0" width="3" height="40" fill="#0f172a"/>
+                            <rect x="88" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="92" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="99" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="104" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="112" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="117" y="0" width="3" height="40" fill="#0f172a"/>
+                            <rect x="123" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="131" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="136" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="142" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="148" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="155" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="160" y="0" width="5" height="40" fill="#0f172a"/>
+                            <rect x="168" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="172" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="178" y="0" width="2" height="40" fill="#0f172a"/>
+                            <rect x="184" y="0" width="4" height="40" fill="#0f172a"/>
+                            <rect x="190" y="0" width="3.5" height="40" fill="#0f172a"/>
+                            <rect x="196" y="0" width="2" height="40" fill="#0f172a"/>
+                        </svg>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Present this reference barcode or QR voucher at the release counter.</p>
+                </div>
+
+                <!-- Documents to Bring Upon Claiming -->
+                <div class="space-y-2 pt-2 border-t border-slate-100">
+                    <span class="text-xs font-extrabold text-slate-900 block">Documents to Bring Upon Claiming:</span>
+                    <ul class="space-y-1.5 text-[11px] text-slate-700">
+                        <li class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i>
+                            <span>1 Valid Government-issued Photo ID (original)</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i>
+                            <span>Original residency proof (Utility Bill, CTC Cedula, or Barangay Endorsement)</span>
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check text-emerald-600 text-xs"></i>
+                            <span>This digital claim voucher or printed receipt</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pick-up Desk Box -->
+                <div class="bg-blue-50/70 border border-blue-100 rounded-xl p-3 flex items-start gap-2.5">
+                    <i class="fa-solid fa-building-columns text-blue-600 text-xs mt-0.5"></i>
+                    <div>
+                        <span class="text-[10px] font-bold text-blue-900 block">Designated Pick-up Desk:</span>
+                        <span class="text-[11px] font-semibold text-blue-800" id="cVoucherDeskName">Barangay 171 Hall - Administrative Records Desk</span>
+                    </div>
+                </div>
+
+                <!-- Cryptographic Security Seal Note -->
+                <div class="text-center pt-1 border-t border-slate-100">
+                    <span class="text-[9px] font-semibold text-slate-400 tracking-wider">
+                        <i class="fa-solid fa-shield-halved text-slate-400 mr-1"></i>
+                        OFFICIAL LGU CALOOCAN VERIFIED CREDENTIAL • CRYPTOGRAPHIC BARCODE
+                    </span>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="pt-2 flex items-center justify-between gap-3">
+                <button type="button" onclick="closeCertificateClaimVoucher()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
+                    Close
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="printCertificateClaimVoucher()" class="px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-print"></i>
+                        <span>Print Voucher</span>
+                    </button>
+                    <button type="button" id="cVoucherActionBtn" class="px-4.5 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-stamp"></i>
+                        <span>Issue Certificate</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- PRINTABLE OFFICIAL CERTIFICATE CLAIM VOUCHER SLIP                              -->
+<!-- ============================================================================== -->
+<div id="printableCertificateVoucher" class="hidden">
+    <div class="max-w-xl mx-auto p-6 bg-white border border-slate-300 rounded-2xl space-y-5 text-slate-900 font-sans">
+        <!-- Receipt Top Header -->
+        <div class="text-center border-b border-slate-200 pb-4 space-y-1">
+            <h2 class="text-sm font-black uppercase tracking-widest text-slate-800">REPUBLIC OF THE PHILIPPINES</h2>
+            <h3 class="text-base font-black text-slate-900">CITY GOVERNMENT OF CALOOCAN</h3>
+            <p class="text-xs font-bold text-blue-800">BARANGAY CERTIFICATE & CIVIL REGISTRY DESK</p>
+            <p class="text-[10px] text-slate-500 font-semibold tracking-wide">OFFICIAL CERTIFICATE CLAIM VOUCHER & PICK-UP ACKNOWLEDGMENT</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 text-xs">
+            <div>
+                <span class="text-slate-400 block text-[10px] font-bold">VOUCHER REFERENCE NO:</span>
+                <strong class="font-mono text-sm text-blue-700" id="pCertVoucherRef">CAL-DOC-2026-1413</strong>
+            </div>
+            <div class="text-right">
+                <span class="text-slate-400 block text-[10px] font-bold">DATE REQUESTED:</span>
+                <strong id="pCertVoucherDate"><?php echo date('M d, Y • h:i A'); ?></strong>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-[10px] font-bold">RESIDENT NAME:</span>
+                <strong id="pCertVoucherApplicant">Danny Espelita Jr.</strong>
+            </div>
+            <div class="text-right">
+                <span class="text-slate-400 block text-[10px] font-bold">CITIZEN ID:</span>
+                <strong class="font-mono text-slate-700" id="pCertVoucherCitizenId">CTZ-2026-0001</strong>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-[10px] font-bold">CERTIFICATE REQUESTED:</span>
+                <strong id="pCertVoucherCertType">Barangay Clearance</strong>
+            </div>
+            <div class="text-right">
+                <span class="text-slate-400 block text-[10px] font-bold">PURPOSE:</span>
+                <strong id="pCertVoucherPurpose">Employment</strong>
+            </div>
+            <div>
+                <span class="text-slate-400 block text-[10px] font-bold">BARANGAY & ADDRESS:</span>
+                <span id="pCertVoucherAddress" class="font-semibold text-slate-800">Barangay 171, Caloocan City</span>
+            </div>
+            <div class="text-right">
+                <span class="text-slate-400 block text-[10px] font-bold">OFFICIAL FEE:</span>
+                <strong class="text-emerald-700" id="pCertVoucherFee">₱50.00 (PAID)</strong>
+            </div>
+            <div class="col-span-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                <span class="text-slate-400 block text-[10px] font-bold">DESIGNATED PICK-UP COUNTER:</span>
+                <strong class="text-blue-800 text-xs block" id="pCertVoucherDesk">Barangay 171 Hall - Administrative Records Desk</strong>
+                <span class="text-[10px] text-slate-500">Estimated Turnaround: <strong id="pCertVoucherTurnaround" class="text-slate-700">1 to 2 Business Days</strong></span>
+            </div>
+        </div>
+
+        <!-- Verification Acknowledgment -->
+        <div class="bg-blue-50/60 p-3 rounded-lg border border-blue-200 text-[10px] leading-relaxed text-blue-900">
+            <strong>CLAIM REQUIREMENTS:</strong> Present 1 valid government-issued photo ID (original), proof of residency, and this claim voucher at the designated records counter upon claiming.
+        </div>
+
+        <!-- Signatures Area -->
+        <div class="grid grid-cols-2 gap-8 pt-6 border-t border-slate-200 text-center">
+            <div class="space-y-8">
+                <div class="h-8"></div>
+                <div class="border-t border-slate-400 pt-1 text-xs font-bold text-slate-800">
+                    <span id="pCertVoucherSignApplicant">Resident / Applicant</span>
+                    <div class="text-[9px] font-normal text-slate-500">Applicant Signature</div>
+                </div>
+            </div>
+            <div class="space-y-8">
+                <div class="h-8"></div>
+                <div class="border-t border-slate-400 pt-1 text-xs font-bold text-slate-800">
+                    <span><?php echo htmlspecialchars(!empty($_SESSION['user']['name']) ? $_SESSION['user']['name'] : 'Releasing Officer'); ?></span>
+                    <div class="text-[9px] font-normal text-slate-500">Releasing Desk Officer Signature</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const requestsDataset = <?php echo json_encode(array_column($requests, null, 'id')); ?>;
 const citizenRegistry = <?php echo json_encode($registeredCitizens); ?>;
@@ -718,6 +1088,17 @@ function selectRequestRow(rowElement, refId) {
     document.getElementById('drawerFee').innerText = '₱' + data.fee_amount;
     document.getElementById('drawerPaymentStatus').innerText = data.payment_status;
     document.getElementById('drawerContact').innerText = data.contact;
+
+    const desk = `${data.barangay || 'Barangay 171'} Hall - Administrative Records Desk`;
+    const isIndigent = (data.cert_type || '').toLowerCase().includes('indigen');
+    const turnaround = isIndigent ? 'Same-Day Fast Track (1-4 Hours)' : '1 to 2 Business Days';
+
+    const drawerDesk = document.getElementById('drawerVoucherDesk');
+    if (drawerDesk) drawerDesk.innerText = desk;
+    const drawerTurnaround = document.getElementById('drawerVoucherTurnaround');
+    if (drawerTurnaround) drawerTurnaround.innerText = turnaround;
+    const drawerRefBadge = document.getElementById('drawerVoucherRefBadge');
+    if (drawerRefBadge) drawerRefBadge.innerText = data.id;
 
     const docsList = document.getElementById('drawerDocsList');
     if (data.docs && data.docs.length > 0) {
@@ -1196,6 +1577,172 @@ function exportRequestsCSV() {
     link.click();
 }
 
+// Digital Claim Voucher Handlers
+let currentVoucherRefId = null;
+
+function getCertificateStageIndex(status) {
+    const s = (status || '').toLowerCase();
+    if (s.includes('completed') || s.includes('claimed') || s.includes('released')) return 4;
+    if (s.includes('ready') || s.includes('release')) return 3;
+    if (s.includes('process') || s.includes('approved')) return 2;
+    if (s.includes('review') || s.includes('verif')) return 1;
+    return 0; // pending / submitted
+}
+
+function openCertificateClaimVoucher(refId) {
+    if (!refId && activeRequestId) refId = activeRequestId;
+    const item = requestsDataset[refId];
+    if (!item) {
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> Certificate request details not found.');
+        return;
+    }
+
+    currentVoucherRefId = refId;
+    const barangayName = item.barangay || 'Barangay 171';
+    const deskName = `${barangayName} Hall - Administrative Records Desk`;
+    const isIndigent = (item.cert_type || '').toLowerCase().includes('indigen');
+    const turnaround = isIndigent ? 'Same-Day Fast Track (1-4 Hours)' : '1 to 2 Business Days';
+
+    const refEl = document.getElementById('cVoucherRefNo');
+    if (refEl) refEl.textContent = item.id;
+
+    const applicantEl = document.getElementById('cVoucherApplicantName');
+    if (applicantEl) applicantEl.textContent = item.requester;
+
+    const certTypeEl = document.getElementById('cVoucherCertType');
+    if (certTypeEl) certTypeEl.textContent = item.cert_type;
+
+    const claimCenterEl = document.getElementById('cVoucherClaimCenter');
+    if (claimCenterEl) claimCenterEl.textContent = deskName;
+
+    const turnaroundEl = document.getElementById('cVoucherTurnaround');
+    if (turnaroundEl) turnaroundEl.textContent = turnaround;
+
+    const deskNameEl = document.getElementById('cVoucherDeskName');
+    if (deskNameEl) deskNameEl.textContent = deskName;
+
+    const barangayEl = document.getElementById('cVoucherBarangay');
+    if (barangayEl) barangayEl.textContent = barangayName;
+
+    const feeEl = document.getElementById('cVoucherFee');
+    if (feeEl) feeEl.textContent = '₱' + item.fee_amount;
+
+    // Payment status pill
+    const pStat = (item.payment_status || 'Pending').toUpperCase();
+    const pEl = document.getElementById('cVoucherPaymentStatus');
+    if (pEl) {
+        pEl.textContent = pStat;
+        if (pStat === 'PAID') {
+            pEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200';
+        } else if (pStat === 'WAIVED') {
+            pEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-100 text-purple-800 border border-purple-200';
+        } else {
+            pEl.className = 'px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-200';
+        }
+    }
+
+    // 5-Stage Stepper calculation matching mobile app
+    const stageIdx = getCertificateStageIndex(item.status);
+
+    const stepDefs = [
+        { iconId: 'cStep1Icon', titleId: 'cStep1Title', label: 'Submitted' },
+        { iconId: 'cStep2Icon', titleId: 'cStep2Title', label: 'Document Review' },
+        { iconId: 'cStep3Icon', titleId: 'cStep3Title', label: 'Processing & Verification' },
+        { iconId: 'cStep4Icon', titleId: 'cStep4Title', label: 'Ready for Release' },
+        { iconId: 'cStep5Icon', titleId: 'cStep5Title', label: 'Completed' }
+    ];
+
+    stepDefs.forEach((step, idx) => {
+        const iconEl = document.getElementById(step.iconId);
+        const titleEl = document.getElementById(step.titleId);
+        if (!iconEl || !titleEl) return;
+
+        if (idx < stageIdx || (stageIdx === 4 && idx === 4)) {
+            // Completed
+            iconEl.className = 'w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5';
+            iconEl.innerHTML = '<i class="fa-solid fa-check"></i>';
+            titleEl.className = 'font-bold text-xs text-slate-800';
+            titleEl.textContent = step.label + ' ✓';
+        } else if (idx === stageIdx && stageIdx !== 4) {
+            // Current / Active
+            iconEl.className = 'w-5 h-5 rounded-full bg-[#0f53d1] text-white flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5 animate-pulse';
+            iconEl.innerHTML = '<i class="fa-solid fa-circle-dot"></i>';
+            titleEl.className = 'font-bold text-xs text-[#0f53d1]';
+            titleEl.textContent = step.label + ' (In Progress)';
+        } else {
+            // Pending
+            iconEl.className = 'w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5';
+            iconEl.innerHTML = '<i class="fa-solid fa-circle"></i>';
+            titleEl.className = 'font-bold text-xs text-slate-500';
+            titleEl.textContent = step.label;
+        }
+    });
+
+    // Action button in voucher footer
+    const actionBtn = document.getElementById('cVoucherActionBtn');
+    if (actionBtn) {
+        if (item.status === 'Released' || item.status === 'Claimed') {
+            actionBtn.innerHTML = '<i class="fa-solid fa-print"></i><span>Print Claim Slip</span>';
+            actionBtn.onclick = () => printCertificateClaimVoucher(refId);
+        } else {
+            actionBtn.innerHTML = '<i class="fa-solid fa-stamp"></i><span>Issue Certificate</span>';
+            actionBtn.onclick = () => { closeCertificateClaimVoucher(); processQuickAction('release', refId); };
+        }
+    }
+
+    const modal = document.getElementById('certificateVoucherModal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function closeCertificateClaimVoucher() {
+    const modal = document.getElementById('certificateVoucherModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function printCertificateClaimVoucher(refId) {
+    if (!refId && currentVoucherRefId) refId = currentVoucherRefId;
+    if (!refId && activeRequestId) refId = activeRequestId;
+    const item = requestsDataset[refId];
+    if (!item) return;
+
+    const barangayName = item.barangay || 'Barangay 171';
+    const deskName = `${barangayName} Hall - Administrative Records Desk`;
+    const isIndigent = (item.cert_type || '').toLowerCase().includes('indigen');
+    const turnaround = isIndigent ? 'Same-Day Fast Track (1-4 Hours)' : '1 to 2 Business Days';
+
+    const pRef = document.getElementById('pCertVoucherRef');
+    if (pRef) pRef.textContent = item.id;
+    const pDate = document.getElementById('pCertVoucherDate');
+    if (pDate) pDate.textContent = item.date_requested || 'Today';
+    const pApp = document.getElementById('pCertVoucherApplicant');
+    if (pApp) pApp.textContent = item.requester;
+    const pCtz = document.getElementById('pCertVoucherCitizenId');
+    if (pCtz) pCtz.textContent = item.citizen_id || 'CTZ-WALK-IN';
+    const pType = document.getElementById('pCertVoucherCertType');
+    if (pType) pType.textContent = item.cert_type;
+    const pPurp = document.getElementById('pCertVoucherPurpose');
+    if (pPurp) pPurp.textContent = item.purpose;
+    const pAddr = document.getElementById('pCertVoucherAddress');
+    if (pAddr) pAddr.textContent = item.address;
+    const pFee = document.getElementById('pCertVoucherFee');
+    if (pFee) pFee.textContent = '₱' + item.fee_amount + ' (' + (item.payment_status || 'Pending') + ')';
+    const pDesk = document.getElementById('pCertVoucherDesk');
+    if (pDesk) pDesk.textContent = deskName;
+    const pTurn = document.getElementById('pCertVoucherTurnaround');
+    if (pTurn) pTurn.textContent = turnaround;
+    const pSign = document.getElementById('pCertVoucherSignApplicant');
+    if (pSign) pSign.textContent = item.requester;
+
+    const printEl = document.getElementById('printableCertificateVoucher');
+    if (printEl) {
+        printEl.classList.remove('hidden');
+        window.print();
+        setTimeout(() => {
+            printEl.classList.add('hidden');
+        }, 1000);
+    }
+}
+
 // Modal dismiss listeners (Backdrop click and Escape key)
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -1209,13 +1756,18 @@ document.addEventListener('keydown', function(e) {
             closeRejectConfirmModal();
             return;
         }
+        const voucherModal = document.getElementById('certificateVoucherModal');
+        if (voucherModal && !voucherModal.classList.contains('hidden')) {
+            closeCertificateClaimVoucher();
+            return;
+        }
         closeRequestDrawer();
         closeNewRequestModal();
     }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    ['requestDetailsDrawer', 'newRequestModal', 'issueConfirmModal', 'rejectConfirmModal'].forEach(id => {
+    ['requestDetailsDrawer', 'newRequestModal', 'issueConfirmModal', 'rejectConfirmModal', 'certificateVoucherModal'].forEach(id => {
         const modal = document.getElementById(id);
         if (modal) {
             modal.addEventListener('click', function(e) {
@@ -1223,11 +1775,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (id === 'issueConfirmModal') closeIssueConfirmModal();
                     else if (id === 'rejectConfirmModal') closeRejectConfirmModal();
                     else if (id === 'newRequestModal') closeNewRequestModal();
+                    else if (id === 'certificateVoucherModal') closeCertificateClaimVoucher();
                     else closeRequestDrawer();
                 }
             });
         }
     });
+
+    <?php if (!empty($targetRef)): ?>
+    if (requestsDataset['<?php echo addslashes($targetRef); ?>']) {
+        openCertificateClaimVoucher('<?php echo addslashes($targetRef); ?>');
+    }
+    <?php endif; ?>
 });
 </script>
 

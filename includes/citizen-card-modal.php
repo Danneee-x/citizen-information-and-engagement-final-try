@@ -1,17 +1,12 @@
 <?php
 /**
  * Civentral Official Citizen ID Card Modal Component
- * Authentic Philippine Municipal PVC Government Smart Card (QCitizen Style)
- * Features:
- * - Clean White / Slate PVC Plastic Form Factor (CR80 Standard: 85.6mm x 53.98mm)
- * - Header Band with Civentral Deep Navy (#0F4C81) & Crimson Red (#DC2626) with Gold Accent
- * - Authentic Civentral Seal / Republic Header
- * - 1x1 Formal Cardholder Photo (85x85px) with Signature Baseline Box
- * - Prominent Embossed Legal Name & Resident Control ID
- * - Complete 2-Column Demographics Grid (Sex, DOB, Civil Status, Issued, Valid Until, Address)
- * - Emergency Contact Hotline Annotation
- * - Local Vector Scannable QR Matrix & Control Barcode
- * - Multi-Layer Null-Safe Controller & Backdrop Close Support
+ * Authentic Philippine Municipal PVC Government Smart Card (CR80 Standard)
+ * Full Dual-Sided Implementation:
+ * - Front Side: Formal 1x1 Photo, Signature, Control Number, Demographics Grid, Address, QR & Barcode
+ * - Back Side: Emergency Contact Box, Caloocan 24/7 Hotline Directory, Legal Terms, Mayor Signature
+ * - Interactive Flip Tabs (Front Side / Back Side)
+ * - Single-Page Print Layout with Cutting/Folding Guide for PVC Card Printing
  */
 ?>
 
@@ -37,19 +32,24 @@ if (typeof QRCode === 'undefined') {
                     <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-7 h-7 object-contain drop-shadow" alt="Civentral Logo" />
                 </div>
                 <div>
-                    <h3 class="text-sm font-black text-white tracking-wide">
-                        Civentral Citizen Card
-                    </h3>
+                    <div class="flex items-center gap-2">
+                        <h3 id="cardModalTopTitle" class="text-sm font-black text-white tracking-wide">
+                            Civentral Citizen Card
+                        </h3>
+                        <span id="cardModalCategoryBadge" class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                            OFFICIAL RESIDENT
+                        </span>
+                    </div>
                     <p class="text-[11px] text-slate-400 font-medium">Official Municipal Credential &bull; City of Caloocan</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-2">
-                <button onclick="printCitizenCard()" class="px-3 py-1.5 text-xs font-bold text-white bg-[#0F4C81] hover:bg-sky-700 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs border border-sky-400/30">
+                <button type="button" onclick="printCitizenCard()" class="px-3.5 py-1.5 text-xs font-bold text-white bg-[#0F4C81] hover:bg-sky-700 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs border border-sky-400/30">
                     <i class="fa-solid fa-print text-[11px]"></i>
                     <span class="hidden sm:inline">Print / Save PDF</span>
                 </button>
-                <button id="closeCitizenCardModalBtn" onclick="closeCitizenCardModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer border border-slate-700">
+                <button type="button" id="closeCitizenCardModalBtn" onclick="closeCitizenCardModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition flex items-center justify-center cursor-pointer border border-slate-700" title="Close Modal">
                     <i class="fa-solid fa-xmark text-sm"></i>
                 </button>
             </div>
@@ -58,9 +58,33 @@ if (typeof QRCode === 'undefined') {
         <!-- Modal Body Content -->
         <div class="p-5 sm:p-6 bg-slate-100/70 space-y-4">
 
-            <!-- THE OFFICIAL WHITE PVC CITIZEN SMART CARD (CR80 PHYSICAL RATIO) -->
+            <!-- CARD SIDE SELECTOR TABS (Interactive Flip Controls) -->
+            <div class="flex items-center justify-center p-1 bg-slate-200/90 rounded-2xl max-w-sm sm:max-w-md mx-auto border border-slate-300 shadow-inner">
+                <button type="button" id="tabCardFront" onclick="switchCardSide('front')" class="flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer bg-white text-[#0F4C81] shadow-xs">
+                    <i class="fa-solid fa-id-card"></i>
+                    <span>FRONT SIDE (IDENTITY)</span>
+                </button>
+                <button type="button" id="tabCardBack" onclick="switchCardSide('back')" class="flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>BACK SIDE (EMERGENCY)</span>
+                </button>
+            </div>
+
+            <!-- TAP TO FLIP NOTICE PROMPT -->
+            <div class="text-center">
+                <button type="button" onclick="toggleCardSide()" class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-sky-50 text-sky-700 hover:bg-sky-100 text-[11px] font-bold border border-sky-200 transition cursor-pointer">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-[10px]"></i>
+                    <span id="cardFlipPromptText">Viewing Front Side &bull; Click card or tab to view Back Side</span>
+                </button>
+            </div>
+
+            <!-- THE OFFICIAL CR80 CITIZEN SMART CARD PRINT & DISPLAY CONTAINER -->
             <div id="printContainer" class="flex flex-col items-center justify-center">
-                <div id="printableCitizenCard" class="printable-card-side w-full max-w-[530px] rounded-2xl shadow-xl border border-slate-300 relative overflow-hidden select-none bg-white text-slate-900 transition-transform" style="aspect-ratio: 85.6/53.98; min-height: 335px;">
+
+                <!-- ========================================================= -->
+                <!-- FRONT SIDE: OFFICIAL PVC CITIZEN SMART CARD (CR80)        -->
+                <!-- ========================================================= -->
+                <div id="printableCitizenCard" onclick="toggleCardSide()" class="printable-card-side w-full max-w-[530px] rounded-2xl shadow-xl border border-slate-300 relative overflow-hidden select-none bg-white text-slate-900 transition-all cursor-pointer hover:shadow-2xl" style="aspect-ratio: 85.6/53.98; min-height: 335px;">
                     
                     <!-- Subtle Right Diagonal Wave Gradient -->
                     <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(125deg, #FFFFFF 0%, #FFFFFF 52%, #F8FAFC 75%, #EDF2F7 100%);"></div>
@@ -69,25 +93,11 @@ if (typeof QRCode === 'undefined') {
                     <img 
                         src="../../assets/images/building-bg.jpg" 
                         onerror="this.src='../assets/images/building-bg.jpg'; this.onerror=null;" 
-                        style="position: absolute; right: 0; bottom: 0; width: 65%; height: 85%; object-fit: contain; opacity: 0.45; mix-blend-mode: multiply; filter: contrast(1.3) grayscale(20%); pointer-events: none; z-index: 1;" 
+                        style="position: absolute; right: 0; bottom: 0; width: 65%; height: 85%; object-fit: contain; opacity: 0.35; mix-blend-mode: multiply; filter: contrast(1.3) grayscale(20%); pointer-events: none; z-index: 1;" 
                         alt="Civic Building Watermark" 
                     />
 
-                    <!-- Guilloche Security Pattern SVG Watermark (Ultra Subtle) -->
-                    <div class="absolute inset-0 pointer-events-none opacity-[0.035] overflow-hidden z-0">
-                        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                            <defs>
-                                <pattern id="pvcGuilloche" width="36" height="36" patternUnits="userSpaceOnUse">
-                                    <path d="M 0,18 Q 9,0 18,18 T 36,18" fill="none" stroke="#0F4C81" stroke-width="0.8" />
-                                    <path d="M 0,18 Q 9,36 18,18 T 36,18" fill="none" stroke="#DC2626" stroke-width="0.6" />
-                                    <circle cx="18" cy="18" r="12" fill="none" stroke="#0F4C81" stroke-width="0.5" />
-                                </pattern>
-                            </defs>
-                            <rect width="100%" height="100%" fill="url(#pvcGuilloche)" />
-                        </svg>
-                    </div>
-
-                    <!-- Wavy Header Ribbon Extended All The Way to the Right (100% Width) -->
+                    <!-- Wavy Header Ribbon (100% Width Vector Ribbon with Gold Under-stripe) -->
                     <svg class="absolute top-0 left-0 w-full h-[84px] pointer-events-none z-0" viewBox="0 0 500 84" preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="headerWaveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -102,37 +112,31 @@ if (typeof QRCode === 'undefined') {
                           <stop offset="100%" stop-color="#D97706" />
                         </linearGradient>
                       </defs>
-                      <!-- Red Wave dipping down to 78px on left, 62px on right -->
                       <path d="M 0,0 L 500,0 L 500,62 Q 370,72 250,66 T 0,80 Z" fill="url(#headerWaveGrad)" />
-                      <!-- Gold Accent Wave border directly below -->
                       <path d="M 0,80 Q 130,66 250,66 T 500,62 L 500,66 Q 370,76 250,70 T 0,84 Z" fill="url(#goldWaveStripe)" />
                     </svg>
 
-                    <!-- CARD CONTENT CONTAINER -->
+                    <!-- CARD FRONT CONTENT CONTAINER -->
                     <div class="relative z-10 p-3.5 sm:p-4 flex flex-col justify-between h-full" style="height: 100%;">
                         
                         <!-- TOP HEADER BLOCK -->
-                        <div class="relative mb-2">
-                            <!-- Top Center Line: REPUBLIC OF THE PHILIPPINES -->
+                        <div class="relative mb-1.5">
                             <div class="text-center w-full">
                                 <span class="text-[7.5px] font-bold uppercase tracking-[2px] text-[#FEE2E2] drop-shadow-xs">
                                     Republic of the Philippines
                                 </span>
                             </div>
 
-                            <!-- Brand Row with Logo & Centered Brand Title -->
-                            <div class="flex items-center mt-1 pr-10">
-                                <!-- Left Emblem Over Dynamic Vector Ribbon with Gold Metallic Ring -->
+                            <div class="flex items-center mt-0.5 pr-8">
                                 <div class="w-10 h-10 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 border-[1.5px] border-amber-400 ml-1">
                                     <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-full h-full object-contain" alt="Civentral Seal" />
                                 </div>
 
-                                <!-- Centered Brand Title & Tagline -->
                                 <div class="flex-1 flex flex-col items-center justify-center text-center">
-                                    <h3 class="text-[15px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
+                                    <h3 id="cardModalHeaderTitle" class="text-[14px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
                                         Civentral Citizen Card
                                     </h3>
-                                    <p class="text-[7.5px] font-bold text-[#FDE047] uppercase tracking-[1px] leading-tight mt-0.5 drop-shadow-xs">
+                                    <p id="cardModalHeaderSubtitle" class="text-[7.5px] font-bold text-[#FDE047] uppercase tracking-[1px] leading-tight mt-0.5 drop-shadow-xs">
                                         Kasama Ka Sa Pag-Unlad &bull; City of Caloocan
                                     </p>
                                 </div>
@@ -140,12 +144,12 @@ if (typeof QRCode === 'undefined') {
                         </div>
 
                         <!-- THREE-COLUMN CARD BODY -->
-                        <div class="grid grid-cols-12 gap-3 items-start flex-1">
+                        <div class="grid grid-cols-12 gap-2.5 items-start flex-1">
                             
-                            <!-- COLUMN 1: Left - Photo, Signature, Resident Type (3 cols) on clean pure white base (z-20 in front of wave) -->
+                            <!-- COLUMN 1: Photo, Signature, Classification (3 cols) -->
                             <div class="col-span-3 flex flex-col items-center justify-between h-full relative z-20">
                                 <div class="flex flex-col items-center">
-                                    <!-- 1x1 Photo Frame: Square photo, clean 1px neutral slate border, rounded 4px, sits in front of wave -->
+                                    <!-- 1x1 Photo Frame -->
                                     <div class="w-[82px] h-[82px] rounded-[4px] border border-[#CBD5E1] bg-slate-50 shadow-sm overflow-hidden flex items-center justify-center p-0.5 relative z-20">
                                         <img 
                                             id="cardModalPhoto" 
@@ -156,7 +160,7 @@ if (typeof QRCode === 'undefined') {
                                         />
                                     </div>
 
-                                    <!-- Signature Box directly below photo, sits in front of wave -->
+                                    <!-- Signature Box -->
                                     <div class="w-[82px] h-7 mt-1 bg-white border-b border-dashed border-slate-400 shadow-xs flex items-center justify-center px-1 overflow-hidden relative z-20">
                                         <img 
                                             id="cardModalSignature" 
@@ -167,104 +171,121 @@ if (typeof QRCode === 'undefined') {
                                         />
                                         <span id="cardModalSigPlaceholder" class="text-[7.5px] text-slate-400 italic hidden">Digital Signature</span>
                                     </div>
-                                    <span class="text-[7px] font-semibold text-[#64748B] uppercase tracking-wider mt-0.5">Cardholder Signature</span>
+                                    <span class="text-[6.5px] font-semibold text-[#64748B] uppercase tracking-wider mt-0.5">Cardholder Signature</span>
 
-                                    <!-- Dynamic Resident Status Classification on clean white base -->
-                                    <span id="cardModalClassification" class="text-[9.5px] font-black text-[#0F172A] uppercase tracking-wider mt-1 text-center transition-colors">
-                                        RESIDENT
-                                    </span>
+                                    <!-- Classification Pill Badge -->
+                                    <div id="cardModalClassificationBadge" class="mt-1 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200">
+                                        <span id="cardModalClassification" class="text-[8.5px] font-black text-[#0F172A] uppercase tracking-wider block text-center">
+                                            OFFICIAL RESIDENT
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <!-- Issuance Timestamp at bottom-left corner -->
-                                <div class="w-full text-left mt-auto pt-1">
-                                    <span id="cardModalTimestamp" class="text-[6.5px] font-mono text-slate-500 block leading-tight">
-                                        2026/10/04 06:04:00 PM
+                                <!-- Timestamp -->
+                                <div class="w-full text-left mt-auto pt-0.5">
+                                    <span id="cardModalTimestamp" class="text-[6px] font-mono text-slate-500 block leading-tight">
+                                        2026/10/10 06:00:00 AM
                                     </span>
                                 </div>
                             </div>
 
-                            <!-- COLUMN 2: Center - Citizen Demographics (6 cols) -->
-                            <div class="col-span-6 flex flex-col justify-between h-full space-y-1.5 pl-0.5 relative z-10">
+                            <!-- COLUMN 2: Center - Demographics & Address (6 cols) -->
+                            <div class="col-span-6 flex flex-col justify-between h-full space-y-1 pl-0.5 relative z-10">
                                 <div>
-                                    <!-- Full Name Block -->
+                                    <!-- ID / Control Number Row -->
                                     <div>
-                                        <span class="text-[7px] font-bold uppercase tracking-wider text-[#334155] block">
-                                            Last Name, First Name, M.I.
+                                        <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
+                                            ID / Control Number
                                         </span>
-                                        <h4 id="cardModalName" class="text-[13.5px] font-black text-[#0F172A] uppercase tracking-wide leading-tight truncate">
-                                            BASCO, MAE
+                                        <span id="cardModalControlNum" class="text-[11px] font-mono font-black text-[#0F4C81] block leading-tight tracking-wider">
+                                            CAL-2026-000035
+                                        </span>
+                                    </div>
+
+                                    <!-- Full Name Block -->
+                                    <div class="mt-1">
+                                        <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
+                                            Name (Last Name, First Name, M.I.)
+                                        </span>
+                                        <h4 id="cardModalName" class="text-[13px] font-black text-[#0F172A] uppercase tracking-wide leading-tight truncate">
+                                            ESPELITA, DANNY JR.
                                         </h4>
                                     </div>
 
-                                    <!-- Demographics Grid (3 Columns x 2 Rows) -->
-                                    <div class="grid grid-cols-3 gap-x-2 gap-y-1.5 pt-2 border-t border-slate-200 mt-1">
-                                        <!-- Row 1 -->
+                                    <!-- Demographics Grid (2 Rows x 3 Columns) -->
+                                    <div class="grid grid-cols-3 gap-x-2 gap-y-1 pt-1.5 border-t border-slate-200 mt-1">
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Sex</span>
+                                            <span class="text-[6.5px] font-bold uppercase text-[#64748B] block">Sex</span>
                                             <span id="cardModalSex" class="text-[8.5px] font-black text-[#0F172A] block uppercase">M</span>
                                         </div>
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Date of Birth</span>
+                                            <span class="text-[6.5px] font-bold uppercase text-[#64748B] block">Date of Birth</span>
                                             <span id="cardModalDob" class="text-[8.5px] font-black text-[#0F172A] block font-mono">1998/05/15</span>
                                         </div>
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Civil Status</span>
+                                            <span class="text-[6.5px] font-bold uppercase text-[#64748B] block">Civil Status</span>
                                             <span id="cardModalCivil" class="text-[8.5px] font-black text-[#0F172A] block uppercase">SINGLE</span>
                                         </div>
 
-                                        <!-- Row 2 -->
+                                        <!-- Row 2 (Dynamic per Category) -->
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Blood Type</span>
-                                            <span id="cardModalBlood" class="text-[8.5px] font-black text-[#0F172A] block">N/A</span>
+                                            <span id="cardModalCol1Label" class="text-[6.5px] font-bold uppercase text-[#64748B] block">Blood Type</span>
+                                            <span id="cardModalCol1Value" class="text-[8.5px] font-black text-[#0F172A] block">N/A</span>
                                         </div>
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Date Issued</span>
-                                            <span id="cardModalIssued" class="text-[8.5px] font-black text-[#0F172A] block font-mono">2026/10/04</span>
+                                            <span id="cardModalCol2Label" class="text-[6.5px] font-bold uppercase text-[#64748B] block">Date Issued</span>
+                                            <span id="cardModalCol2Value" class="text-[8.5px] font-black text-[#0F172A] block font-mono">2026/10/10</span>
                                         </div>
                                         <div>
-                                            <span class="text-[7px] font-bold uppercase text-[#334155] block">Valid Until</span>
-                                            <span id="cardModalExpiry" class="text-[8.5px] font-black text-[#0F172A] block font-mono">2031/10/04</span>
+                                            <span id="cardModalCol3Label" class="text-[6.5px] font-bold uppercase text-[#64748B] block">Valid Until</span>
+                                            <span id="cardModalCol3Value" class="text-[8.5px] font-black text-[#0F172A] block font-mono">2031/10/10</span>
                                         </div>
                                     </div>
 
-                                    <!-- Address Block (2 Lines uppercase) -->
-                                    <div class="pt-2 border-t border-slate-200 mt-1.5">
-                                        <span id="cardModalAddressStreet" class="text-[8.5px] font-black text-[#0F172A] uppercase tracking-tight block leading-tight truncate">
-                                            BLOCK 5 LOT 6, BARANGAY 3, DISTRICT 1
+                                    <!-- Registered Address Block (2 Lines uppercase) -->
+                                    <div class="pt-1.5 border-t border-slate-200 mt-1">
+                                        <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
+                                            Registered Address
                                         </span>
-                                        <span id="cardModalAddressCity" class="text-[8.5px] font-black text-[#0F172A] uppercase tracking-tight block leading-tight">
-                                            CALOOCAN CITY
+                                        <span id="cardModalAddressStreet" class="text-[8px] font-black text-[#0F172A] uppercase tracking-tight block leading-tight truncate">
+                                            121 SAMPAGUITA ST., BARANGAY 171
+                                        </span>
+                                        <span id="cardModalAddressCity" class="text-[8px] font-black text-[#0F172A] uppercase tracking-tight block leading-tight">
+                                            DISTRICT 2, CALOOCAN CITY
                                         </span>
                                     </div>
                                 </div>
 
-                                <!-- Emergency Contact at very bottom center -->
+                                <!-- Emergency Contact Inline Footer -->
                                 <div class="pt-1 border-t border-slate-200 mt-auto">
-                                    <span class="text-[7px] text-[#334155] block leading-tight">
-                                        <strong class="font-bold text-[#334155]">Emergency Contact:</strong> <span id="cardModalEmergency" class="font-bold text-[#0F172A]">Juan Basco (0917-123-4567)</span>
+                                    <span class="text-[6.5px] text-[#64748B] block leading-tight">
+                                        <strong class="font-bold text-[#475569]">Emergency Contact:</strong> 
+                                        <span id="cardModalEmergency" class="font-bold text-[#0F172A]">Juan Basco (0917-123-4567)</span>
                                     </span>
                                 </div>
                             </div>
 
-                            <!-- COLUMN 3: Right - QR & Control String (3 cols, z-20 in front of wave) -->
-                            <div class="col-span-3 flex flex-col items-end justify-between h-full self-stretch pl-1 relative z-20">
-                                <div class="flex flex-col items-center w-full relative z-20">
-                                    <!-- High-density square QR code matrix with zero padding/margins, sits crisp in front of wave -->
-                                    <div class="w-[82px] h-[82px] bg-white border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden relative z-20">
+                            <!-- COLUMN 3: Right - QR, Barcode, Verified Stamp (3 cols) -->
+                            <div class="col-span-3 flex flex-col items-center justify-between h-full pl-0.5 relative z-20">
+                                <div class="flex flex-col items-center w-full">
+                                    <div class="w-[78px] h-[78px] bg-white border border-slate-200 rounded-[3px] shadow-sm flex items-center justify-center overflow-hidden p-0.5 relative z-20">
                                         <div id="cardModalQrBox" class="w-full h-full flex items-center justify-center p-0 m-0">
                                             <img id="cardModalQr" src="" class="w-full h-full object-contain" alt="QR Matrix" />
                                         </div>
                                     </div>
 
-                                    <!-- Monospace Numeric Sequence Directly Below QR -->
-                                    <span id="cardModalBarcodeNum" class="text-[8px] font-mono font-bold text-slate-700 tracking-wider mt-1 block text-center">
-                                        01002026000004
+                                    <span id="cardModalBarcodeNum" class="text-[7.5px] font-mono font-bold text-slate-800 tracking-wider mt-1 block text-center">
+                                        01002026000035
                                     </span>
+
+                                    <div class="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200">
+                                        <i class="fa-solid fa-circle-check text-emerald-600 text-[8px]"></i>
+                                        <span class="text-[7.5px] font-black tracking-wider text-emerald-700 uppercase">VERIFIED</span>
+                                    </div>
                                 </div>
 
-                                <!-- Security Micro-Code at bottom-right corner -->
-                                <div class="w-full text-right mt-auto pt-1">
-                                    <span class="text-[8px] font-mono font-bold text-slate-700 block leading-tight">00</span>
+                                <div class="w-full text-right mt-auto pt-0.5">
+                                    <span class="text-[7.5px] font-mono font-bold text-slate-600 block leading-tight">00</span>
                                 </div>
                             </div>
 
@@ -279,8 +300,10 @@ if (typeof QRCode === 'undefined') {
                     - - - - - - - - - - - - - - - - - - - - - CUT HERE / FOLD LINE - - - - - - - - - - - - - - - - - - - - -
                 </div>
 
-                <!-- THE OFFICIAL WHITE PVC CITIZEN SMART CARD - BACK SIDE (PRINT ONLY) -->
-                <div id="printableCardBack" class="printable-card-side hidden w-full max-w-[530px] rounded-2xl shadow-xl border border-slate-300 relative overflow-hidden select-none bg-white text-slate-900" style="aspect-ratio: 85.6/53.98; min-height: 335px;">
+                <!-- ========================================================= -->
+                <!-- BACK SIDE: EMERGENCY & CITY DIRECTORY (CR80)              -->
+                <!-- ========================================================= -->
+                <div id="printableCardBack" onclick="toggleCardSide()" class="printable-card-side hidden w-full max-w-[530px] rounded-2xl shadow-xl border border-slate-300 relative overflow-hidden select-none bg-white text-slate-900 transition-all cursor-pointer hover:shadow-2xl" style="aspect-ratio: 85.6/53.98; min-height: 335px;">
                     
                     <!-- Subtle Right Diagonal Wave Gradient -->
                     <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(125deg, #FFFFFF 0%, #FFFFFF 52%, #F8FAFC 75%, #EDF2F7 100%);"></div>
@@ -289,78 +312,138 @@ if (typeof QRCode === 'undefined') {
                     <img 
                         src="../../assets/images/building-bg.jpg" 
                         onerror="this.src='../assets/images/building-bg.jpg'; this.onerror=null;" 
-                        style="position: absolute; right: 0; bottom: 0; width: 65%; height: 85%; object-fit: contain; opacity: 0.25; mix-blend-mode: multiply; filter: contrast(1.2) grayscale(40%); pointer-events: none; z-index: 1;" 
+                        style="position: absolute; right: 0; bottom: 0; width: 65%; height: 85%; object-fit: contain; opacity: 0.15; mix-blend-mode: multiply; filter: contrast(1.2) grayscale(40%); pointer-events: none; z-index: 1;" 
                         alt="Civic Building Watermark" 
                     />
 
-                    <!-- Card Back Content -->
-                    <div class="relative z-10 p-4 sm:p-5 flex flex-col justify-between h-full" style="height: 100%;">
+                    <!-- BACK SIDE HEADER RIBBON (Dark Slate with Gold Bottom Border) -->
+                    <div class="bg-slate-900 text-white px-4 py-2 text-center border-b-2 border-amber-500 relative z-10 shadow-xs">
+                        <h4 class="text-[8.5px] font-black uppercase tracking-wider text-white">
+                            CITY GOVERNMENT OF CALOOCAN &bull; EMERGENCY &amp; RESIDENT RECORD
+                        </h4>
+                        <p class="text-[6.5px] font-bold text-slate-400 uppercase tracking-wide mt-0.5">
+                            Official Municipal Smart Credential &bull; Kasama Ka Sa Pag-Unlad
+                        </p>
+                    </div>
+
+                    <!-- BACK CARD INNER BODY -->
+                    <div class="relative z-10 p-3 sm:p-3.5 flex flex-col justify-between h-[calc(100%-42px)] space-y-1.5" style="height: calc(100% - 42px);">
                         
-                        <!-- Top Accent Line -->
-                        <div class="w-full h-1 bg-gradient-to-r from-red-800 via-amber-400 to-red-800 mb-2 rounded-full"></div>
-
-                        <!-- 3-Column Grid -->
-                        <div class="grid grid-cols-12 gap-3 items-stretch flex-1">
+                        <!-- SECTION 1: IN CASE OF EMERGENCY CARD -->
+                        <div class="bg-rose-50/90 border border-rose-200 rounded-xl p-2 space-y-1">
+                            <div class="flex items-center justify-between border-b border-rose-200/60 pb-1">
+                                <div class="flex items-center gap-1.5 text-rose-700 font-extrabold text-[8px] uppercase tracking-wider">
+                                    <i class="fa-solid fa-phone text-rose-600 text-[8px]"></i>
+                                    <span>IN CASE OF EMERGENCY / ACCIDENT NOTIFY:</span>
+                                </div>
+                                <span class="px-1.5 py-0.2 rounded text-[7px] font-black bg-rose-600 text-white uppercase tracking-wider">
+                                    PRIORITY DISPATCH
+                                </span>
+                            </div>
                             
-                            <!-- Left Column: General Terms and Conditions (5 cols) -->
-                            <div class="col-span-5 flex flex-col justify-between pr-1 border-r border-slate-200">
+                            <div class="flex items-center justify-between text-xs pt-0.5">
                                 <div>
-                                    <h5 class="text-[8px] font-black uppercase tracking-wider text-slate-800 mb-1">
-                                        GENERAL TERMS AND CONDITIONS
+                                    <h5 id="cardModalBackEmgName" class="text-[9.5px] font-black text-slate-900 uppercase leading-tight">
+                                        JUAN BASCO
                                     </h5>
-                                    <p class="text-[6.5px] leading-tight text-slate-600 text-justify">
-                                        By signing or using this card, the cardholder agrees to be bound by the Civentral Citizen Card Terms and Conditions. Please present this card when availing of municipal services or authorized partner privileges in Caloocan City. Tampering invalidates this card. A card is deemed tampered when there are alterations or erasures apparent on the card itself. If found, please return to the City Civil Registry Office, Caloocan City Hall.
-                                    </p>
-                                </div>
-                                <p class="text-[7.5px] font-bold text-slate-900 uppercase tracking-tight mt-auto pt-1">
-                                    This card is Non-Transferable.
-                                </p>
-                            </div>
-
-                            <!-- Middle Column: Issuing Authority & Hologram Watermark (4 cols) -->
-                            <div class="col-span-4 flex flex-col items-center justify-between text-center px-1 border-r border-slate-200">
-                                <!-- Subtle security emblem / hologram watermark -->
-                                <div class="w-12 h-12 rounded-full border border-amber-400/50 bg-amber-50/40 p-1 flex items-center justify-center shadow-xs">
-                                    <div class="w-full h-full rounded-full border border-dashed border-amber-500/60 flex items-center justify-center">
-                                        <i class="fa-solid fa-certificate text-amber-500 text-base"></i>
-                                    </div>
-                                </div>
-
-                                <div class="mt-auto w-full pt-1">
-                                    <span class="text-[6px] uppercase tracking-wider text-slate-500 block leading-tight">Issuing Authority</span>
-                                    <div class="w-3/4 border-b border-slate-400 mx-auto my-0.5"></div>
-                                    <strong class="text-[7.5px] font-black uppercase text-slate-900 block leading-tight">(SGD) DALE GONZALO R. MALAPITAN</strong>
-                                    <span class="text-[6.5px] font-bold uppercase text-slate-700 block leading-tight">City Mayor</span>
-                                    <span class="text-[5.5px] font-semibold uppercase text-slate-500 block leading-tight mt-0.5">CITY GOVERNMENT OF CALOOCAN</span>
-                                </div>
-                            </div>
-
-                            <!-- Right Column: Logo, Subtext, Barcode / Control String (3 cols) -->
-                            <div class="col-span-3 flex flex-col items-center justify-between text-center pl-1">
-                                <div class="flex flex-col items-center">
-                                    <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-10 h-10 object-contain drop-shadow-xs" alt="Civentral Logo" />
-                                    <span class="text-[6px] font-bold text-slate-700 uppercase tracking-tight mt-1 leading-tight">
-                                        Valid Anywhere in the Philippines
+                                    <span id="cardModalBackEmgRelation" class="text-[7.5px] font-bold text-slate-600 block">
+                                        Relation: Immediate Family / Relative
                                     </span>
                                 </div>
-
-                                <div class="w-full mt-auto pt-1">
-                                    <div class="bg-slate-100 border border-slate-300 rounded px-1 py-0.5">
-                                        <span id="cardModalBackBarcode" class="text-[6.5px] font-mono font-bold tracking-widest text-slate-800 block">
-                                            01002026000004
-                                        </span>
-                                    </div>
-                                    <span id="cardModalBackControlNum" class="text-[5.5px] font-mono text-slate-500 block mt-0.5">
-                                        CAL-2026-000004
+                                <div class="text-right">
+                                    <span id="cardModalBackEmgPhone" class="text-[10px] font-mono font-black text-rose-700 block">
+                                        (02) 8366-3101
                                     </span>
+                                    <span class="text-[6.5px] text-slate-500 font-semibold">Primary Contact / Mobile</span>
                                 </div>
                             </div>
 
+                            <p class="text-[6.5px] text-slate-600 leading-tight italic pt-0.5 border-t border-rose-200/50">
+                                In the event of accident, medical emergency, or hospitalization, please notify the designated contact above immediately or call 888-ALERTO.
+                            </p>
+                        </div>
+
+                        <!-- SECTION 2: CALOOCAN 24/7 EMERGENCY & CIVIC DIRECTORY GRID -->
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[7px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                                    <i class="fa-solid fa-tower-broadcast text-rose-500 text-[8px]"></i>
+                                    <span>CALOOCAN 24/7 EMERGENCY &amp; CIVIC DIRECTORY</span>
+                                </span>
+                                <span class="text-[6.5px] font-bold text-slate-400">Toll-Free &amp; Landline</span>
+                            </div>
+
+                            <div class="grid grid-cols-5 gap-1.5 text-center">
+                                <!-- CDRRMO -->
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-1 space-y-0.5">
+                                    <span class="text-[6px] font-bold uppercase text-slate-500 block truncate">🚨 CDRRMO</span>
+                                    <strong class="text-[7.5px] font-mono font-black text-rose-600 block leading-tight">888-ALERTO</strong>
+                                    <span class="text-[5.5px] text-slate-400 block">8882-5378 &bull; 24/7</span>
+                                </div>
+
+                                <!-- POLICE (PNP) -->
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-1 space-y-0.5">
+                                    <span class="text-[6px] font-bold uppercase text-slate-500 block truncate">👮 POLICE (PNP)</span>
+                                    <strong class="text-[7.5px] font-mono font-black text-slate-800 block leading-tight">(02) 8287-2270</strong>
+                                    <span class="text-[5.5px] text-slate-400 block">Caloocan HQ</span>
+                                </div>
+
+                                <!-- FIRE (BFP) -->
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-1 space-y-0.5">
+                                    <span class="text-[6px] font-bold uppercase text-slate-500 block truncate">🚒 FIRE (BFP)</span>
+                                    <strong class="text-[7.5px] font-mono font-black text-slate-800 block leading-tight">(02) 8361-9878</strong>
+                                    <span class="text-[5.5px] text-slate-400 block">Central Station</span>
+                                </div>
+
+                                <!-- HOSPITAL (CCMC) -->
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-1 space-y-0.5">
+                                    <span class="text-[6px] font-bold uppercase text-slate-500 block truncate">🏥 CCMC HOSP</span>
+                                    <strong class="text-[7.5px] font-mono font-black text-slate-800 block leading-tight">(02) 8288-8888</strong>
+                                    <span class="text-[5.5px] text-slate-400 block">City Medical</span>
+                                </div>
+
+                                <!-- BUREAU SPECIFIC -->
+                                <div class="bg-slate-50 border border-slate-200 rounded-lg p-1 space-y-0.5">
+                                    <span id="cardModalBackHotlineLabel" class="text-[6px] font-bold uppercase text-slate-500 block truncate">🏛️ REGISTRY</span>
+                                    <strong id="cardModalBackHotlinePhone" class="text-[7.5px] font-mono font-black text-slate-800 block leading-tight">(02) 8366-3101</strong>
+                                    <span id="cardModalBackHotlineSub" class="text-[5.5px] text-slate-400 block">City Hall Desk</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SECTION 3: LEGAL TERMS & CONDITIONS -->
+                        <div class="bg-slate-50/70 border border-slate-200/80 rounded-lg p-1.5 text-[6px] leading-tight text-slate-600 space-y-0.5">
+                            <p>&bull; Non-transferable. Property of the City Government of Caloocan.</p>
+                            <p>&bull; Valid proof of residency across city public health, social services, and partner merchants.</p>
+                            <p>&bull; If found, please return to any Barangay Hall or Caloocan City Hall. Tampering is punishable by law (RPC 172).</p>
+                        </div>
+
+                        <!-- SECTION 4: BACK FOOTER (SERIAL + MAYOR SIGNATURE) -->
+                        <div class="pt-1 border-t border-slate-200 flex items-end justify-between">
+                            <div>
+                                <span class="text-[6.5px] font-mono font-bold text-slate-800 block">
+                                    SERIAL: <span id="cardModalBackBarcode">01002026000035</span>
+                                </span>
+                                <span class="text-[5.5px] font-mono text-slate-500 block">
+                                    TOKEN: <span id="cardModalBackControlNum">CAL-2026-000035</span>
+                                </span>
+                            </div>
+
+                            <div class="text-right">
+                                <div class="border-b border-slate-400 pb-0.5 mb-0.5 inline-block text-right">
+                                    <strong class="text-[7.5px] font-black uppercase text-slate-900 block leading-tight">
+                                        HON. DALE GONZALO &ldquo;ALONG&rdquo; MALAPITAN
+                                    </strong>
+                                </div>
+                                <span class="text-[6px] font-bold uppercase text-slate-600 block leading-tight">
+                                    City Mayor &bull; City of Caloocan
+                                </span>
+                            </div>
                         </div>
 
                     </div>
-
                 </div>
+
             </div>
 
             <!-- CIVIC DIRECTORY & EMERGENCY HOTLINES CARD -->
@@ -404,15 +487,19 @@ if (typeof QRCode === 'undefined') {
         <!-- Modal Footer Actions -->
         <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
             <span class="text-xs text-slate-500 font-medium">
-                Standard CR80 White PVC Card &bull; Caloocan Civil &amp; Barangay Registry
+                Standard CR80 PVC Dual-Sided Smart Card &bull; Caloocan Registry
             </span>
             <div class="flex items-center gap-2">
-                <button onclick="closeCitizenCardModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                <button type="button" onclick="toggleCardSide()" class="px-3.5 py-2 text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-xs">
+                    <i class="fa-solid fa-rotate text-xs"></i>
+                    <span id="footerFlipBtnText">Flip to Back Side</span>
+                </button>
+                <button type="button" onclick="closeCitizenCardModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
                     Close
                 </button>
-                <button onclick="printCitizenCard()" class="px-4 py-2 text-xs font-bold text-white bg-[#0F4C81] hover:bg-sky-800 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <button type="button" onclick="printCitizenCard()" class="px-4 py-2 text-xs font-bold text-white bg-[#0F4C81] hover:bg-sky-800 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
                     <i class="fa-solid fa-print text-xs"></i>
-                    <span>Print Card</span>
+                    <span>Print Card (Both Sides)</span>
                 </button>
             </div>
         </div>
@@ -423,7 +510,6 @@ if (typeof QRCode === 'undefined') {
 <!-- Print Stylesheet: Fits both Front and Back sides onto EXACTLY ONE PAGE -->
 <style>
 @media print {
-  /* Suppress browser margins, headers, and footers */
   @page {
     size: portrait;
     margin: 8mm;
@@ -437,12 +523,10 @@ if (typeof QRCode === 'undefined') {
     background: #ffffff !important;
   }
 
-  /* Hide entire dashboard, navigation, backdrop, and modal buttons */
   body * {
     visibility: hidden !important;
   }
 
-  /* Make only the print container visible */
   #printContainer,
   #printContainer * {
     visibility: visible !important;
@@ -462,8 +546,9 @@ if (typeof QRCode === 'undefined') {
     break-inside: avoid !important;
   }
 
-  /* Force exact CR80 physical card dimensions (scaled 1.25x for crisp readability) */
-  .printable-card-side {
+  /* Force both front and back sides to be visible when printing */
+  #printableCitizenCard,
+  #printableCardBack {
     display: block !important;
     width: 105mm !important;
     height: 66.2mm !important;
@@ -479,7 +564,6 @@ if (typeof QRCode === 'undefined') {
     print-color-adjust: exact !important;
   }
 
-  /* Ensure cutting line indicator sits between or around cards */
   .print-cut-guide {
     display: block !important;
     font-size: 8pt !important;
@@ -500,6 +584,56 @@ function setSafeElementText(id, text) {
 }
 
 /**
+ * Card Side Switcher
+ */
+let currentCardSide = 'front';
+
+function switchCardSide(side) {
+    currentCardSide = side;
+    const frontCard = document.getElementById('printableCitizenCard');
+    const backCard = document.getElementById('printableCardBack');
+    const tabFront = document.getElementById('tabCardFront');
+    const tabBack = document.getElementById('tabCardBack');
+    const promptText = document.getElementById('cardFlipPromptText');
+    const footerBtnText = document.getElementById('footerFlipBtnText');
+
+    if (side === 'front') {
+        if (frontCard) frontCard.classList.remove('hidden');
+        if (backCard) backCard.classList.add('hidden');
+        if (tabFront) {
+            tabFront.className = 'flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer bg-white text-[#0F4C81] shadow-xs';
+        }
+        if (tabBack) {
+            tabBack.className = 'flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900';
+        }
+        if (promptText) {
+            promptText.textContent = 'Viewing Front Side • Click card or tab to view Back Side';
+        }
+        if (footerBtnText) {
+            footerBtnText.textContent = 'Flip to Back Side';
+        }
+    } else {
+        if (frontCard) frontCard.classList.add('hidden');
+        if (backCard) backCard.classList.remove('hidden');
+        if (tabFront) {
+            tabFront.className = 'flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer text-slate-600 hover:text-slate-900';
+        }
+        if (tabBack) {
+            tabBack.className = 'flex-1 py-2 px-3 rounded-xl font-black text-xs transition flex items-center justify-center gap-2 cursor-pointer bg-white text-[#0F4C81] shadow-xs';
+        }
+        if (promptText) {
+            promptText.textContent = 'Viewing Back Side • Click card or tab to view Front Side';
+        }
+        if (footerBtnText) {
+            footerBtnText.textContent = 'Flip to Front Side';
+        }
+    }
+}
+
+function toggleCardSide() {
+    switchCardSide(currentCardSide === 'front' ? 'back' : 'front');
+}
+
 /**
  * Category Resolver Function
  * Maps the applicant's category using birth_date, is_pwd, and residency flags.
@@ -518,10 +652,14 @@ function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = fal
       accentColor: '#059669',
       badgeBg: '#DCFCE7',
       badgeText: '#15803D',
-      hotlineLabel: 'BARANGAY HALL',
+      col1Label: 'PRECINCT NO.',
+      col1Val: '0412-A',
+      col2Label: 'DATE ISSUED',
+      col3Label: 'VALID UNTIL',
+      validityYears: 1,
+      hotlineLabel: '🏛️ BARANGAY HALL',
       hotlinePhone: '(02) 8366-3101',
-      hotlineSub: 'Barangay Secretariat',
-      validityYears: 1
+      hotlineSub: 'Barangay Secretariat'
     };
   }
   if (cat.includes('pwd') || isPwd) {
@@ -535,10 +673,14 @@ function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = fal
       accentColor: '#1E40AF',
       badgeBg: '#DBEAFE',
       badgeText: '#1E40AF',
-      hotlineLabel: 'PDAO OFFICE',
+      col1Label: 'DISABILITY',
+      col1Val: 'ORTHOPEDIC',
+      col2Label: 'BLOOD TYPE',
+      col3Label: 'VALID UNTIL',
+      validityYears: 3,
+      hotlineLabel: '♿ PDAO OFFICE',
       hotlinePhone: '(02) 8366-4000',
-      hotlineSub: 'Caloocan PDAO Desk',
-      validityYears: 3
+      hotlineSub: 'Caloocan PDAO Desk'
     };
   }
   if (cat.includes('senior') || cat.includes('osca')) {
@@ -552,10 +694,15 @@ function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = fal
       accentColor: '#991B1B',
       badgeBg: '#FEF3C7',
       badgeText: '#92400E',
-      hotlineLabel: 'OSCA OFFICE',
+      col1Label: 'OSCA NO.',
+      col1Val: 'CAL-OSCA-0812',
+      col2Label: 'BLOOD TYPE',
+      col3Label: 'VALID UNTIL',
+      validityYears: 0,
+      lifetime: true,
+      hotlineLabel: '🎖️ OSCA OFFICE',
       hotlinePhone: '(02) 8366-2200',
-      hotlineSub: 'Caloocan OSCA Desk',
-      validityYears: 0
+      hotlineSub: 'Caloocan OSCA Desk'
     };
   }
   if (cat.includes('solo')) {
@@ -569,36 +716,34 @@ function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = fal
       accentColor: '#6B21A8',
       badgeBg: '#F3E8FF',
       badgeText: '#6B21A8',
-      hotlineLabel: 'CSWDO WELFARE',
+      col1Label: 'DEPENDENTS',
+      col1Val: '2 MINORS',
+      col2Label: 'DATE ISSUED',
+      col3Label: 'VALID UNTIL',
+      validityYears: 1,
+      hotlineLabel: '👨‍👧 CSWDO WELFARE',
       hotlinePhone: '(02) 8366-5000',
-      hotlineSub: 'Solo Parent Section',
-      validityYears: 1
+      hotlineSub: 'Solo Parent Section'
     };
   }
   if (isNonResident) {
     return {
       title: 'NON-RESIDENT',
+      cardTitle: 'CIVENTRAL NON-RESIDENT CARD',
+      cardSubtitle: 'MUNICIPAL VISITOR & BUSINESS CREDENTIAL • CITY OF CALOOCAN',
+      modalTitle: 'Non-Resident Credential',
       type: 'NON-RESIDENT',
       stops: ['#0F172A', '#334155', '#475569', '#64748B'],
       accentColor: '#475569',
       badgeBg: '#F1F5F9',
       badgeText: '#334155',
-      hex: '#475569',
-      lightHex: '#64748B',
-      darkHex: '#0F172A',
-    };
-  }
-  if (isPwd) {
-    return {
-      title: 'PWD',
-      type: 'PWD',
-      stops: ['#7C2D12', '#C2410C', '#EA580C', '#F97316'],
-      accentColor: '#EA580C',
-      badgeBg: '#FFF7ED',
-      badgeText: '#C2410C',
-      hex: '#EA580C',
-      lightHex: '#F97316',
-      darkHex: '#7C2D12',
+      col1Label: 'BLOOD TYPE',
+      col2Label: 'DATE ISSUED',
+      col3Label: 'VALID UNTIL',
+      validityYears: 1,
+      hotlineLabel: '🏛️ REGISTRY',
+      hotlinePhone: '(02) 8366-3101',
+      hotlineSub: 'City Hall Desk'
     };
   }
 
@@ -614,49 +759,49 @@ function resolveCitizenCategory(birthDateStr, isPwd = false, isNonResident = fal
   if (age >= 60) {
     return {
       title: 'SENIOR CITIZEN',
+      cardTitle: 'SENIOR CITIZEN IDENTIFICATION CARD',
+      cardSubtitle: 'REPUBLIC ACT NO. 9994 • OFFICE OF SENIOR CITIZENS AFFAIRS (OSCA)',
+      modalTitle: 'Civentral Senior Citizen Card',
       type: 'SENIOR CITIZEN',
       stops: ['#172554', '#1E3A8A', '#2563EB', '#1D4ED8'],
       accentColor: '#2563EB',
       badgeBg: '#EFF6FF',
       badgeText: '#1E40AF',
-      hex: '#2563EB',
-      lightHex: '#2563EB',
-      darkHex: '#172554',
-    };
-  }
-
-  if (age < 18) {
-    return {
-      title: 'MINOR / RESIDENT',
-      type: 'MINOR / RESIDENT',
-      stops: ['#881337', '#991B1B', '#DC2626', '#B91C1C'],
-      accentColor: '#DC2626',
-      badgeBg: '#FEF2F2',
-      badgeText: '#991B1B',
-      hex: '#DC2626',
-      lightHex: '#DC2626',
-      darkHex: '#881337',
+      col1Label: 'OSCA NO.',
+      col1Val: 'CAL-OSCA-0812',
+      col2Label: 'BLOOD TYPE',
+      col3Label: 'VALID UNTIL',
+      validityYears: 0,
+      lifetime: true,
+      hotlineLabel: '🎖️ OSCA OFFICE',
+      hotlinePhone: '(02) 8366-2200',
+      hotlineSub: 'Caloocan OSCA Desk'
     };
   }
 
   // General Adult Resident (18-59)
   return {
-    title: 'RESIDENT',
+    title: 'OFFICIAL RESIDENT',
+    cardTitle: 'CIVENTRAL CITIZEN CARD',
+    cardSubtitle: 'KASAMA KA SA PAG-UNLAD • CITY OF CALOOCAN',
+    modalTitle: 'Civentral Citizen Card',
     type: 'RESIDENT',
     stops: ['#881337', '#991B1B', '#DC2626', '#B91C1C'],
     accentColor: '#DC2626',
     badgeBg: '#FEF2F2',
     badgeText: '#991B1B',
-    hex: '#DC2626',
-    lightHex: '#DC2626',
-    darkHex: '#881337',
+    col1Label: 'BLOOD TYPE',
+    col2Label: 'DATE ISSUED',
+    col3Label: 'VALID UNTIL',
+    validityYears: 5,
+    hotlineLabel: '🏛️ REGISTRY',
+    hotlinePhone: '(02) 8366-3101',
+    hotlineSub: 'City Hall Desk'
   };
 }
 
-const getCitizenClassification = resolveCitizenCategory;
-
 /**
- * Fallback QR Code Renderer (Uses encoded SVG or image)
+ * Fallback QR Code Renderer (Uses encoded image)
  */
 function renderFallbackQr(container, payload) {
     if (!container) return;
@@ -670,16 +815,20 @@ function renderFallbackQr(container, payload) {
 
 /**
  * Global Citizen Card Modal Handler
- * Bulletproof, null-safe implementation matching the authentic municipal PVC card blueprint.
+ * Full Dual-Sided Implementation matching Mobile App & Authentic CR80 Blueprint.
  */
 function openCitizenCardModal(app) {
     if (!app) return;
 
+    // Default to front side on open
+    switchCardSide('front');
+
     // 0. Compute Dynamic Citizen Classification & Colors
     const category = resolveCitizenCategory(
-        app.birth_date,
+        app.birth_date || app.birthdate,
         !!(app.is_pwd || app.pwd),
-        !!(app.is_non_resident || app.non_resident)
+        !!(app.is_non_resident || app.non_resident),
+        app.id_category || app.category || app.id_title || ''
     );
 
     // Apply dynamic colors to vector header ribbon SVG gradients (stops 1-4)
@@ -693,14 +842,22 @@ function openCitizenCardModal(app) {
     if (stop3) stop3.setAttribute('stop-color', category.stops[2]);
     if (stop4) stop4.setAttribute('stop-color', category.stops[3]);
 
-    // Update Column 1 classification label
+    // Header Card Titles
+    setSafeElementText('cardModalHeaderTitle', category.cardTitle || 'CIVENTRAL CITIZEN CARD');
+    setSafeElementText('cardModalHeaderSubtitle', category.cardSubtitle || 'KASAMA KA SA PAG-UNLAD • CITY OF CALOOCAN');
+    setSafeElementText('cardModalTopTitle', category.modalTitle || 'Civentral Citizen Card');
+
+    // Classification labels and badges
     const classifLabel = document.getElementById('cardModalClassification');
-    if (classifLabel) {
-        classifLabel.textContent = category.title;
-        classifLabel.style.color = '#0F172A';
+    if (classifLabel) classifLabel.textContent = category.title;
+
+    const classifBadge = document.getElementById('cardModalClassificationBadge');
+    if (classifBadge) {
+        classifBadge.style.backgroundColor = category.badgeBg;
+        classifBadge.style.borderColor = category.accentColor + '40';
+        if (classifLabel) classifLabel.style.color = category.badgeText;
     }
 
-    // Update Modal Header Status Tag/Badge
     const catBadge = document.getElementById('cardModalCategoryBadge');
     if (catBadge) {
         catBadge.textContent = category.title;
@@ -719,47 +876,77 @@ function openCitizenCardModal(app) {
     setSafeElementText('cardModalName', formattedName || 'CITIZEN CARDHOLDER');
 
     // 2. Citizen Control ID Number & Monospace Numeric Sequence
-    const idNumber = app.citizen_id_number || app.id || 'CAL-2026-000004';
-    const numericSeed = idNumber.replace(/\D/g, '') || '000004';
-    setSafeElementText('cardModalBarcodeNum', '0100' + numericSeed.padStart(10, '0'));
-    setSafeElementText('cardModalBackBarcode', '0100' + numericSeed.padStart(10, '0'));
+    const idNumber = app.citizen_id_number || app.reference_no || app.id || 'CAL-2026-000035';
+    const numericSeed = idNumber.replace(/\D/g, '') || '000035';
+    const barcodeSequence = '0100' + numericSeed.padStart(10, '0');
+
+    setSafeElementText('cardModalControlNum', idNumber);
+    setSafeElementText('cardModalBarcodeNum', barcodeSequence);
+    setSafeElementText('cardModalBackBarcode', barcodeSequence);
     setSafeElementText('cardModalBackControlNum', idNumber);
 
     // 3. Demographic Information
-    setSafeElementText('cardModalDob', app.birth_date ? formatDateDisplay(app.birth_date) : '1998/05/15');
+    const rawDob = app.birth_date || app.birthdate;
+    setSafeElementText('cardModalDob', rawDob ? formatDateDisplay(rawDob) : '1998/05/15');
     
-    const sex = (app.sex || 'Male').toUpperCase();
+    const sex = (app.gender || app.sex || 'Male').toUpperCase();
     setSafeElementText('cardModalSex', sex.startsWith('F') ? 'F' : 'M');
     
     const civil = (app.civil_status || 'Single').toUpperCase();
     setSafeElementText('cardModalCivil', civil);
-    setSafeElementText('cardModalBlood', 'N/A');
 
-    const issuedDate = app.issued_date || app.reviewed_at || app.updated || app.date || '2026/10/04';
-    setSafeElementText('cardModalIssued', formatDateDisplay(issuedDate));
-    
-    const expiryDate = app.valid_until || (function() {
-        const d = new Date();
-        d.setFullYear(d.getFullYear() + 5);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}/${mm}/${dd}`;
-    })();
-    setSafeElementText('cardModalExpiry', expiryDate);
+    // Row 2 Dynamic Demographics Columns
+    const issuedDate = app.issued_date || app.reviewed_at || app.created_at || '2026/10/10';
+    const formattedIssued = formatDateDisplay(issuedDate);
+
+    let expiryDate = app.valid_until;
+    if (!expiryDate) {
+        if (category.lifetime) {
+            expiryDate = 'LIFETIME VALIDITY';
+        } else {
+            const d = new Date(issuedDate);
+            const addYears = category.validityYears || 5;
+            d.setFullYear(d.getFullYear() + addYears);
+            expiryDate = formatDateDisplay(d.toISOString().slice(0, 10));
+        }
+    } else {
+        expiryDate = formatDateDisplay(expiryDate);
+    }
+
+    setSafeElementText('cardModalCol1Label', category.col1Label || 'BLOOD TYPE');
+    setSafeElementText('cardModalCol1Value', category.col1Val || (app.blood_type || 'N/A').toUpperCase());
+
+    setSafeElementText('cardModalCol2Label', category.col2Label || 'DATE ISSUED');
+    setSafeElementText('cardModalCol2Value', formattedIssued);
+
+    setSafeElementText('cardModalCol3Label', category.col3Label || 'VALID UNTIL');
+    setSafeElementText('cardModalCol3Value', expiryDate);
 
     // 4. Address Details (2 lines uppercase)
-    const streetParts = [];
-    if (app.street_address) streetParts.push(app.street_address.toUpperCase());
-    if (app.barangay) streetParts.push((app.barangay.startsWith('Barangay') ? app.barangay : `BARANGAY ${app.barangay}`).toUpperCase());
-    if (app.district) streetParts.push(app.district.toUpperCase());
-    setSafeElementText('cardModalAddressStreet', streetParts.join(', ') || 'BLOCK 5 LOT 6, BARANGAY 3, DISTRICT 1');
-    setSafeElementText('cardModalAddressCity', 'CALOOCAN CITY');
+    const street = (app.street_address || '').toUpperCase().trim();
+    const brgyRaw = (app.barangay || 'BARANGAY 171').toUpperCase().trim();
+    const brgy = brgyRaw.startsWith('BARANGAY') ? brgyRaw : `BARANGAY ${brgyRaw}`;
+    const district = (app.district || 'DISTRICT 2').toUpperCase().trim();
 
-    // 5. Emergency Contact
-    setSafeElementText('cardModalEmergency', app.emergency_contact || '(02) 8366-3101');
+    setSafeElementText('cardModalAddressStreet', street ? `${street}, ${brgy}` : brgy);
+    setSafeElementText('cardModalAddressCity', `${district}, CALOOCAN CITY`);
 
-    // 6. Timestamp at bottom-left corner
+    // 5. Emergency Contact Details
+    const emergencyName = (app.emergency_contact_name || app.emergency_contact || 'NEXT OF KIN / FAMILY MEMBER').toUpperCase().trim();
+    const emergencyPhone = (app.emergency_contact_phone || app.contact_number || '(02) 8366-3101').trim();
+    const emergencyRelation = (app.emergency_contact_relation || 'Immediate Family / Relative').trim();
+
+    setSafeElementText('cardModalEmergency', `${emergencyName} (${emergencyPhone})`);
+    setSafeElementText('cardModalBackEmgName', emergencyName);
+    setSafeElementText('cardModalBackEmgRelation', `Relation: ${emergencyRelation}`);
+    setSafeElementText('cardModalBackEmgPhone', emergencyPhone);
+
+    // 6. Back Side Hotlines
+    setSafeElementText('cardModalBackHotlineLabel', category.hotlineLabel || '🏛️ REGISTRY');
+    setSafeElementText('cardModalBackHotlinePhone', category.hotlinePhone || '(02) 8366-3101');
+    setSafeElementText('cardModalBackHotlineSub', category.hotlineSub || 'City Hall Desk');
+
+    // 7. Timestamp at bottom-left corner
     const now = new Date();
     const tsY = now.getFullYear();
     const tsM = String(now.getMonth() + 1).padStart(2, '0');
@@ -767,14 +954,14 @@ function openCitizenCardModal(app) {
     const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setSafeElementText('cardModalTimestamp', `${tsY}/${tsM}/${tsD} ${timeStr}`);
 
-    // 7. Assets: 1x1 Photo (Null-Safe)
+    // 8. Assets: 1x1 Photo
     const photoImg = document.getElementById('cardModalPhoto');
     if (photoImg) {
-        const photoSrc = resolveCardAssetUrl(app.photo_1x1_url || app.selfie_photo_url || app.avatar);
+        const photoSrc = resolveCardAssetUrl(app.photo_1x1_url || app.photo_2x2_url || app.photo_url || app.selfie_photo_url || app.avatar);
         photoImg.src = photoSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(formattedName)}&background=0F4C81&color=fff&size=200`;
     }
 
-    // 8. Assets: Cardholder Digital Signature (Null-Safe)
+    // 9. Assets: Cardholder Digital Signature
     const sigImg = document.getElementById('cardModalSignature');
     const sigPlaceholder = document.getElementById('cardModalSigPlaceholder');
     const sigSrc = resolveCardAssetUrl(app.signature_photo_url || app.signature_url);
@@ -802,8 +989,8 @@ function openCitizenCardModal(app) {
         }
     }
 
-    // 9. Assets: Scannable Vector QR Code Matrix (Local / Standalone)
-    const qrPayload = `CIVENTRAL:ID:${idNumber}|TOKEN:${app.qr_code_token || ''}`;
+    // 10. Assets: Scannable Vector QR Code Matrix
+    const qrPayload = `CIVENTRAL:ID:${idNumber}|TOKEN:${app.qr_code_token || barcodeSequence}`;
 
     const qrContainer = document.getElementById('cardModalQrBox');
     if (qrContainer) {
@@ -812,8 +999,8 @@ function openCitizenCardModal(app) {
             try {
                 new QRCode(qrContainer, {
                     text: qrPayload,
-                    width: 78,
-                    height: 78,
+                    width: 74,
+                    height: 74,
                     colorDark: '#0F172A',
                     colorLight: '#FFFFFF',
                     correctLevel: QRCode.CorrectLevel.M
@@ -827,7 +1014,7 @@ function openCitizenCardModal(app) {
         }
     }
 
-    // 10. Display Modal
+    // 11. Display Modal
     const modal = document.getElementById('citizenCardModal');
     if (modal) {
         modal.classList.remove('hidden');

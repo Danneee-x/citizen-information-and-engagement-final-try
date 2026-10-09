@@ -1077,14 +1077,22 @@ function selectPendingApplication(rowElement) {
         if (!url || typeof url !== 'string') return null;
         url = url.trim();
         if (!url || url.startsWith('blob:')) return null;
+
         if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
+            if (url.includes('/uploads/verifications/')) {
+                return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+            }
             return url;
         }
+
         const cleanPath = url.replace(/^\/+/, '');
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         if (isLocal) {
             if (cleanPath.startsWith('assets/')) return '../../' + cleanPath;
-            if (cleanPath.startsWith('uploads/')) return '../../' + cleanPath;
+            if (cleanPath.startsWith('uploads/')) return '../../assets/' + cleanPath;
+        }
+        if (cleanPath.startsWith('uploads/')) {
+            return API_BASE_URL + '/assets/' + cleanPath;
         }
         return API_BASE_URL + '/' + cleanPath;
     }

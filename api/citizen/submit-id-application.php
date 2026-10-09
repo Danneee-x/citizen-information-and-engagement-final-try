@@ -11,6 +11,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../../config/database.php';
 
+// Helper to save base64 uploaded ID photos and documents to disk
+if (!function_exists('saveIdBase64Image')) {
+    function saveIdBase64Image($dataUrl, $prefix = 'id_doc') {
+        if (empty($dataUrl)) return null;
+        $dataUrl = trim($dataUrl);
+
+        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+
+        if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
+            return $dataUrl;
+        }
+
+        if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0) {
+            $clean = ltrim($dataUrl, '/');
+            if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
+            return $baseUrl . '/' . $clean;
+        }
+
+        $ext = 'jpg';
+        $data = null;
+
+        if (preg_match('/^data:image\/(\w+);base64,/', $dataUrl, $type)) {
+            $data = substr($dataUrl, strpos($dataUrl, ',') + 1);
+            $ext = strtolower($type[1]);
+            if ($ext === 'jpeg') $ext = 'jpg';
+        } elseif (strlen($dataUrl) > 100 && preg_match('/^[a-zA-Z0-9\/+=\s]+$/', $dataUrl)) {
+            $data = $dataUrl;
+        }
+
+        if ($data !== null) {
+            $decoded = base64_decode(trim($data));
+            if ($decoded !== false && strlen($decoded) > 0) {
+                $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
+
+                $targetDirs = [
+                    '/var/www/html/assets/uploads/ids/',
+                    __DIR__ . '/../../assets/uploads/ids/',
+                    'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/ids/'
+                ];
+
+                foreach ($targetDirs as $dir) {
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0775, true);
+                        @chmod($dir, 0775);
+                    }
+                    if (is_dir($dir)) {
+                        @file_put_contents($dir . $filename, $decoded);
+                    }
+                }
+
+                return $baseUrl . '/assets/uploads/ids/' . $filename;
+            }
+        }
+
+        return $dataUrl;
+    }
+}
+
+
 try {
     $pdo = getCertificateDbConnection();
 } catch (Exception $e) {
@@ -234,6 +293,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $eSignatureName = trim($data['e_signature_name'] ?? '');
         $signatureMode = trim($data['signature_mode'] ?? 'upload');
 
+        
+        $photo2x2Saved   = saveIdBase64Image($data['photo_2x2_url'] ?? '', 'id_photo_2x2');
+        $primaryDocSaved = saveIdBase64Image($data['primary_doc_url'] ?? '', 'id_primary_doc');
+        $supportDocSaved = saveIdBase64Image($data['support_doc_url'] ?? '', 'id_support_doc');
+        $signatureSaved  = saveIdBase64Image($signatureUrl, 'id_signature');
+
         $stmt = $pdo->prepare("
             INSERT INTO `id_issuance_applications` 
             (`reference_no`, `citizen_user_id`, `id_category`, `id_title`, `application_type`, `first_name`, `middle_name`, `last_name`, `suffix`, `gender`, `birthdate`, `civil_status`, `contact_number`, `email`, `street_address`, `barangay`, `district`, `resident_since`, `issuing_bureau`, `claim_office`, `estimated_turnaround`, `primary_doc_name`, `primary_doc_url`, `photo_2x2_url`, `support_doc_name`, `support_doc_url`, `emergency_contact_name`, `emergency_contact_phone`, `emergency_contact_relation`, `signature_url`, `e_signature_name`, `signature_mode`, `status`, `created_at`)
@@ -264,10 +329,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':claim_office' => $claimOffice,
             ':turnaround' => $turnaround,
             ':doc_name' => $data['primary_doc_name'] ?? 'Proof of Residency (Min 6 Months)',
-            ':doc_url' => $data['primary_doc_url'] ?? null,
-            ':photo_url' => $data['photo_2x2_url'] ?? null,
+            ':doc_url' => $primaryDocSaved,
+            ':photo_url' => $photo2x2Saved,
             ':sup_name' => $data['support_doc_name'] ?? null,
-            ':sup_url' => $data['support_doc_url'] ?? null,
+            ':sup_url' => $supportDocSaved,
             ':em_name' => $emergencyName ?: null,
             ':em_phone' => $emergencyPhone ?: null,
             ':em_rel' => $emergencyRelation ?: null,

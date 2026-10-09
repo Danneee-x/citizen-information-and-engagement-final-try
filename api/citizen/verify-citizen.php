@@ -33,15 +33,15 @@ if (!function_exists('saveBase64Image')) {
 
         if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
             if (preg_match('#/(?:assets/)?uploads/verifications/([^/?]+)#', $dataUrl, $m)) {
-                return $baseUrl . '/uploads/verifications/' . $m[1];
+                return $baseUrl . '/assets/uploads/verifications/' . $m[1];
             }
             return $dataUrl;
         }
 
         if (strpos($dataUrl, 'assets/') === 0 || strpos($dataUrl, 'uploads/') === 0 || strpos($dataUrl, '/uploads/') === 0) {
             $clean = ltrim($dataUrl, '/');
-            if (strpos($clean, 'assets/uploads/') === 0) {
-                $clean = substr($clean, strlen('assets/'));
+            if (strpos($clean, 'uploads/') === 0) {
+                $clean = 'assets/' . $clean;
             }
             return $baseUrl . '/' . $clean;
         }
@@ -63,11 +63,10 @@ if (!function_exists('saveBase64Image')) {
                 $filename = $prefix . '_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
 
                 $targetDirs = [
+                    '/var/www/html/assets/uploads/verifications/',
+                    __DIR__ . '/../../assets/uploads/verifications/',
                     '/var/www/html/uploads/verifications/',
                     __DIR__ . '/../../uploads/verifications/',
-                    __DIR__ . '/../../assets/uploads/verifications/',
-                    'C:/xampp/htdocs/citizen-backend/uploads/verifications/',
-                    'C:/xampp/htdocs/citizen-backend/assets/uploads/verifications/',
                     'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/verifications/'
                 ];
 
@@ -81,7 +80,7 @@ if (!function_exists('saveBase64Image')) {
                     }
                 }
 
-                return $baseUrl . '/uploads/verifications/' . $filename;
+                return $baseUrl . '/assets/uploads/verifications/' . $filename;
             }
         }
 

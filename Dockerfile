@@ -35,6 +35,7 @@ COPY . /var/www/html
 RUN mkdir -p /var/www/html/assets/uploads/verifications \
     /var/www/html/assets/uploads/concerns \
     /var/www/html/assets/uploads/certificates \
+    /var/www/html/assets/uploads/ids \
     && chown -R www-data:www-data /var/www/html/assets/uploads \
     && chmod -R 775 /var/www/html/assets/uploads
 

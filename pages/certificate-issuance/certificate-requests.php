@@ -56,7 +56,23 @@ foreach ($dbRequests as $row) {
         $decoded = json_decode($row['uploaded_documents'], true);
         if (is_array($decoded)) {
             foreach ($decoded as $d) {
-                $docList[] = is_array($d) ? ($d['name'] ?? 'Supporting Document') : (string)$d;
+                if (is_array($d)) {
+                    $u = $d['url'] ?? null;
+                    if ($u && strpos($u, 'http') !== 0) {
+                        $clean = ltrim($u, '/');
+                        if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
+                        $u = 'https://api-citizen.civentral.tech/' . $clean;
+                    }
+                    $docList[] = [
+                        'name' => $d['name'] ?? 'Supporting Document',
+                        'url'  => $u
+                    ];
+                } else {
+                    $docList[] = [
+                        'name' => (string)$d,
+                        'url'  => null
+                    ];
+                }
             }
         }
     }
@@ -591,14 +607,29 @@ function selectRequestRow(rowElement, refId) {
     if (data.docs && data.docs.length > 0) {
         docsList.innerHTML = '';
         data.docs.forEach(doc => {
-            docsList.innerHTML += `
-                <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                    <div class="flex items-center gap-2 truncate">
-                        <i class="fa-solid fa-file-lines text-blue-500 text-sm shrink-0"></i>
-                        <span class="font-bold text-slate-800 text-[11px] truncate">${doc}</span>
+            const docName = typeof doc === 'object' ? (doc.name || 'Supporting Document') : doc;
+            const docUrl = typeof doc === 'object' ? doc.url : null;
+            if (docUrl) {
+                docsList.innerHTML += `
+                    <div class="p-2.5 bg-blue-50/50 border border-blue-200 rounded-xl flex items-center justify-between text-xs hover:bg-blue-50 transition">
+                        <a href="${docUrl}" target="_blank" class="flex items-center gap-2 truncate text-blue-700 hover:text-blue-900 font-bold" title="Click to view file">
+                            <i class="fa-solid fa-file-lines text-blue-600 text-sm shrink-0"></i>
+                            <span class="text-[11px] truncate">${docName}</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px] shrink-0 ml-1"></i>
+                        </a>
+                        <a href="${docUrl}" target="_blank" class="text-[10px] font-bold text-blue-600 underline shrink-0">View</a>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                docsList.innerHTML += `
+                    <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-2 truncate">
+                            <i class="fa-solid fa-file-lines text-blue-500 text-sm shrink-0"></i>
+                            <span class="font-bold text-slate-800 text-[11px] truncate">${docName}</span>
+                        </div>
+                    </div>
+                `;
+            }
         });
     } else {
         docsList.innerHTML = '<span class="text-xs text-slate-400 italic">No attachments provided</span>';

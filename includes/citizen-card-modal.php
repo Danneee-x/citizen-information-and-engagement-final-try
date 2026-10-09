@@ -863,16 +863,28 @@ function resolveCardAssetUrl(url) {
     if (!url || typeof url !== 'string') return null;
     url = url.trim();
     if (!url || url.startsWith('blob:')) return null;
+
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
+        // Fix any missing assets/ prefix in verification URLs
+        if (url.includes('/uploads/verifications/')) {
+            return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+        }
         return url;
     }
+
     const cleanPath = url.replace(/^\/+/, '');
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (isLocal) {
         if (cleanPath.startsWith('assets/')) return '../../' + cleanPath;
-        if (cleanPath.startsWith('uploads/')) return '../../' + cleanPath;
+        if (cleanPath.startsWith('uploads/')) return '../../assets/' + cleanPath;
+        return '../../assets/' + cleanPath;
     }
-    return 'http://192.168.1.5/citizen-backend/' + cleanPath;
+
+    const apiBase = 'https://api-citizen.civentral.tech';
+    if (cleanPath.startsWith('uploads/')) {
+        return apiBase + '/assets/' + cleanPath;
+    }
+    return apiBase + '/' + cleanPath;
 }
 
 function formatDateDisplay(dateStr) {

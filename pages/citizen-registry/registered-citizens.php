@@ -146,7 +146,16 @@ try {
             'updated' => $updDate->format('M d, Y'),
             'issued_date' => $updDate->format('M d, Y'),
             'valid_until' => $validUntilDate->format('M d, Y'),
-            'avatar' => !empty($r['photo_1x1_url']) ? $r['photo_1x1_url'] : (!empty($r['selfie_photo_url']) ? $r['selfie_photo_url'] : ('https://ui-avatars.com/api/?name=' . urlencode($displayApplicant) . '&background=random'))
+            'avatar' => (function($u, $name) {
+                if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
+                $u = trim($u);
+                if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
+                    return str_replace('/uploads/verifications/', '/assets/uploads/verifications/', $u);
+                }
+                $clean = ltrim($u, '/');
+                if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
+                return 'https://api-citizen.civentral.tech/' . $clean;
+            })(!empty($r['photo_1x1_url']) ? $r['photo_1x1_url'] : ($r['selfie_photo_url'] ?? null), $displayApplicant)
         ];
     }
 } catch (Exception $e) {
@@ -785,7 +794,16 @@ include '../../includes/sidebar.php';
                                 $regName = trim("{$reg['first_name']} {$reg['last_name']}");
                                 $regDate = !empty($reg['reviewed_at']) ? date('M d, Y', strtotime($reg['reviewed_at'])) : date('M d, Y', strtotime($reg['submitted_at']));
                                 $regLoc = !empty($reg['district']) ? $reg['district'] : (!empty($reg['barangay']) ? "Brgy. {$reg['barangay']}" : 'District 1');
-                                $regAvatar = !empty($reg['selfie_photo_url']) ? $reg['selfie_photo_url'] : ('https://ui-avatars.com/api/?name=' . urlencode($regName) . '&background=random');
+                                $regAvatar = (function($u, $name) {
+                                    if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
+                                    $u = trim($u);
+                                    if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
+                                        return str_replace('/uploads/verifications/', '/assets/uploads/verifications/', $u);
+                                    }
+                                    $clean = ltrim($u, '/');
+                                    if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
+                                    return 'https://api-citizen.civentral.tech/' . $clean;
+                                })($reg['selfie_photo_url'] ?? null, $regName);
                             ?>
                                 <div class="flex items-center justify-between group">
                                     <div class="flex items-center gap-3">

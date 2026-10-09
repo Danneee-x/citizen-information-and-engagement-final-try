@@ -753,7 +753,7 @@ include '../../includes/sidebar.php';
             <div class="bg-slate-50/80 rounded-2xl p-4.5 border border-slate-200/80 space-y-3">
                 <div class="flex items-center justify-between border-b border-slate-200 pb-3">
                     <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-200 to-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center shrink-0 border border-indigo-200 shadow-xs" id="cdmAvatar">
+                        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-slate-200 to-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center shrink-0 border border-indigo-200 shadow-xs" id="cdmAvatar" style="overflow: hidden;">
                             DE
                         </div>
                         <div>
@@ -1326,6 +1326,25 @@ include '../../includes/sidebar.php';
 <script>
 let selectedAppForModal = null;
 
+function resolveIdAssetUrl(url) {
+    if (!url || typeof url !== 'string') return null;
+    url = url.trim();
+    if (!url || url.startsWith('blob:')) return null;
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
+        if (url.includes('/uploads/verifications/')) return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+        return url;
+    }
+    const clean = url.replace(/^\/+/, '');
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (clean.startsWith('assets/')) return '../../' + clean;
+        if (clean.startsWith('uploads/')) return '../../assets/' + clean;
+    }
+    const apiBase = 'https://api-citizen.civentral.tech';
+    if (clean.startsWith('uploads/')) return apiBase + '/assets/' + clean;
+    return apiBase + '/' + clean;
+}
+
+
 function openCitizenDetailsModal(app) {
     selectedAppForModal = app;
     const fullName = `${app.first_name || ''} ${app.middle_name || ''} ${app.last_name || ''} ${app.suffix || ''}`.replace(/\s+/g, ' ').trim();
@@ -1334,7 +1353,15 @@ function openCitizenDetailsModal(app) {
     document.getElementById('cdmRef').innerText = app.reference_no;
     document.getElementById('cdmCatTag').innerText = (app.id_category || 'ID').toUpperCase().replace('_', ' ');
     document.getElementById('cdmApplicantName').innerText = fullName;
-    document.getElementById('cdmAvatar').innerText = avatarInitials;
+    const avatarEl = document.getElementById('cdmAvatar');
+    const photoUrl = resolveIdAssetUrl(app.photo_2x2_url);
+    if (avatarEl) {
+        if (photoUrl) {
+            avatarEl.innerHTML = `<img src="${photoUrl}" class="w-full h-full object-cover" alt="ID Photo" onerror="this.parentElement.innerText='${avatarInitials}';">`;
+        } else {
+            avatarEl.innerText = avatarInitials;
+        }
+    }
     document.getElementById('cdmGender').innerText = app.gender || 'Not specified';
     document.getElementById('cdmCivilStatus').innerText = app.civil_status || 'Single';
     document.getElementById('cdmBirthdate').innerText = app.birthdate || 'Not specified';
@@ -1350,7 +1377,12 @@ function openCitizenDetailsModal(app) {
     document.getElementById('cdmAppType').innerText = app.application_type || 'New Application';
     document.getElementById('cdmClaimOffice').innerText = app.claim_office || 'Local Barangay Hall - Administrative Records Desk';
     document.getElementById('cdmTurnaround').innerText = app.estimated_turnaround || '1 to 2 Business Days';
-    document.getElementById('cdmDocName').innerText = app.primary_doc_name || 'Proof of Residency (Min 6 Months)';
+    const docUrl = resolveIdAssetUrl(app.primary_doc_url);
+    if (docUrl) {
+        document.getElementById('cdmDocName').innerHTML = `<a href="${docUrl}" target="_blank" class="text-indigo-600 hover:underline flex items-center gap-1.5 font-bold">${app.primary_doc_name || 'View Uploaded Document'} <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i></a>`;
+    } else {
+        document.getElementById('cdmDocName').innerText = app.primary_doc_name || 'Proof of Residency (Min 6 Months)';
+    }
 
     const statBadgeEl = document.getElementById('cdmStatusBadge');
     statBadgeEl.innerText = app.status;

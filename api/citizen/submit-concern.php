@@ -476,9 +476,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($decoded !== false) {
                         $filename = 'concern_' . time() . '_' . rand(1000, 9999) . '_' . ($idx + 1) . '.jpg';
                         file_put_contents($uploadDir . $filename, $decoded);
-                        $savedAttachments[] = $filename;
+                        $savedAttachments[] = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         if (!$photoEvidenceUrl) {
-                            $photoEvidenceUrl = 'assets/uploads/concerns/' . $filename;
+                            $photoEvidenceUrl = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         }
                     }
                 } else if (is_string($photo) && strpos($photo, 'data:image') === 0) {
@@ -487,9 +487,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($decoded !== false) {
                         $filename = 'concern_' . time() . '_' . rand(1000, 9999) . '_' . ($idx + 1) . '.jpg';
                         file_put_contents($uploadDir . $filename, $decoded);
-                        $savedAttachments[] = $filename;
+                        $savedAttachments[] = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         if (!$photoEvidenceUrl) {
-                            $photoEvidenceUrl = 'assets/uploads/concerns/' . $filename;
+                            $photoEvidenceUrl = $baseUrl . '/assets/uploads/concerns/' . $filename;
                         }
                     }
                 } else if (is_array($photo) && !empty($photo['name'])) {
@@ -500,7 +500,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Direct photoEvidenceUrl passed
         if (!$photoEvidenceUrl && !empty($data['photo_evidence_url'])) {
-            $photoEvidenceUrl = $data['photo_evidence_url'];
+            $rawP = trim($data['photo_evidence_url']);
+            if (strpos($rawP, 'http://') === 0 || strpos($rawP, 'https://') === 0) {
+                $photoEvidenceUrl = $rawP;
+            } else {
+                $cleanP = ltrim($rawP, '/');
+                if (strpos($cleanP, 'uploads/') === 0) $cleanP = 'assets/' . $cleanP;
+                $photoEvidenceUrl = $baseUrl . '/' . $cleanP;
+            }
         }
 
         // Direct files uploaded via $_FILES
@@ -515,9 +522,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ext = pathinfo($name, PATHINFO_EXTENSION) ?: 'jpg';
                     $targetFilename = 'concern_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
                     if (move_uploaded_file($tmpName, $uploadDir . $targetFilename)) {
-                        $savedAttachments[] = $targetFilename;
+                        $savedAttachments[] = $baseUrl . '/assets/uploads/concerns/' . $targetFilename;
                         if (!$photoEvidenceUrl) {
-                            $photoEvidenceUrl = 'assets/uploads/concerns/' . $targetFilename;
+                            $photoEvidenceUrl = $baseUrl . '/assets/uploads/concerns/' . $targetFilename;
                         }
                     }
                 }

@@ -706,7 +706,11 @@ function selectConcernRow(rowElement, id) {
     if (attachContainer) {
         attachContainer.innerHTML = '';
         if (data.photo_evidence_url) {
-            const fullImgUrl = data.photo_evidence_url.startsWith('http') ? data.photo_evidence_url : '../../' + data.photo_evidence_url;
+            let fullImgUrl = data.photo_evidence_url;
+            if (!fullImgUrl.startsWith('http://') && !fullImgUrl.startsWith('https://') && !fullImgUrl.startsWith('data:image/')) {
+                const clean = fullImgUrl.replace(/^\/+/, '');
+                fullImgUrl = 'https://api-citizen.civentral.tech/' + (clean.startsWith('uploads/') ? 'assets/' + clean : clean);
+            }
             attachContainer.innerHTML = `
                 <a href="${fullImgUrl}" target="_blank" class="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-85 transition relative group shadow-2xs">
                     <img src="${fullImgUrl}" class="w-full h-full object-cover" alt="Evidence" onerror="this.onerror=null; this.src='../../assets/images/placeholder-image.png';">

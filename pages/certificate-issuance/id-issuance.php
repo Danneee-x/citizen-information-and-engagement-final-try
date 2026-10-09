@@ -924,13 +924,6 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-            <!-- Modal Bottom Navigation -->
-            <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
-                <button type="button" onclick="closeCitizenDetailsModal()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
-                    Close
-                </button>
-            </div>
-
         </div>
     </div>
 </div>

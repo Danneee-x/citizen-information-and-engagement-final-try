@@ -205,6 +205,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = !empty($data['email']) ? trim($data['email']) : '';
     $phone = !empty($data['phone']) ? trim($data['phone']) : (!empty($data['mobile_number']) ? trim($data['mobile_number']) : '');
 
+    if (empty($email) && $citizenUserId <= 0) {
+        http_response_code(401);
+        echo json_encode([
+            "success" => false,
+            "status"  => "error",
+            "message" => "Authentication required. Please log in to your citizen account before verifying your citizenship."
+        ]);
+        exit;
+    }
+
     try {
         // 1. If email is provided, resolve the real user ID from citizen_users
         if (!empty($email)) {

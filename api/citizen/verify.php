@@ -212,6 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $uid = !empty($data['citizen_user_id']) ? (int)$data['citizen_user_id'] : null;
+    $email = !empty($data['email']) ? trim($data['email']) : null;
+    if (empty($uid) && empty($email)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Authentication required. Please log in before verifying citizenship.']);
+        exit;
+    }
+
     try {
         $conn = getDbConnection();
         $pdo = $conn['pdo'];

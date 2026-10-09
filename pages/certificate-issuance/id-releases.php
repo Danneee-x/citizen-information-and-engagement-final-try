@@ -505,6 +505,13 @@ include '../../includes/sidebar.php';
                                 </button>
                                 <?php endif; ?>
 
+                                <button onclick='openCitizenCardModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
+                                        class="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#0F4C81] font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
+                                        title="View & Print Dual-Sided Citizen ID Card">
+                                    <i class="fa-solid fa-id-card text-[10px]"></i>
+                                    <span>ID Card</span>
+                                </button>
+
                                 <button onclick='openVoucherModal(<?php echo json_encode($app, JSON_HEX_APOS | JSON_HEX_QUOT); ?>)' 
                                         class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1 cursor-pointer"
                                         title="View Digital Voucher & Claim Requirements">
@@ -985,3 +992,4 @@ include '../../includes/sidebar.php';
 </script>
 
 <?php include '../../includes/footer.php'; ?>
+<?php include_once __DIR__ . '/../../includes/citizen-card-modal.php'; ?>

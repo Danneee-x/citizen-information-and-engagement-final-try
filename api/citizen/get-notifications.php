@@ -145,10 +145,13 @@ try {
 
     $alerts = [];
     foreach ($rows as $r) {
-        // Strip HTML tags for preview body if formatted, keeping clean message
-        $plainBody = trim(strip_tags($r['body']));
+        // Convert block HTML tags to newlines before stripping tags so plain text preserves paragraphs and lists
+        $formattedForPlain = preg_replace('/<\/(p|div|h[1-6]|li|tr)>/i', "\n\n", $r['body'] ?? '');
+        $formattedForPlain = preg_replace('/<br\s*\/?>/i', "\n", $formattedForPlain);
+        $plainBody = trim(strip_tags($formattedForPlain));
+        $plainBody = preg_replace("/\n{3,}/", "\n\n", $plainBody);
         if (empty($plainBody)) {
-            $plainBody = $r['body'];
+            $plainBody = trim(strip_tags($r['body'] ?? ''));
         }
 
         $rawAttachment = trim($r['attachment_url'] ?? '');
@@ -162,14 +165,19 @@ try {
             }
         }
 
+        $adminCategory = trim($r['category'] ?? '');
+        if (empty($adminCategory)) {
+            $adminCategory = 'General Announcement';
+        }
+
         $alerts[] = [
             'id' => $r['alert_id'] ?: 'ALT-' . $r['id'],
             'numericId' => (int)$r['id'],
             'title' => $r['title'],
             'body' => $plainBody,
             'bodyHtml' => $r['body'],
-            'category' => normalizeCategory($r['category']),
-            'rawCategory' => $r['category'],
+            'category' => $adminCategory,
+            'rawCategory' => $adminCategory,
             'priority' => $r['priority'] ?: 'Normal',
             'timestamp' => formatRelativeTime($r['created_at']),
             'createdAt' => $r['created_at'],

@@ -333,9 +333,7 @@ foreach ($dbRequests as $row) {
                                 <td class="py-3.5 px-3 text-center" onclick="event.stopPropagation();">
                                     <div class="flex items-center justify-center gap-1">
                                         <button onclick="selectRequestRow(this.closest('tr'), '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-[#0f53d1] flex items-center justify-center transition cursor-pointer" title="View Request Details"><i class="fa-regular fa-eye text-xs"></i></button>
-                                        <?php if ($req['status'] === 'Pending' || $req['status'] === 'Under Review'): ?>
-                                        <button onclick="processQuickAction('approve', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition cursor-pointer" title="Approve Request"><i class="fa-solid fa-check text-xs"></i></button>
-                                        <?php elseif ($req['status'] === 'Ready for Release' || $req['status'] === 'Approved'): ?>
+                                        <?php if ($req['status'] !== 'Released' && $req['status'] !== 'Claimed' && $req['status'] !== 'Rejected'): ?>
                                         <button onclick="processQuickAction('release', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-purple-50 text-slate-400 hover:text-purple-600 flex items-center justify-center transition cursor-pointer" title="Issue & Release Certificate"><i class="fa-solid fa-stamp text-xs"></i></button>
                                         <?php endif; ?>
                                     </div>
@@ -440,17 +438,12 @@ foreach ($dbRequests as $row) {
             <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
                 <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Staff Processing Actions</span>
                 <div class="flex items-center gap-2.5">
-                    <button type="button" onclick="actionFromDrawer('approve')" class="flex-1 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-check text-xs"></i>
-                        <span>Approve Request</span>
-                    </button>
-
                     <button type="button" onclick="actionFromDrawer('release')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-stamp text-xs"></i>
                         <span>Issue Certificate</span>
                     </button>
 
-                    <button type="button" onclick="actionFromDrawer('reject')" class="px-4 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <button type="button" onclick="actionFromDrawer('reject')" class="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-xmark text-xs"></i>
                         <span>Reject</span>
                     </button>

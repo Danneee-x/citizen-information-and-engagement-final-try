@@ -30,6 +30,9 @@ require_once __DIR__ . '/../../config/database.php';
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $pdo = getDbConnection();
+    try {
+        $pdo->exec("ALTER TABLE `community_ratings` ADD COLUMN IF NOT EXISTS `attachment_url` VARCHAR(500) NULL;");
+    } catch (Exception $e) {}
         $citizenEmail = trim($_GET['email'] ?? $_GET['citizen_email'] ?? '');
 
         if (!empty($citizenEmail)) {
@@ -124,11 +127,11 @@ try {
         INSERT INTO `community_ratings` (
             `feedback_ref`, `citizen_name`, `citizen_email`, `citizen_barangay`,
             `service_name`, `transaction_ref`, `overall_rating`, `quality_rating`,
-            `staff_rating`, `comments`, `sentiment`, `status`, `created_at`
+            `staff_rating`, `comments`, `sentiment`, `attachment_url`, `status`, `created_at`
         ) VALUES (
             :feedback_ref, :citizen_name, :citizen_email, :citizen_barangay,
             :service_name, :transaction_ref, :overall_rating, :quality_rating,
-            :staff_rating, :comments, :sentiment, 'Published', NOW()
+            :staff_rating, :comments, :sentiment, :attachment_url, 'Published', NOW()
         )
     ");
 
@@ -144,6 +147,7 @@ try {
         ':staff_rating' => $staffRating,
         ':comments' => $comments ?: null,
         ':sentiment' => $sentiment,
+        ':attachment_url' => $attachmentUrl,
     ]);
 
     $submissionDate = date('M j, Y • g:i A');

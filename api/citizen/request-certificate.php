@@ -138,8 +138,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Document attachments handling
         $uploadedDocs = $input['uploaded_documents'] ?? ($input['uploaded_files'] ?? []);
+        $processedDocs = [];
+
+        $targetDirs = [
+            __DIR__ . '/../../assets/uploads/certificates/',
+            '/var/www/html/assets/uploads/certificates/',
+            '/var/www/html/uploads/certificates/',
+            'C:/xampp/htdocs/citizen-backend/assets/uploads/certificates/',
+            'C:/xampp/htdocs/citizen-information-and-engagement-final-try/assets/uploads/certificates/'
+        ];
+        foreach ($targetDirs as $td) {
+            if (!is_dir($td)) {
+                @mkdir($td, 0777, true);
+                @chmod($td, 0777);
+            }
+        }
+
         if (is_array($uploadedDocs)) {
-            $uploadedDocs = json_encode($uploadedDocs);
+            foreach ($uploadedDocs as $idx => $doc) {
+                if (is_array($doc)) {
+                    $docName = $doc['name'] ?? ('supporting_doc_' . ($idx + 1) . '.jpg');
+                    $base64 = $doc['data'] ?? ($doc['uri'] ?? null);
+                    $url = $doc['url'] ?? null;
+
+                    if ($base64 && (strpos($base64, 'data:image') === 0 || strpos($base64, 'data:application') === 0 || (strlen($base64) > 100 && strpos($base64, 'http') !== 0))) {
+                        $ext = 'jpg';
+                        if (preg_match('/^data:image\/(\w+);base64,/', $base64, $m)) {
+                            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+                        } elseif (strpos($base64, 'data:application/pdf') === 0) {
+                            $ext = 'pdf';
+                        }
+                        $cleanBase64 = strpos($base64, ',') !== false ? substr($base64, strpos($base64, ',') + 1) : $base64;
+                        $decoded = base64_decode($cleanBase64);
+                        if ($decoded !== false && strlen($decoded) > 0) {
+                            $filename = 'cert_' . time() . '_' . rand(1000, 9999) . '_' . ($idx + 1) . '.' . $ext;
+                            foreach ($targetDirs as $td) {
+                                if (is_dir($td)) @file_put_contents($td . $filename, $decoded);
+                            }
+                            $url = 'assets/uploads/certificates/' . $filename;
+                        }
+                    }
+
+                    $processedDocs[] = [
+                        'name' => $docName,
+                        'url'  => $url,
+                        'size' => $doc['size'] ?? null
+                    ];
+                } else if (is_string($doc)) {
+                    $processedDocs[] = [
+                        'name' => $doc,
+                        'url'  => null
+                    ];
+                }
+            }
+            $uploadedDocs = json_encode($processedDocs);
         }
 
         // Generate unique reference number CAL-DOC-2026-XXXX

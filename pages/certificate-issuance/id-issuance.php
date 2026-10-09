@@ -1362,18 +1362,21 @@ function resolveIdAssetUrl(url) {
     if (!url || typeof url !== 'string') return null;
     url = url.trim();
     if (!url || url.startsWith('blob:')) return null;
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
+    if (url.startsWith('data:image/')) return url;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
         if (url.includes('/uploads/verifications/')) return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
         return url;
     }
     const clean = url.replace(/^\/+/, '');
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) {
         if (clean.startsWith('assets/')) return '../../' + clean;
         if (clean.startsWith('uploads/')) return '../../assets/' + clean;
+        return '../../assets/' + clean;
     }
-    const apiBase = 'https://api-citizen.civentral.tech';
-    if (clean.startsWith('uploads/')) return apiBase + '/assets/' + clean;
-    return apiBase + '/' + clean;
+    if (clean.startsWith('assets/')) return '/' + clean;
+    if (clean.startsWith('uploads/')) return '/assets/' + clean;
+    return '/assets/' + clean;
 }
 
 

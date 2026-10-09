@@ -555,6 +555,128 @@ foreach ($dbRequests as $row) {
     </div>
 </div>
 
+<!-- ISSUE & RELEASE CONFIRMATION MODAL -->
+<div id="issueConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs">
+                    <i class="fa-solid fa-stamp"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Issue & Release Certificate</h3>
+                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Official Issuance Authorization</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeIssueConfirmModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <!-- Request Summary Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Document Type</span>
+                    <span id="issueModalCertType" class="font-extrabold text-slate-800 text-xs">Barangay Clearance</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Applicant</span>
+                    <span id="issueModalApplicantName" class="font-bold text-slate-800">Citizen Applicant</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Reference No</span>
+                    <span id="issueModalApplicantRef" class="font-mono font-bold text-[#0f53d1]">CAL-DOC-2026-0000</span>
+                </div>
+            </div>
+
+            <!-- Confirmation Prompt -->
+            <div class="space-y-2.5">
+                <p class="text-xs font-semibold text-slate-700 leading-snug">
+                    Are you sure you want to officially <span class="text-emerald-600 font-black uppercase">issue & release</span> certificate for request <span id="issueModalRefText" class="font-mono font-bold text-slate-900"></span>?
+                </p>
+                <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
+                    <p class="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                        This will officially mark the document as released, generate an official municipal control number, and record the transaction in the issued certificates registry.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeIssueConfirmModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="issueModalConfirmBtn" onclick="executeIssueRequest()" class="px-4.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-stamp text-[11px]"></i>
+                <span id="issueModalConfirmBtnText">Issue & Release Certificate</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- REJECT CONFIRMATION MODAL -->
+<div id="rejectConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg border border-rose-100 ring-2 ring-rose-50 shadow-xs">
+                    <i class="fa-solid fa-file-circle-xmark"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Reject Certificate Request</h3>
+                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Administrative Rejection</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeRejectConfirmModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <!-- Request Summary Card -->
+            <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Document Type</span>
+                    <span id="rejectModalCertType" class="font-extrabold text-slate-800 text-xs">Barangay Clearance</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Applicant</span>
+                    <span id="rejectModalApplicantName" class="font-bold text-slate-800">Citizen Applicant</span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    <span class="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Reference No</span>
+                    <span id="rejectModalApplicantRef" class="font-mono font-bold text-rose-600">CAL-DOC-2026-0000</span>
+                </div>
+            </div>
+
+            <!-- Reason Input -->
+            <div class="space-y-1.5">
+                <label for="rejectReasonInput" class="block text-xs font-bold text-slate-700">Reason for Rejection <span class="text-rose-500">*</span></label>
+                <textarea id="rejectReasonInput" rows="3" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition" placeholder="State reason for rejecting this document request (e.g., Incomplete or unverified requirements)..."></textarea>
+                <p class="text-[10px] text-slate-400">This rationale will be recorded in the system audit trail.</p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeRejectConfirmModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="rejectModalConfirmBtn" onclick="executeRejectRequest()" class="px-4.5 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-xmark text-[11px]"></i>
+                <span id="rejectModalConfirmBtnText">Confirm Rejection</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 const requestsDataset = <?php echo json_encode(array_column($requests, null, 'id')); ?>;
 const citizenRegistry = <?php echo json_encode($registeredCitizens); ?>;
@@ -694,7 +816,7 @@ async function submitEncodedRequest() {
     const purpose = document.getElementById('encodePurpose').value.trim();
 
     if (!name || !address || !purpose) {
-        alert('Please fill out all required fields marked with *');
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> Please fill out all required fields marked with *');
         return;
     }
 
@@ -734,11 +856,79 @@ async function submitEncodedRequest() {
     }
 }
 
-async function processQuickAction(action, refId) {
-    const label = action === 'approve' ? 'Approve & Mark Ready for Release' : (action === 'release' ? 'Issue & Release Certificate' : action);
-    if (!confirm(`Are you sure you want to ${label} for request ${refId}?`)) return;
+function showToast(type, html) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.className = `fixed bottom-5 right-5 z-[100000] px-4 py-3 rounded-xl shadow-lg text-xs font-bold transition-all transform flex items-center gap-2 ${
+        type === 'success' ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 
+        type === 'error' ? 'bg-rose-600 text-white shadow-rose-500/20' : 
+        'bg-slate-900 text-white'
+    }`;
+    toast.innerHTML = html;
+    toast.classList.remove('translate-y-10', 'opacity-0');
+    setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+    }, 3500);
+}
+
+let pendingActionRefId = null;
+let pendingActionType = 'release'; // 'release' or 'approve'
+
+function openIssueConfirmModal(refId, action = 'release') {
+    pendingActionRefId = refId;
+    pendingActionType = action;
+
+    const item = requestsDataset[refId] || {};
+    const refBadge = document.getElementById('issueModalApplicantRef');
+    if (refBadge) refBadge.textContent = refId;
+
+    const refText = document.getElementById('issueModalRefText');
+    if (refText) refText.textContent = refId;
+
+    const nameText = document.getElementById('issueModalApplicantName');
+    if (nameText) nameText.textContent = item.requester || 'Citizen Applicant';
+
+    const certType = document.getElementById('issueModalCertType');
+    if (certType) certType.textContent = item.cert_type || 'Barangay Document';
+
+    const btn = document.getElementById('issueModalConfirmBtn');
+    const btnText = document.getElementById('issueModalConfirmBtnText');
+    if (btn) btn.disabled = false;
+    if (btnText) {
+        btnText.textContent = action === 'approve' ? 'Confirm Approval' : 'Issue & Release Certificate';
+    }
+
+    const modal = document.getElementById('issueConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeIssueConfirmModal() {
+    const modal = document.getElementById('issueConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    pendingActionRefId = null;
+}
+
+async function executeIssueRequest() {
+    if (!pendingActionRefId) return;
+    const refId = pendingActionRefId;
+    const action = pendingActionType || 'release';
+
+    const btn = document.getElementById('issueModalConfirmBtn');
+    const btnText = document.getElementById('issueModalConfirmBtnText');
+    const originalText = btnText ? btnText.textContent : 'Confirm';
 
     try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Processing...';
+
         const res = await fetch('../../api/admin/certificate-actions.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -746,13 +936,105 @@ async function processQuickAction(action, refId) {
         });
         const data = await res.json();
         if (data && data.status === 'success') {
-            alert(data.message);
-            window.location.reload();
+            closeIssueConfirmModal();
+            closeRequestDrawer();
+            showToast('success', `<i class="fa-solid fa-circle-check"></i> ${data.message || 'Action completed successfully!'}`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
-            alert('Failed: ' + (data.message || 'Unknown error'));
+            showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Operation failed'}`);
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = originalText;
         }
     } catch (err) {
-        alert('Error connecting to backend.');
+        showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = originalText;
+    }
+}
+
+let pendingRejectRefId = null;
+
+function openRejectConfirmModal(refId) {
+    pendingRejectRefId = refId;
+    const item = requestsDataset[refId] || {};
+
+    const refBadge = document.getElementById('rejectModalApplicantRef');
+    if (refBadge) refBadge.textContent = refId;
+
+    const nameText = document.getElementById('rejectModalApplicantName');
+    if (nameText) nameText.textContent = item.requester || 'Citizen Applicant';
+
+    const typeText = document.getElementById('rejectModalCertType');
+    if (typeText) typeText.textContent = item.cert_type || 'Barangay Document';
+
+    const reasonInput = document.getElementById('rejectReasonInput');
+    if (reasonInput) reasonInput.value = 'Incomplete or unverified requirements';
+
+    const btn = document.getElementById('rejectModalConfirmBtn');
+    const btnText = document.getElementById('rejectModalConfirmBtnText');
+    if (btn) btn.disabled = false;
+    if (btnText) btnText.textContent = 'Confirm Rejection';
+
+    const modal = document.getElementById('rejectConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeRejectConfirmModal() {
+    const modal = document.getElementById('rejectConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    pendingRejectRefId = null;
+}
+
+async function executeRejectRequest() {
+    if (!pendingRejectRefId) return;
+    const refId = pendingRejectRefId;
+    const reasonInput = document.getElementById('rejectReasonInput');
+    const reason = reasonInput ? reasonInput.value.trim() : '';
+
+    const btn = document.getElementById('rejectModalConfirmBtn');
+    const btnText = document.getElementById('rejectModalConfirmBtnText');
+    const originalText = btnText ? btnText.textContent : 'Confirm Rejection';
+
+    try {
+        if (btn) btn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[11px]"></i> Processing...';
+
+        const res = await fetch('../../api/admin/certificate-actions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action: 'reject', reference_no: refId, reason: reason })
+        });
+        const data = await res.json();
+        if (data && data.status === 'success') {
+            closeRejectConfirmModal();
+            closeRequestDrawer();
+            showToast('success', `<i class="fa-solid fa-circle-check"></i> ${data.message || 'Request successfully rejected.'}`);
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', `<i class="fa-solid fa-circle-exclamation"></i> ${data.message || 'Failed to reject request'}`);
+            if (btn) btn.disabled = false;
+            if (btnText) btnText.textContent = originalText;
+        }
+    } catch (err) {
+        showToast('error', `<i class="fa-solid fa-triangle-exclamation"></i> Network error connecting to backend.`);
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = originalText;
+    }
+}
+
+function processQuickAction(action, refId) {
+    if (action === 'reject') {
+        openRejectConfirmModal(refId);
+    } else {
+        openIssueConfirmModal(refId, action);
     }
 }
 
@@ -763,7 +1045,7 @@ function actionFromDrawer(action) {
 
 function exportRequestsCSV() {
     if (!requestsDataset || Object.keys(requestsDataset).length === 0) {
-        alert('No requests available to export.');
+        showToast('error', '<i class="fa-solid fa-circle-exclamation"></i> No requests available to export.');
         return;
     }
 
@@ -797,20 +1079,35 @@ function exportRequestsCSV() {
 // Modal dismiss listeners (Backdrop click and Escape key)
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        const issueModal = document.getElementById('issueConfirmModal');
+        if (issueModal && !issueModal.classList.contains('hidden')) {
+            closeIssueConfirmModal();
+            return;
+        }
+        const rejectModal = document.getElementById('rejectConfirmModal');
+        if (rejectModal && !rejectModal.classList.contains('hidden')) {
+            closeRejectConfirmModal();
+            return;
+        }
         closeRequestDrawer();
         closeNewRequestModal();
     }
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('requestDetailsDrawer');
-    if (modal) {
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeRequestDrawer();
-            }
-        });
-    }
+    ['requestDetailsDrawer', 'newRequestModal', 'issueConfirmModal', 'rejectConfirmModal'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    if (id === 'issueConfirmModal') closeIssueConfirmModal();
+                    else if (id === 'rejectConfirmModal') closeRejectConfirmModal();
+                    else if (id === 'newRequestModal') closeNewRequestModal();
+                    else closeRequestDrawer();
+                }
+            });
+        }
+    });
 });
 </script>
 

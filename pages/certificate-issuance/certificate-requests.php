@@ -334,7 +334,10 @@ foreach ($dbRequests as $row) {
                                     <div class="flex items-center justify-center gap-1">
                                         <button onclick="selectRequestRow(this.closest('tr'), '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-[#0f53d1] flex items-center justify-center transition cursor-pointer" title="View Request Details"><i class="fa-regular fa-eye text-xs"></i></button>
                                         <?php if ($req['status'] !== 'Released' && $req['status'] !== 'Claimed' && $req['status'] !== 'Rejected'): ?>
-                                        <button onclick="processQuickAction('release', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-purple-50 text-slate-400 hover:text-purple-600 flex items-center justify-center transition cursor-pointer" title="Issue & Release Certificate"><i class="fa-solid fa-stamp text-xs"></i></button>
+                                        <?php if ($req['status'] !== 'Ready for Release'): ?>
+                                        <button onclick="processQuickAction('approve', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 flex items-center justify-center transition cursor-pointer" title="Mark Ready for Release"><i class="fa-solid fa-file-circle-check text-xs"></i></button>
+                                        <?php endif; ?>
+                                        <button onclick="processQuickAction('release', '<?php echo $req['id']; ?>')" class="w-7 h-7 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 flex items-center justify-center transition cursor-pointer" title="Issue & Release Certificate"><i class="fa-solid fa-stamp text-xs"></i></button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -435,15 +438,20 @@ foreach ($dbRequests as $row) {
             </div>
 
             <!-- Quick Action Buttons -->
-            <div class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
+            <div id="drawerActionButtonsBox" class="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-2">
                 <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Staff Processing Actions</span>
-                <div class="flex items-center gap-2.5">
-                    <button type="button" onclick="actionFromDrawer('release')" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button type="button" id="drawerBtnReadyForRelease" onclick="actionFromDrawer('approve')" class="py-2.5 px-3 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <i class="fa-solid fa-file-circle-check text-xs"></i>
+                        <span>Ready for Release</span>
+                    </button>
+
+                    <button type="button" id="drawerBtnIssueCert" onclick="actionFromDrawer('release')" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-stamp text-xs"></i>
                         <span>Issue Certificate</span>
                     </button>
 
-                    <button type="button" onclick="actionFromDrawer('reject')" class="px-5 py-2.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                    <button type="button" id="drawerBtnReject" onclick="actionFromDrawer('reject')" class="py-2.5 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
                         <i class="fa-solid fa-xmark text-xs"></i>
                         <span>Reject</span>
                     </button>
@@ -561,12 +569,12 @@ foreach ($dbRequests as $row) {
         <!-- Modal Header -->
         <div class="p-5 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs">
-                    <i class="fa-solid fa-stamp"></i>
+                <div id="issueModalIconBox" class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs">
+                    <i id="issueModalIcon" class="fa-solid fa-stamp"></i>
                 </div>
                 <div>
-                    <h3 class="text-sm font-black text-slate-900 tracking-tight">Issue & Release Certificate</h3>
-                    <p class="text-xs text-slate-400 mt-0.5 font-medium">Official Issuance Authorization</p>
+                    <h3 id="issueModalTitle" class="text-sm font-black text-slate-900 tracking-tight">Issue & Release Certificate</h3>
+                    <p id="issueModalSubtitle" class="text-xs text-slate-400 mt-0.5 font-medium">Official Issuance Authorization</p>
                 </div>
             </div>
             <button type="button" onclick="closeIssueConfirmModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex items-center justify-center transition cursor-pointer text-sm" title="Close">
@@ -594,12 +602,12 @@ foreach ($dbRequests as $row) {
 
             <!-- Confirmation Prompt -->
             <div class="space-y-2.5">
-                <p class="text-xs font-semibold text-slate-700 leading-snug">
+                <p id="issueModalPromptParagraph" class="text-xs font-semibold text-slate-700 leading-snug">
                     Are you sure you want to officially <span class="text-emerald-600 font-black uppercase">issue & release</span> certificate for request <span id="issueModalRefText" class="font-mono font-bold text-slate-900"></span>?
                 </p>
-                <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
-                    <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
-                    <p class="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                <div id="issueModalCalloutBox" class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                    <i id="issueModalCalloutIcon" class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
+                    <p id="issueModalExplainerText" class="text-[11px] text-emerald-900 leading-relaxed font-medium">
                         This will officially mark the document as released, generate an official municipal control number, and record the transaction in the issued certificates registry.
                     </p>
                 </div>
@@ -612,7 +620,7 @@ foreach ($dbRequests as $row) {
                 Cancel
             </button>
             <button type="button" id="issueModalConfirmBtn" onclick="executeIssueRequest()" class="px-4.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-stamp text-[11px]"></i>
+                <i id="issueModalConfirmBtnIcon" class="fa-solid fa-stamp text-[11px]"></i>
                 <span id="issueModalConfirmBtnText">Issue & Release Certificate</span>
             </button>
         </div>
@@ -741,6 +749,70 @@ function selectRequestRow(rowElement, refId) {
         });
     } else {
         docsList.innerHTML = '<span class="text-xs text-slate-400 italic">No attachments provided</span>';
+    }
+
+    // Adapt drawer buttons according to current request status
+    const readyBtn = document.getElementById('drawerBtnReadyForRelease');
+    const issueBtn = document.getElementById('drawerBtnIssueCert');
+    const rejectBtn = document.getElementById('drawerBtnReject');
+
+    if (data.status === 'Released' || data.status === 'Claimed') {
+        if (readyBtn) readyBtn.classList.add('hidden');
+        if (issueBtn) {
+            issueBtn.classList.remove('hidden');
+            issueBtn.disabled = true;
+            issueBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Released</span>';
+            issueBtn.className = 'py-2.5 px-3 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-default';
+        }
+        if (rejectBtn) rejectBtn.classList.add('hidden');
+    } else if (data.status === 'Rejected') {
+        if (readyBtn) readyBtn.classList.add('hidden');
+        if (issueBtn) issueBtn.classList.add('hidden');
+        if (rejectBtn) {
+            rejectBtn.classList.remove('hidden');
+            rejectBtn.disabled = true;
+            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> <span>Rejected</span>';
+            rejectBtn.className = 'py-2.5 px-3 bg-rose-50 text-rose-500 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-default';
+        }
+    } else if (data.status === 'Ready for Release') {
+        if (readyBtn) {
+            readyBtn.classList.remove('hidden');
+            readyBtn.disabled = true;
+            readyBtn.innerHTML = '<i class="fa-solid fa-circle-check text-xs"></i> <span>Ready for Release</span>';
+            readyBtn.className = 'py-2.5 px-3 bg-purple-50 text-purple-700 border border-purple-200 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-default';
+        }
+        if (issueBtn) {
+            issueBtn.classList.remove('hidden');
+            issueBtn.disabled = false;
+            issueBtn.innerHTML = '<i class="fa-solid fa-stamp text-xs"></i> <span>Issue Certificate</span>';
+            issueBtn.className = 'py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer';
+        }
+        if (rejectBtn) {
+            rejectBtn.classList.remove('hidden');
+            rejectBtn.disabled = false;
+            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i> <span>Reject</span>';
+            rejectBtn.className = 'py-2.5 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer';
+        }
+    } else {
+        // Pending / Under Review
+        if (readyBtn) {
+            readyBtn.classList.remove('hidden');
+            readyBtn.disabled = false;
+            readyBtn.innerHTML = '<i class="fa-solid fa-file-circle-check text-xs"></i> <span>Ready for Release</span>';
+            readyBtn.className = 'py-2.5 px-3 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer';
+        }
+        if (issueBtn) {
+            issueBtn.classList.remove('hidden');
+            issueBtn.disabled = false;
+            issueBtn.innerHTML = '<i class="fa-solid fa-stamp text-xs"></i> <span>Issue Certificate</span>';
+            issueBtn.className = 'py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer';
+        }
+        if (rejectBtn) {
+            rejectBtn.classList.remove('hidden');
+            rejectBtn.disabled = false;
+            rejectBtn.innerHTML = '<i class="fa-solid fa-xmark text-xs"></i> <span>Reject</span>';
+            rejectBtn.className = 'py-2.5 px-3 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer';
+        }
     }
 
     if (drawer) {
@@ -895,11 +967,49 @@ function openIssueConfirmModal(refId, action = 'release') {
     const certType = document.getElementById('issueModalCertType');
     if (certType) certType.textContent = item.cert_type || 'Barangay Document';
 
+    const iconBox = document.getElementById('issueModalIconBox');
+    const icon = document.getElementById('issueModalIcon');
+    const title = document.getElementById('issueModalTitle');
+    const subtitle = document.getElementById('issueModalSubtitle');
+    const promptPara = document.getElementById('issueModalPromptParagraph');
+    const calloutBox = document.getElementById('issueModalCalloutBox');
+    const calloutIcon = document.getElementById('issueModalCalloutIcon');
+    const explainer = document.getElementById('issueModalExplainerText');
     const btn = document.getElementById('issueModalConfirmBtn');
+    const btnIcon = document.getElementById('issueModalConfirmBtnIcon');
     const btnText = document.getElementById('issueModalConfirmBtnText');
-    if (btn) btn.disabled = false;
-    if (btnText) {
-        btnText.textContent = action === 'approve' ? 'Confirm Approval' : 'Issue & Release Certificate';
+
+    if (action === 'approve') {
+        if (iconBox) iconBox.className = 'w-10 h-10 rounded-xl bg-blue-50 text-[#0f53d1] flex items-center justify-center text-lg border border-blue-100 ring-2 ring-blue-50 shadow-xs';
+        if (icon) icon.className = 'fa-solid fa-file-circle-check';
+        if (title) title.textContent = 'Mark Ready for Release';
+        if (subtitle) subtitle.textContent = 'Document Verification & Preparation';
+        if (promptPara) promptPara.innerHTML = `Are you sure you want to mark request <span class="font-mono font-bold text-slate-900">${refId}</span> as <span class="text-[#0f53d1] font-black uppercase">Ready for Release</span>?`;
+        if (calloutBox) calloutBox.className = 'p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-start gap-2.5';
+        if (calloutIcon) calloutIcon.className = 'fa-solid fa-circle-check text-blue-600 mt-0.5 text-xs shrink-0';
+        if (explainer) explainer.textContent = 'This will update the request status to "Ready for Release", notifying the citizen that their certificate has been prepared and is ready for pickup at the Barangay Hall.';
+        if (btn) {
+            btn.className = 'px-4.5 py-2 text-xs font-bold text-white bg-[#0f53d1] hover:bg-[#0d46b0] rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5';
+            btn.disabled = false;
+        }
+        if (btnIcon) btnIcon.className = 'fa-solid fa-file-circle-check text-[11px]';
+        if (btnText) btnText.textContent = 'Confirm Ready for Release';
+    } else {
+        // action === 'release'
+        if (iconBox) iconBox.className = 'w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50 shadow-xs';
+        if (icon) icon.className = 'fa-solid fa-stamp';
+        if (title) title.textContent = 'Issue & Release Certificate';
+        if (subtitle) subtitle.textContent = 'Official Issuance Authorization';
+        if (promptPara) promptPara.innerHTML = `Are you sure you want to officially <span class="text-emerald-600 font-black uppercase">issue & release</span> certificate for request <span class="font-mono font-bold text-slate-900">${refId}</span>?`;
+        if (calloutBox) calloutBox.className = 'p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5';
+        if (calloutIcon) calloutIcon.className = 'fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0';
+        if (explainer) explainer.textContent = 'This will officially mark the document as released, generate an official municipal control number, and record the transaction in the issued certificates registry.';
+        if (btn) {
+            btn.className = 'px-4.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5';
+            btn.disabled = false;
+        }
+        if (btnIcon) btnIcon.className = 'fa-solid fa-stamp text-[11px]';
+        if (btnText) btnText.textContent = 'Issue & Release Certificate';
     }
 
     const modal = document.getElementById('issueConfirmModal');

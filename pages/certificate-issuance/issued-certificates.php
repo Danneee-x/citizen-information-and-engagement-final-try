@@ -333,20 +333,11 @@ foreach ($dbIssued as $row) {
             </div>
         </div>
 
-        <div class="flex items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
-            <button onclick="closePrintPreview()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                <i class="fa-solid fa-arrow-left text-xs"></i>
-                <span>Back to Registry</span>
+        <div class="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <button onclick="window.print()" class="px-5 py-2.5 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-print"></i>
+                <span>Print Document</span>
             </button>
-            <div class="flex items-center gap-2">
-                <button onclick="closePrintPreview()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
-                    Close
-                </button>
-                <button onclick="window.print()" class="px-5 py-2 bg-[#0f53d1] hover:bg-[#0d46b0] text-white font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5 shadow-sm">
-                    <i class="fa-solid fa-print"></i>
-                    <span>Print Document</span>
-                </button>
-            </div>
         </div>
 
     </div>

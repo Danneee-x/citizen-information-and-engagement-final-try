@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 /**
  * Civentral Citizen API - Submit Community Ratings & Feedback
  * Endpoint: POST /api/citizen/submit-community-feedback.php
@@ -36,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             $ratings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'count' => count($ratings),
             'data' => $ratings
@@ -44,13 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
+    if (ob_get_length()) ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Method not allowed']);
     exit;
 }
@@ -141,6 +149,7 @@ try {
     $submissionDate = date('M j, Y • g:i A');
 
     if (ob_get_length()) ob_clean();
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'status' => 'success',
         'message' => 'Your community feedback has been recorded successfully.',
@@ -155,6 +164,7 @@ try {
 } catch (Exception $e) {
     if (ob_get_length()) ob_clean();
     http_response_code(500);
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'status' => 'error',
         'message' => 'Failed to save feedback: ' . $e->getMessage(),

@@ -715,15 +715,15 @@ try {
             <div id="tabContentAudit" class="hidden space-y-4">
                 
                 <!-- Security & Legal Compliance Box -->
-                <div class="p-4 rounded-2xl bg-slate-900 text-white space-y-2">
+                <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
                     <div class="flex items-center justify-between">
-                        <span class="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                            <i class="fa-solid fa-shield-halved"></i>
+                        <span class="text-xs font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-emerald-600"></i>
                             <span>Tamper-Evident Security Seal</span>
                         </span>
-                        <span class="text-[10px] font-mono text-slate-400 font-bold bg-slate-800 px-2.5 py-0.5 rounded-md">IMMUTABLE LOG</span>
+                        <span class="text-[10px] font-mono text-emerald-800 font-bold bg-emerald-100/80 border border-emerald-200 px-2.5 py-0.5 rounded-md shadow-2xs">IMMUTABLE LOG</span>
                     </div>
-                    <p class="text-xs text-slate-300 leading-relaxed font-normal">
+                    <p class="text-xs text-emerald-950/80 leading-relaxed font-normal">
                         This verification transaction is permanently recorded under the Caloocan City Citizen Data Registry Framework and Republic Act 10173 (Data Privacy Act of 2012). Modifications, deletions, or retroactive alterations are strictly prohibited by system security controls.
                     </p>
                 </div>
@@ -809,7 +809,7 @@ try {
                     <i class="fa-solid fa-print text-xs"></i>
                     <span>Print Audit Slip</span>
                 </button>
-                <button type="button" onclick="closeLogDetailModal()" class="px-5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition cursor-pointer">
+                <button type="button" onclick="closeLogDetailModal()" class="px-5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition cursor-pointer">
                     <span>Close</span>
                 </button>
             </div>

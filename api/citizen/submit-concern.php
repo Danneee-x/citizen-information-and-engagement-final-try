@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 // Prevent session lock issues
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -272,55 +277,71 @@ function classifyConcernWithGemini($title, $description, $category, $barangay) {
     return null;
 }
 
-// 4. Handle GET: Check Status & List Submissions
+// 4. Handle GET: Check Status & List Submissions (Strictly User Isolated)
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     try {
         $conn = getDbConnection();
         $pdo = $conn['pdo'];
         $userId = !empty($_GET['citizen_user_id']) ? (int)$_GET['citizen_user_id'] : null;
         $email = !empty($_GET['citizen_email']) ? trim($_GET['citizen_email']) : (!empty($_GET['email']) ? trim($_GET['email']) : null);
+        $phone = !empty($_GET['citizen_phone']) ? trim($_GET['citizen_phone']) : (!empty($_GET['phone']) ? trim($_GET['phone']) : null);
         $ticket = !empty($_GET['ticket_number']) ? trim($_GET['ticket_number']) : null;
+
+        $recent = [];
 
         if ($ticket) {
             $stmt = $pdo->prepare("SELECT * FROM `citizen_concerns` WHERE `ticket_number` = ? LIMIT 1");
             $stmt->execute([$ticket]);
             $recent = $stmt->fetchAll();
-        } elseif ($userId && $userId > 0) {
-            $stmt = $pdo->prepare("SELECT * FROM `citizen_concerns` WHERE `citizen_user_id` = ? OR (`citizen_email` IS NOT NULL AND `citizen_email` != '' AND `citizen_email` = ?) ORDER BY `concern_id` DESC");
-            $stmt->execute([$userId, $email ?: '']);
-            $recent = $stmt->fetchAll();
-            if (empty($recent)) {
-                $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC LIMIT 20");
-                $recent = $stmt->fetchAll();
-            }
-        } elseif (!empty($email)) {
-            $stmt = $pdo->prepare("SELECT * FROM `citizen_concerns` WHERE `citizen_email` = ? ORDER BY `concern_id` DESC");
-            $stmt->execute([$email]);
-            $recent = $stmt->fetchAll();
-            if (empty($recent)) {
-                $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC LIMIT 20");
-                $recent = $stmt->fetchAll();
-            }
         } else {
-            $recentStmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC LIMIT 30");
-            $recent = $recentStmt->fetchAll();
+            // Strictly fetch records belonging to the requesting citizen
+            $clauses = [];
+            $bindings = [];
+
+            if ($userId && $userId > 0) {
+                $clauses[] = "`citizen_user_id` = ?";
+                $bindings[] = $userId;
+            }
+            if (!empty($email)) {
+                $clauses[] = "(`citizen_email` IS NOT NULL AND `citizen_email` != '' AND LOWER(`citizen_email`) = LOWER(?))";
+                $bindings[] = $email;
+            }
+            if (!empty($phone)) {
+                $cleanPhone = preg_replace('/\D/', '', $phone);
+                if (strlen($cleanPhone) >= 7) {
+                    $clauses[] = "(`citizen_phone` IS NOT NULL AND `citizen_phone` != '' AND REPLACE(REPLACE(REPLACE(`citizen_phone`, '-', ''), ' ', ''), '+', '') LIKE ?)";
+                    $bindings[] = '%' . substr($cleanPhone, -10);
+                }
+            }
+
+            if (!empty($clauses)) {
+                $sql = "SELECT * FROM `citizen_concerns` WHERE (" . implode(' OR ', $clauses) . ") ORDER BY `concern_id` DESC";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($bindings);
+                $recent = $stmt->fetchAll();
+            } else {
+                // If neither citizen ID, email, nor phone was provided, return empty list!
+                // Do NOT return other citizens' reports!
+                $recent = [];
+            }
         }
 
-        $countStmt = $pdo->query("SELECT COUNT(*) as total FROM `citizen_concerns`");
-        $total = $countStmt->fetchColumn();
+        $totalForUser = count($recent);
 
+        if (ob_get_length()) ob_clean();
         echo json_encode([
             'status' => 'success',
             'database' => 'citizen_verification',
             'connected_to' => $conn['target'],
             'message' => 'Civentral Citizen Grievance & Concern API is online and healthy.',
-            'total_concerns_stored' => (int)$total,
+            'total_concerns_stored' => $totalForUser,
             'recent_submissions' => $recent
         ]);
         exit;
     } catch (\Exception $e) {
         http_response_code(500);
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'error',
             'message' => 'Database error: ' . $e->getMessage()
         ]);
@@ -359,19 +380,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($title)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern title/subject is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern title/subject is required.']);
             exit;
         }
 
         if (empty($description)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern detailed description is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern detailed description is required.']);
             exit;
         }
 
         if (empty($location)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern location is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern location is required.']);
             exit;
         }
 
@@ -606,7 +630,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insertedId = $pdo->lastInsertId();
 
         if (ob_get_length()) ob_clean();
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'message' => $isAutoRouted
                 ? "Concern ticket filed and automatically routed to {$assignedDept}."
@@ -639,7 +664,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Exception $e) {
         if (ob_get_length()) ob_clean();
         http_response_code(500);
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'error',
             'message' => 'Failed to process concern submission: ' . $e->getMessage()
         ]);

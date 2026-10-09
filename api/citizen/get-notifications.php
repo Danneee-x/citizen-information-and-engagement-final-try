@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 /**
  * Civentral Citizen API - Get Real Notifications & Alerts from Database
  * Endpoint: GET/POST /api/citizen/get-notifications.php
@@ -176,6 +181,7 @@ try {
     }
 
     if (ob_get_length()) ob_clean();
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'status' => 'success',
         'data' => $alerts,
@@ -184,6 +190,7 @@ try {
 } catch (Exception $e) {
     if (ob_get_length()) ob_clean();
     http_response_code(500);
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'status' => 'error',
         'message' => 'Failed to fetch notifications: ' . $e->getMessage(),

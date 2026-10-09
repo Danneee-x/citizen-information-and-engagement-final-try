@@ -79,10 +79,17 @@ CREATE TABLE `citizen_verifications` (
   `valid_id_number` VARCHAR(100) NOT NULL,
   `id_front_photo_url` VARCHAR(500) NULL DEFAULT NULL,
   `selfie_photo_url` VARCHAR(500) NULL DEFAULT NULL,
+  `photo_1x1_url` VARCHAR(500) NULL DEFAULT NULL,
+  `signature_photo_url` VARCHAR(500) NULL DEFAULT NULL,
+  `qr_code_token` VARCHAR(255) NULL DEFAULT NULL,
+  `qr_code_image_url` VARCHAR(500) NULL DEFAULT NULL,
+  `citizen_id_number` VARCHAR(30) NULL DEFAULT NULL,
 
   -- Administration & Review Workflow
-  `verification_status` ENUM('Pending', 'Under_Review', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+  `verification_status` ENUM('Pending', 'Under_Review', 'Returned_For_Correction', 'Approved', 'Rejected', 'Superseded') NOT NULL DEFAULT 'Pending',
   `rejection_reason` TEXT NULL DEFAULT NULL,
+  `admin_action_notes` TEXT NULL DEFAULT NULL,
+  `reviewed_by` VARCHAR(100) NULL DEFAULT NULL,
   `reviewed_by_employee_id` INT UNSIGNED NULL DEFAULT NULL,
   `reviewed_at` DATETIME NULL DEFAULT NULL,
   `submitted_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -13,7 +13,7 @@ if (isset($_SERVER['HTTP_ORIGIN'])) {
 } else {
     header('Access-Control-Allow-Origin: *');
 }
-header('Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -212,6 +212,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PAT
         $json = json_decode($raw, true);
         $data = !empty($json) ? $json : $_POST;
 
+        // Handle Purge/Delete of Mock Test Concerns
+        if (!empty($data['action']) && in_array($data['action'], ['delete_mock', 'delete_test_data'])) {
+            $conn = getDbConnection();
+            $pdo = $conn['pdo'];
+            $delStmt = $pdo->prepare("DELETE FROM `citizen_concerns` WHERE `title` LIKE '%test%' OR `title` LIKE '%TEST%' OR `description` LIKE '%test%' OR `description` LIKE '%TEST%' OR `ticket_number` IN ('CAL-REP-2026-6120', 'CAL-REP-2026-9020', 'CAL-REP-2026-3856', 'CAL-REP-2026-9966', 'CAL-REP-2026-6010', 'CAL-REP-2026-6226')");
+            $delStmt->execute();
+            $deletedCount = $delStmt->rowCount();
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Successfully removed {$deletedCount} mock/test concerns from database.",
+                'deleted_count' => $deletedCount
+            ]);
+            exit;
+        }
+
         $ticketId = $data['ticket_number'] ?? ($data['id'] ?? null);
         $concernId = !empty($data['concern_id']) ? (int)$data['concern_id'] : null;
 
@@ -275,6 +291,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PAT
             'status' => 'success',
             'message' => 'Concern ticket updated successfully.',
             'concern' => $updated
+        ]);
+        exit;
+    } catch (\Exception $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        exit;
+    }
+}
+
+
+// 6. Handle DELETE: Delete Specific Concern or Batch Mock Records
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+    try {
+        $raw = file_get_contents('php://input');
+        $data = json_decode($raw, true) ?: [];
+        $ticketId = $data['ticket_number'] ?? $_GET['ticket_number'] ?? null;
+        $concernId = $data['concern_id'] ?? $_GET['concern_id'] ?? null;
+
+        $conn = getDbConnection();
+        $pdo = $conn['pdo'];
+
+        if (!empty($data['delete_mock']) || !empty($_GET['delete_mock']) || (isset($data['action']) && $data['action'] === 'delete_mock')) {
+            $delStmt = $pdo->prepare("DELETE FROM `citizen_concerns` WHERE `title` LIKE '%test%' OR `title` LIKE '%TEST%' OR `description` LIKE '%test%' OR `description` LIKE '%TEST%' OR `ticket_number` IN ('CAL-REP-2026-6120', 'CAL-REP-2026-9020', 'CAL-REP-2026-3856', 'CAL-REP-2026-9966', 'CAL-REP-2026-6010', 'CAL-REP-2026-6226')");
+            $delStmt->execute();
+            $count = $delStmt->rowCount();
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Successfully removed {$count} mock/test concerns.",
+                'deleted_count' => $count
+            ]);
+            exit;
+        }
+
+        if (!$ticketId && !$concernId) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Missing ticket_number or concern_id to delete.']);
+            exit;
+        }
+
+        $sql = "DELETE FROM `citizen_concerns` WHERE " . ($concernId ? "`concern_id` = :id" : "`ticket_number` = :id");
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':id' => $concernId ?: $ticketId]);
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Concern deleted successfully.'
         ]);
         exit;
     } catch (\Exception $e) {

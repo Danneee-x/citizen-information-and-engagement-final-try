@@ -960,6 +960,66 @@ include '../../includes/sidebar.php';
     </div>
 </div>
 
+<!-- APPROVE CONFIRMATION MODAL -->
+<div id="approveConfirmModal" class="hidden fixed inset-0 z-[10000] overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg border border-emerald-100 ring-2 ring-emerald-50">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-black text-slate-800 tracking-tight">Approve Citizenship Verification</h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Confirmation Required</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeApproveConfirmModal()" class="text-slate-400 hover:text-slate-600 transition p-1 cursor-pointer">
+                <i class="fa-solid fa-xmark text-base"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-5 space-y-4">
+            <!-- Applicant Summary Card -->
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
+                <div>
+                    <span class="text-slate-500 font-medium">Applicant:</span>
+                    <span id="approveModalApplicantName" class="font-bold text-slate-800 ml-1">Applicant Name</span>
+                </div>
+                <div>
+                    <span class="text-slate-500 font-medium">Ref:</span>
+                    <span id="approveModalApplicantRef" class="font-bold text-[#0f53d1] ml-1">VER-0000</span>
+                </div>
+            </div>
+
+            <!-- Confirmation Details -->
+            <div class="space-y-2.5">
+                <p class="text-xs font-semibold text-slate-700 leading-snug">
+                    Are you sure you want to <span class="text-emerald-600 font-black uppercase">approve</span> citizenship verification for this applicant?
+                </p>
+                <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-xs shrink-0"></i>
+                    <p class="text-[11px] text-emerald-900 leading-relaxed font-medium">
+                        This will verify their resident status and citizenship. An official Caloocan Citizen ID number and digital verification QR token will be generated and issued.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeApproveConfirmModal()" class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-200 rounded-xl transition cursor-pointer">
+                Cancel
+            </button>
+            <button type="button" id="approveModalConfirmBtn" onclick="executeApproveApplication()" class="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+                <i class="fa-solid fa-check text-[11px]"></i>
+                <span id="approveModalConfirmBtnText">Confirm Approval</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 let activeApp = null;
 let currentModalMode = 'return'; // 'return' or 'reject'
@@ -1289,15 +1349,55 @@ function exportPendingListCSV() {
     document.body.removeChild(link);
 }
 
-// APPROVE APPLICATION
-async function handleApproveApplication() {
+// APPROVE CONFIRMATION MODAL CONTROLLERS
+function openApproveConfirmModal() {
     if (!activeApp) return;
-    if (!confirm(`Are you sure you want to APPROVE citizenship verification for ${activeApp.applicant}?\n\nThis will verify their resident status and citizenship.`)) return;
 
-    const btn = document.getElementById('btnApproveApp');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving...';
+    document.getElementById('approveModalApplicantName').textContent = activeApp.applicant;
+    document.getElementById('approveModalApplicantRef').textContent = activeApp.id || ('VER-' + String(activeApp.raw_id).padStart(4, '0'));
+
+    const confirmBtn = document.getElementById('approveModalConfirmBtn');
+    const confirmText = document.getElementById('approveModalConfirmBtnText');
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmText.textContent = 'Confirm Approval';
+        const icon = confirmBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-check text-[11px]';
+    }
+
+    const modal = document.getElementById('approveConfirmModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeApproveConfirmModal() {
+    const modal = document.getElementById('approveConfirmModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function handleApproveApplication() {
+    openApproveConfirmModal();
+}
+
+async function executeApproveApplication() {
+    if (!activeApp) return;
+
+    const modalBtn = document.getElementById('approveModalConfirmBtn');
+    const modalBtnText = document.getElementById('approveModalConfirmBtnText');
+    const drawerBtn = document.getElementById('btnApproveApp');
+
+    if (modalBtn) {
+        modalBtn.disabled = true;
+        modalBtnText.textContent = 'Approving...';
+        const icon = modalBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-spinner fa-spin text-[11px]';
+    }
+    if (drawerBtn) {
+        drawerBtn.disabled = true;
+        drawerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Approving...';
     }
 
     try {
@@ -1317,11 +1417,14 @@ async function handleApproveApplication() {
             activeApp.qr_code_token = result.qr_code_token;
             activeApp.qr_code_image_url = result.qr_code_image_url;
             activeApp.status = 'Approved';
+
+            // Close confirmation modal
+            closeApproveConfirmModal();
             
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approved</span>';
-                btn.className = 'py-2.5 px-2 bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-default';
+            if (drawerBtn) {
+                drawerBtn.disabled = false;
+                drawerBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approved</span>';
+                drawerBtn.className = 'py-2.5 px-2 bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-default';
             }
 
             // Update drawer status badge if present
@@ -1343,19 +1446,42 @@ async function handleApproveApplication() {
                 document.getElementById('drawerApprovedAtText').textContent = result.reviewed_at || 'Just now';
             }
 
+            // Update table row if present
+            const tableBadge = document.getElementById('badge-' + activeApp.raw_id);
+            if (tableBadge) {
+                tableBadge.textContent = 'Approved';
+                tableBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-600 border-emerald-200';
+            }
+            const row = document.getElementById('row-' + activeApp.raw_id);
+            if (row) {
+                row.setAttribute('data-app', JSON.stringify(activeApp));
+            }
+
             showToast('success', 'Citizenship verification successfully approved!');
         } else {
-            alert('Error: ' + (result.message || 'Failed to approve application.'));
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approve</span>';
+            showToast('error', 'Error: ' + (result.message || 'Failed to approve application.'));
+            if (modalBtn) {
+                modalBtn.disabled = false;
+                modalBtnText.textContent = 'Confirm Approval';
+                const icon = modalBtn.querySelector('i');
+                if (icon) icon.className = 'fa-solid fa-check text-[11px]';
+            }
+            if (drawerBtn) {
+                drawerBtn.disabled = false;
+                drawerBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approve</span>';
             }
         }
     } catch (e) {
-        alert('Network error connecting to API');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approve</span>';
+        showToast('error', 'Network error connecting to API');
+        if (modalBtn) {
+            modalBtn.disabled = false;
+            modalBtnText.textContent = 'Confirm Approval';
+            const icon = modalBtn.querySelector('i');
+            if (icon) icon.className = 'fa-solid fa-check text-[11px]';
+        }
+        if (drawerBtn) {
+            drawerBtn.disabled = false;
+            drawerBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approve</span>';
         }
     }
 }
@@ -1492,6 +1618,11 @@ function switchDrawerTab(tab) {
 // Modal dismiss listeners (Backdrop click and Escape key)
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        const appModal = document.getElementById('approveConfirmModal');
+        if (appModal && !appModal.classList.contains('hidden')) {
+            closeApproveConfirmModal();
+            return;
+        }
         const decModal = document.getElementById('decisionModal');
         if (decModal && !decModal.classList.contains('hidden')) {
             closeDecisionModal();
@@ -1507,6 +1638,15 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.addEventListener('click', function(e) {
             if (e.target === modal) {
                 closePendingDrawer();
+            }
+        });
+    }
+
+    const appModal = document.getElementById('approveConfirmModal');
+    if (appModal) {
+        appModal.addEventListener('click', function(e) {
+            if (e.target === appModal) {
+                closeApproveConfirmModal();
             }
         });
     }

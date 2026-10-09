@@ -1423,6 +1423,7 @@ function openCiventralCitizenCardFromDetails() {
             emergency_contact: selectedAppForModal.emergency_contact_phone || "(02) 8366-3101",
             photo_1x1_url: selectedAppForModal.photo_2x2_url || null,
             signature_photo_url: selectedAppForModal.signature_url || null,
+            e_signature_name: selectedAppForModal.e_signature_name || null,
         };
         openCitizenCardModal(formatted);
     } else {

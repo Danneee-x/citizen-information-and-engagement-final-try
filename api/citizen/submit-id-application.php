@@ -52,10 +52,16 @@ try {
         `verified_residency_proof` TINYINT(1) DEFAULT 0,
         `verified_claim_voucher` TINYINT(1) DEFAULT 0,
         `primary_doc_name` VARCHAR(150) NULL,
-        `primary_doc_url` TEXT NULL,
-        `photo_2x2_url` TEXT NULL,
+        `primary_doc_url` MEDIUMTEXT NULL,
+        `photo_2x2_url` MEDIUMTEXT NULL,
         `support_doc_name` VARCHAR(150) NULL,
         `support_doc_url` TEXT NULL,
+        `emergency_contact_name` VARCHAR(150) NULL,
+        `emergency_contact_phone` VARCHAR(50) NULL,
+        `emergency_contact_relation` VARCHAR(100) NULL,
+        `signature_url` MEDIUMTEXT NULL,
+        `e_signature_name` VARCHAR(150) NULL,
+        `signature_mode` VARCHAR(50) NULL DEFAULT 'upload',
         `status` ENUM('Pending Review', 'Under Review', 'Processing & Verification', 'Approved', 'Ready to Print', 'Ready for Release', 'Claimed', 'Completed', 'Rejected') NOT NULL DEFAULT 'Pending Review',
         `review_notes` TEXT NULL,
         `rejection_reason` TEXT NULL,
@@ -71,6 +77,19 @@ try {
         INDEX idx_uid (`citizen_user_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
+} catch (Exception $e) {}
+
+// Ensure newly added columns exist in existing deployments
+try {
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_name` VARCHAR(150) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_phone` VARCHAR(50) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_relation` VARCHAR(100) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `signature_url` MEDIUMTEXT NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `e_signature_name` VARCHAR(150) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `signature_mode` VARCHAR(50) NULL DEFAULT 'upload';");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `signature_url` MEDIUMTEXT NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `photo_2x2_url` MEDIUMTEXT NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `primary_doc_url` MEDIUMTEXT NULL;");
 } catch (Exception $e) {}
 
 // 1. GET: Retrieve applications for a citizen or by reference number

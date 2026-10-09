@@ -777,16 +777,28 @@ function openCitizenCardModal(app) {
     // 8. Assets: Cardholder Digital Signature (Null-Safe)
     const sigImg = document.getElementById('cardModalSignature');
     const sigPlaceholder = document.getElementById('cardModalSigPlaceholder');
-    const sigSrc = resolveCardAssetUrl(app.signature_photo_url);
+    const sigSrc = resolveCardAssetUrl(app.signature_photo_url || app.signature_url);
     if (sigImg) {
         if (sigSrc) {
             sigImg.src = sigSrc;
             sigImg.style.display = 'block';
             if (sigPlaceholder) sigPlaceholder.style.display = 'none';
+        } else if (app.e_signature_name) {
+            sigImg.src = '';
+            sigImg.style.display = 'none';
+            if (sigPlaceholder) {
+                sigPlaceholder.innerText = app.e_signature_name;
+                sigPlaceholder.className = 'text-[10px] font-bold text-blue-900 italic select-none font-serif';
+                sigPlaceholder.style.display = 'block';
+            }
         } else {
             sigImg.src = '';
             sigImg.style.display = 'none';
-            if (sigPlaceholder) sigPlaceholder.style.display = 'block';
+            if (sigPlaceholder) {
+                sigPlaceholder.innerText = 'Digital Signature';
+                sigPlaceholder.className = 'text-[7.5px] text-slate-400 italic';
+                sigPlaceholder.style.display = 'block';
+            }
         }
     }
 

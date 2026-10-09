@@ -184,9 +184,6 @@ function getInitialRelativeTime($datetime) {
           <span>Live Monitoring</span>
         </span>
       </div>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-        Operational telemetry, real-time KYC audits, 311 citizen grievances & service workload
-      </p>
     </div>
 
     <!-- Action & Export Controls -->

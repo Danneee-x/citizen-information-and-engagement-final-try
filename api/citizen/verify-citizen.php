@@ -1,4 +1,9 @@
 <?php
+// Suppress warnings / notices from polluting JSON API output
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
 /**
  * Endpoint: /api/citizen/verify-citizen.php
  * Handles Citizen Verification Form submissions, rework resubmissions, and status checks.

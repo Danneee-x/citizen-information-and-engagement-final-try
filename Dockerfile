@@ -25,7 +25,7 @@ RUN sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.c
     && echo '</Directory>' >> /etc/apache2/apache2.conf \
     && echo 'Alias /uploads /var/www/html/assets/uploads' >> /etc/apache2/apache2.conf
 
-# 4. Configure PHP runtime limits (file uploads, memory, execution time)
+# 4. Configure PHP runtime limits (file uploads, memory, execution time, session persistence)
 RUN echo "file_uploads = On" > /usr/local/etc/php/conf.d/custom.ini \
     && echo "upload_tmp_dir = /tmp" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "upload_max_filesize = 128M" >> /usr/local/etc/php/conf.d/custom.ini \
@@ -33,7 +33,11 @@ RUN echo "file_uploads = On" > /usr/local/etc/php/conf.d/custom.ini \
     && echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "max_execution_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
     && echo "max_input_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "max_file_uploads = 50" >> /usr/local/etc/php/conf.d/custom.ini
+    && echo "max_file_uploads = 50" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.gc_maxlifetime = 604800" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.cookie_lifetime = 604800" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.cookie_path = /" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "session.cookie_samesite = Lax" >> /usr/local/etc/php/conf.d/custom.ini
 
 # 5. Set working directory
 WORKDIR /var/www/html

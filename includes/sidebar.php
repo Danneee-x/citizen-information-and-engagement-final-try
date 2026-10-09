@@ -42,11 +42,19 @@
 
       $isSuperAdmin = !empty($headerUser['is_superadmin']) || !empty($headerUser['is_global_access']);
       $userGrantedRes = $headerUser['granted_resources'] ?? [];
+      $roleNameLower = strtolower($headerUser['role'] ?? '');
+      $isAdminRole = $isSuperAdmin 
+          || strpos($roleNameLower, 'admin') !== false 
+          || strpos($roleNameLower, 'manager') !== false 
+          || strpos($roleNameLower, 'officer') !== false;
 
       // Dynamic RBAC Permission Checker
-      $hasResourceAccess = function($keywords) use ($isSuperAdmin, $userGrantedRes) {
-          if ($isSuperAdmin) return true;
-          if (empty($userGrantedRes)) return false;
+      $hasResourceAccess = function($keywords) use ($isSuperAdmin, $isAdminRole, $userGrantedRes) {
+          if ($isSuperAdmin || $isAdminRole) return true;
+          if (empty($userGrantedRes)) {
+              // If user is authenticated, default to allowing module navigation
+              return !empty($_SESSION['user_id']) || !empty($_SESSION['employee_id']);
+          }
           if (is_string($keywords)) $keywords = [$keywords];
           foreach ($userGrantedRes as $resName) {
               $resLower = strtolower($resName);

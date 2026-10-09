@@ -6,9 +6,35 @@ if (!ob_get_level()) {
     ob_start();
 }
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+if (!function_exists('startSecureSession')) {
+    function startSecureSession() {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return;
+        }
+        $lifetime = 604800; // 7 days session lifetime
+        ini_set('session.gc_maxlifetime', (string)$lifetime);
+        ini_set('session.cookie_lifetime', (string)$lifetime);
+
+        $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+            || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+
+        session_set_cookie_params([
+            'lifetime' => $lifetime,
+            'path' => '/',
+            'domain' => '',
+            'secure' => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+
+        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+            @session_start();
+        }
+    }
 }
+
+startSecureSession();
 
 // Load .env variables (no local database connection — all data comes from the remote API)
 $envPath = __DIR__ . '/../.env';

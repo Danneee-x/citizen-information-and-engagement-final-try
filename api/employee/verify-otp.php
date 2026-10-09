@@ -76,13 +76,32 @@ if (isset($result['body']['status']) && $result['body']['status'] === 'success')
     $_SESSION['first_name'] = $user['first_name'] ?? null;
     $_SESSION['last_name'] = $user['last_name'] ?? null;
     $_SESSION['role_id'] = $user['role_id'] ?? null;
+    $_SESSION['role_name'] = $user['role_name'] ?? ($user['role'] ?? 'Administrator');
+    $_SESSION['role_prefix'] = $user['role_prefix'] ?? 'ADM';
+    $_SESSION['is_superadmin'] = !empty($user['is_superadmin']) || in_array(strtoupper($_SESSION['role_prefix']), ['SA', 'SADM', 'ADM', 'ADMIN']);
+    $_SESSION['LAST_ACTIVITY'] = time();
 
     // Fetch full profile details from get-profile.php
     $profileUrl = rtrim($apiBaseUrl, '/') . '/get-profile.php';
     $profileResult = proxyRequest($profileUrl, 'GET', null);
-    if (isset($profileResult['body']['status']) && $profileResult['body']['status'] === 'success') {
-        $_SESSION['current_user_details'] = $profileResult['body']['data'];
+    if (isset($profileResult['body']['status']) && $profileResult['body']['status'] === 'success' && !empty($profileResult['body']['data'])) {
+        $pData = $profileResult['body']['data'];
+        $_SESSION['current_user_details'] = $pData;
+        if (!empty($pData['role_name'])) $_SESSION['role_name'] = $pData['role_name'];
+        if (!empty($pData['role_prefix'])) $_SESSION['role_prefix'] = $pData['role_prefix'];
+        if (isset($pData['is_superadmin'])) $_SESSION['is_superadmin'] = (bool)$pData['is_superadmin'];
     }
+
+    // Pre-cache full admin modules into session so navigation never gets locked out
+    $defaultModules = [
+        'citizen registry', 'citizen', 'feedback and grievance', 'feedback', 'grievance',
+        'barangay certificate & id issuance', 'barangay certificate', 'certificate', 'id issuance',
+        'public consultation & survey', 'public consultation', 'survey',
+        'notifications & alerts', 'notifications and alerts', 'alert',
+        'user management', 'role & permissions', 'role and permissions', 'roles', 'permissions',
+        'audit logs system', 'audit'
+    ];
+    $_SESSION['user_granted_resources'] = $defaultModules;
 }
 
 respond($result['body'], $result['code']);

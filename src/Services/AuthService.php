@@ -6,14 +6,18 @@ class AuthService
 {
     public function __construct()
     {
-        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        if (function_exists('startSecureSession')) {
+            startSecureSession();
+        } elseif (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
     }
 
     public function isLoggedIn()
     {
-        return !empty($_SESSION['user_id']) || !empty($_SESSION['employee_id']);
+        return !empty($_SESSION['user_id']) 
+            || !empty($_SESSION['employee_id']) 
+            || !empty($_SESSION['current_user_details']);
     }
 
     public function currentUserId()

@@ -1,5 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
+if (function_exists('startSecureSession')) {
+    startSecureSession();
+} elseif (session_status() === PHP_SESSION_NONE && !headers_sent()) {
     session_start();
 }
 
@@ -8,6 +10,8 @@ function proxyRequest($url, $method = 'POST', $body = null, $sendCookie = true) 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_HEADER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
     
     $headers = [
         'Content-Type: application/json'
@@ -47,12 +51,17 @@ function proxyRequest($url, $method = 'POST', $body = null, $sendCookie = true) 
     $headerStr = substr($response, 0, $headerSize);
     $bodyStr = substr($response, $headerSize);
     
-    // Parse cookies from headers
-    preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $headerStr, $matches);
-    foreach ($matches[1] as $cookie) {
-        $parts = explode('=', $cookie, 2);
-        if (count($parts) === 2 && trim($parts[0]) === 'PHPSESSID') {
-            $_SESSION['remote_phpsessid'] = trim($parts[1]);
+    // Only update remote session ID on successful requests (2xx) to prevent dropping auth on 401s/500s
+    if ($httpCode >= 200 && $httpCode < 300) {
+        preg_match_all('/^Set-Cookie:\s*([^;]*)/mi', $headerStr, $matches);
+        foreach ($matches[1] as $cookie) {
+            $parts = explode('=', $cookie, 2);
+            if (count($parts) === 2 && trim($parts[0]) === 'PHPSESSID') {
+                $candidate = trim($parts[1]);
+                if (!empty($candidate)) {
+                    $_SESSION['remote_phpsessid'] = $candidate;
+                }
+            }
         }
     }
     

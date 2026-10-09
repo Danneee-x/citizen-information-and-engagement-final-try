@@ -7,7 +7,7 @@ class SessionTimeout
     private $timeoutDuration;
     private $basePath;
 
-    public function __construct($timeoutDuration = 1800, $basePath = '../')
+    public function __construct($timeoutDuration = 14400, $basePath = '../')
     {
         $this->timeoutDuration = $timeoutDuration;
         $this->basePath = $basePath;
@@ -15,7 +15,9 @@ class SessionTimeout
 
     public function handle()
     {
-        if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+        if (function_exists('startSecureSession')) {
+            startSecureSession();
+        } elseif (session_status() === PHP_SESSION_NONE && !headers_sent()) {
             session_start();
         }
 

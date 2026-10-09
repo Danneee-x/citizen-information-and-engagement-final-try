@@ -966,8 +966,11 @@ function handleFileDrop(e) {
 }
 
 function handleFileSelect(input) {
-    if (input.files && input.files[0]) {
-        processUploadedFile(input.files[0]);
+    const file = (input && input.files && input.files[0]) ||
+                 (input && input.target && input.target.files && input.target.files[0]) ||
+                 (document.getElementById('fileUploadInput') && document.getElementById('fileUploadInput').files && document.getElementById('fileUploadInput').files[0]);
+    if (file) {
+        processUploadedFile(file);
     }
 }
 
@@ -1197,8 +1200,10 @@ async function confirmSendAlertNow() {
         formData.append('sender_role', 'Public Information Officer');
         formData.append('status', status);
 
-        if (uploadedFileObject) {
-            formData.append('attachment', uploadedFileObject);
+        const fileInputEl = document.getElementById('fileUploadInput');
+        const fileToSend = uploadedFileObject || (fileInputEl && fileInputEl.files && fileInputEl.files[0]);
+        if (fileToSend) {
+            formData.append('attachment', fileToSend);
         }
 
         const res = await fetch('<?php echo $basePath; ?>api/admin/create-alert.php', {

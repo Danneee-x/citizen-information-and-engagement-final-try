@@ -146,6 +146,17 @@ try {
             $plainBody = $r['body'];
         }
 
+        $rawAttachment = trim($r['attachment_url'] ?? '');
+        $attachmentUrl = null;
+        if (!empty($rawAttachment)) {
+            if (strpos($rawAttachment, 'http://') === 0 || strpos($rawAttachment, 'https://') === 0) {
+                $attachmentUrl = str_replace('api-citizen.civentral.tech', 'civentral.tech', $rawAttachment);
+            } else {
+                $cleanPath = ltrim($rawAttachment, '/');
+                $attachmentUrl = 'https://civentral.tech/' . $cleanPath;
+            }
+        }
+
         $alerts[] = [
             'id' => $r['alert_id'] ?: 'ALT-' . $r['id'],
             'numericId' => (int)$r['id'],
@@ -158,7 +169,8 @@ try {
             'timestamp' => formatRelativeTime($r['created_at']),
             'createdAt' => $r['created_at'],
             'sender' => $r['sender_name'] ?: 'Caloocan Public Information Office',
-            'attachmentUrl' => $r['attachment_url'],
+            'attachmentUrl' => $attachmentUrl,
+            'rawAttachment' => $r['attachment_url'],
             'isRead' => false,
         ];
     }

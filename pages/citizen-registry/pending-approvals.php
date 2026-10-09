@@ -570,7 +570,7 @@ include '../../includes/sidebar.php';
                             </td>
                             <td class="p-3.5 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#0f53d1] hover:text-white flex items-center justify-center text-slate-500 transition cursor-pointer shadow-2xs" title="Inspect Application in Modal">
+                                    <button type="button" onclick="selectPendingApplication(this.closest('tr'))" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#0f53d1] hover:text-white flex items-center justify-center text-slate-500 transition cursor-pointer shadow-2xs" title="Inspect Application in Modal">
                                         <i class="fa-solid fa-expand text-xs"></i>
                                     </button>
                                 </div>
@@ -969,6 +969,25 @@ let activeApp = null;
 let currentModalMode = 'return'; // 'return' or 'reject'
 const applications = <?php echo json_encode($applications); ?>;
 
+function showToast(type, html) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.className = `fixed bottom-5 right-5 z-[9999] px-4 py-3 rounded-xl shadow-lg text-xs font-bold transition-all transform flex items-center gap-2 ${
+        type === 'success' ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 
+        type === 'error' ? 'bg-rose-600 text-white shadow-rose-500/20' : 
+        'bg-slate-900 text-white'
+    }`;
+    toast.innerHTML = html;
+    toast.classList.remove('translate-y-10', 'opacity-0');
+    setTimeout(() => {
+        toast.classList.add('translate-y-10', 'opacity-0');
+    }, 3500);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const districtFilter = document.getElementById('districtFilterPending');
     const idTypeFilter = document.getElementById('idTypeFilterPending');
@@ -1100,6 +1119,17 @@ function selectPendingApplication(rowElement) {
             return '/' + cleanPath;
         }
         return '/assets/uploads/' + cleanPath;
+    }
+
+    function renderImageCard(boxId, photoUrl, fallbackIcon, altText) {
+        const box = document.getElementById(boxId);
+        if (!box) return;
+        const src = formatPhotoSrc(photoUrl);
+        if (src) {
+            box.innerHTML = `<a href="${src}" target="_blank" title="Click to view full size"><img src="${src}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="${altText}" onerror="this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'${fallbackIcon} text-xl mb-1\\'></i><span class=\\'block text-[8px]\\'>Unavailable</span></div>';" /></a>`;
+        } else {
+            box.innerHTML = `<div class="text-center p-2 text-slate-400"><i class="${fallbackIcon} text-xl mb-1"></i><span class="block text-[8px]">Not uploaded</span></div>`;
+        }
     }
 
     renderImageCard('drawerIdPhotoBox', app.id_front_photo_url, 'fa-solid fa-id-card', 'Valid ID');

@@ -89,11 +89,18 @@ if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ER
     if (!is_dir($uploadDir)) {
         @mkdir($uploadDir, 0777, true);
     }
-    $ext = pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION);
+    $ext = strtolower(pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION) ?: 'jpg');
     $newFileName = 'alert_' . time() . '_' . substr(md5(uniqid()), 0, 8) . '.' . $ext;
     if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $newFileName)) {
         $attachmentUrl = 'assets/uploads/alerts/' . $newFileName;
+        @chmod($uploadDir . $newFileName, 0666);
     }
+}
+
+if (!$attachmentUrl && !empty($input['attachment_url'])) {
+    $attachmentUrl = trim($input['attachment_url']);
+} elseif (!$attachmentUrl && !empty($input['attachmentUrl'])) {
+    $attachmentUrl = trim($input['attachmentUrl']);
 }
 
 try {

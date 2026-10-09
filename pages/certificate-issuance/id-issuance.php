@@ -871,11 +871,7 @@ include '../../includes/sidebar.php';
                         <span>Civentral Citizen Card</span>
                     </button>
 
-                    <!-- Action 4: View ID Card & Voucher -->
-                    <button type="button" onclick="openCardFromDetails()" class="px-4 py-3 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-xs transition flex items-center justify-center gap-2 cursor-pointer">
-                        <i class="fa-solid fa-eye text-sm text-indigo-600"></i>
-                        <span>Card & Claim Voucher</span>
-                    </button>
+
                 </div>
 
                 <!-- Action 5: Delete Option -->
@@ -888,13 +884,9 @@ include '../../includes/sidebar.php';
                 </div>
             </div>
 
-            <!-- Modal Bottom Navigation (Back Button) -->
-            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <button type="button" onclick="closeCitizenDetailsModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 cursor-pointer">
-                    <i class="fa-solid fa-arrow-left text-xs"></i>
-                    <span>Back to Registry</span>
-                </button>
-                <button type="button" onclick="closeCitizenDetailsModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
+            <!-- Modal Bottom Navigation -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-end">
+                <button type="button" onclick="closeCitizenDetailsModal()" class="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer">
                     Close
                 </button>
             </div>

@@ -452,12 +452,7 @@ foreach ($dbRequests as $row) {
 
         </div>
 
-        <!-- Modal Bottom Navigation (Close Button) -->
-        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end shrink-0">
-            <button type="button" onclick="closeRequestDrawer()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition cursor-pointer">
-                Close
-            </button>
-        </div>
+
 
     </div>
 </div>

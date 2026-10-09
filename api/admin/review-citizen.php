@@ -70,7 +70,7 @@ try {
     $qrCodeToken     = $verif['qr_code_token'];
     $qrCodeImageUrl  = $verif['qr_code_image_url'];
 
-    $baseUrl = rtrim(getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+    $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
     $formatFullImageUrl = function($url) use ($baseUrl) {
         if (empty($url) || !is_string($url)) return null;
         $url = trim($url);

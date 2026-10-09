@@ -87,7 +87,7 @@ try {
     $record = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($record) {
-        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
         $formatUrl = function($url) use ($baseUrl) {
             if (empty($url) || !is_string($url)) return null;
             $url = trim($url);

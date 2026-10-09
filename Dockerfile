@@ -16,14 +16,24 @@ RUN apt-get update && apt-get install -y \
 # 2. Enable Apache rewrite & headers modules
 RUN a2enmod rewrite headers
 
-# 3. Adjust Apache configuration to allow .htaccess overrides
-RUN sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf
+# 3. Adjust Apache configuration to allow .htaccess overrides and configure upload directory access
+RUN sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf \
+    && echo '<Directory "/var/www/html/assets/uploads">' >> /etc/apache2/apache2.conf \
+    && echo '    Options -Indexes +FollowSymLinks' >> /etc/apache2/apache2.conf \
+    && echo '    AllowOverride All' >> /etc/apache2/apache2.conf \
+    && echo '    Require all granted' >> /etc/apache2/apache2.conf \
+    && echo '</Directory>' >> /etc/apache2/apache2.conf \
+    && echo 'Alias /uploads /var/www/html/assets/uploads' >> /etc/apache2/apache2.conf
 
-# 4. Configure PHP runtime limits (uploads, memory, execution time)
-RUN echo "upload_max_filesize = 64M" > /usr/local/etc/php/conf.d/custom.ini \
-    && echo "post_max_size = 64M" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/custom.ini \
-    && echo "max_execution_time = 300" >> /usr/local/etc/php/conf.d/custom.ini
+# 4. Configure PHP runtime limits (file uploads, memory, execution time)
+RUN echo "file_uploads = On" > /usr/local/etc/php/conf.d/custom.ini \
+    && echo "upload_tmp_dir = /tmp" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "upload_max_filesize = 128M" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "post_max_size = 128M" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "max_execution_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "max_input_time = 600" >> /usr/local/etc/php/conf.d/custom.ini \
+    && echo "max_file_uploads = 50" >> /usr/local/etc/php/conf.d/custom.ini
 
 # 5. Set working directory
 WORKDIR /var/www/html
@@ -31,13 +41,19 @@ WORKDIR /var/www/html
 # 6. Copy application code into web root
 COPY . /var/www/html
 
-# 7. Ensure upload directories exist and assign write permissions to Apache www-data
+# 7. Ensure upload directories exist, symlink /uploads to assets/uploads, and assign write permissions
 RUN mkdir -p /var/www/html/assets/uploads/verifications \
     /var/www/html/assets/uploads/concerns \
     /var/www/html/assets/uploads/certificates \
     /var/www/html/assets/uploads/ids \
+    /var/www/html/assets/uploads/alerts \
+    /var/www/html/assets/uploads/surveys \
+    /var/www/html/assets/uploads/feedbacks \
+    && ln -sfn /var/www/html/assets/uploads /var/www/html/uploads \
     && chown -R www-data:www-data /var/www/html/assets/uploads \
-    && chmod -R 775 /var/www/html/assets/uploads
+    && chmod -R 777 /var/www/html/assets/uploads
+
+VOLUME ["/var/www/html/assets/uploads"]
 
 # 8. Expose standard HTTP port 80
 EXPOSE 80

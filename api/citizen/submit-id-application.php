@@ -17,7 +17,7 @@ if (!function_exists('saveIdBase64Image')) {
         if (empty($dataUrl)) return null;
         $dataUrl = trim($dataUrl);
 
-        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://api-citizen.civentral.tech', '/');
+        $baseUrl = rtrim(getenv('APP_URL') ?: 'https://citizenship.civentral.tech', '/');
 
         if (strpos($dataUrl, 'http://') === 0 || strpos($dataUrl, 'https://') === 0) {
             return $dataUrl;

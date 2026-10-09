@@ -150,11 +150,21 @@ try {
                 if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
                 $u = trim($u);
                 if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
-                    return str_replace('/uploads/verifications/', '/assets/uploads/verifications/', $u);
+                    if (strpos($u, 'api-citizen.civentral.tech') !== false) {
+                        $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';
+                        $u = str_replace('api-citizen.civentral.tech', $host, $u);
+                    }
+                    return $u;
                 }
                 $clean = ltrim($u, '/');
+                $isLocal = (PHP_OS_FAMILY === 'Windows') || (!file_exists('/.dockerenv') && empty(getenv('DOKPLOY')));
+                if ($isLocal) {
+                    if (strpos($clean, 'assets/') === 0) return '../../' + $clean;
+                    if (strpos($clean, 'uploads/') === 0) return '../../assets/' + $clean;
+                    return '../../assets/' + $clean;
+                }
                 if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
-                return 'https://api-citizen.civentral.tech/' . $clean;
+                return '/' . $clean;
             })(!empty($r['photo_1x1_url']) ? $r['photo_1x1_url'] : ($r['selfie_photo_url'] ?? null), $displayApplicant)
         ];
     }
@@ -798,11 +808,21 @@ include '../../includes/sidebar.php';
                                     if (empty($u)) return 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=random';
                                     $u = trim($u);
                                     if (strpos($u, 'http://') === 0 || strpos($u, 'https://') === 0) {
-                                        return str_replace('/uploads/verifications/', '/assets/uploads/verifications/', $u);
+                                        if (strpos($u, 'api-citizen.civentral.tech') !== false) {
+                                            $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';
+                                            $u = str_replace('api-citizen.civentral.tech', $host, $u);
+                                        }
+                                        return $u;
                                     }
                                     $clean = ltrim($u, '/');
+                                    $isLocal = (PHP_OS_FAMILY === 'Windows') || (!file_exists('/.dockerenv') && empty(getenv('DOKPLOY')));
+                                    if ($isLocal) {
+                                        if (strpos($clean, 'assets/') === 0) return '../../' + $clean;
+                                        if (strpos($clean, 'uploads/') === 0) return '../../assets/' + $clean;
+                                        return '../../assets/' + $clean;
+                                    }
                                     if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
-                                    return 'https://api-citizen.civentral.tech/' . $clean;
+                                    return '/' . $clean;
                                 })($reg['selfie_photo_url'] ?? null, $regName);
                             ?>
                                 <div class="flex items-center justify-between group">

@@ -61,7 +61,9 @@ foreach ($dbRequests as $row) {
                     if ($u && strpos($u, 'http') !== 0) {
                         $clean = ltrim($u, '/');
                         if (strpos($clean, 'uploads/') === 0) $clean = 'assets/' . $clean;
-                        $u = 'https://api-citizen.civentral.tech/' . $clean;
+                        $host = !empty($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'citizenship.civentral.tech';
+                        $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+                        $u = $proto . $host . '/' . $clean;
                     }
                     $docList[] = [
                         'name' => $d['name'] ?? 'Supporting Document',

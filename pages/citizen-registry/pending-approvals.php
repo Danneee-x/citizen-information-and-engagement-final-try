@@ -1078,34 +1078,28 @@ function selectPendingApplication(rowElement) {
         url = url.trim();
         if (!url || url.startsWith('blob:')) return null;
 
-        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
-            if (url.includes('/uploads/verifications/')) {
-                return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            if (url.includes('api-citizen.civentral.tech')) {
+                url = url.replace('api-citizen.civentral.tech', window.location.host);
             }
             return url;
         }
+        if (url.startsWith('data:image/')) return url;
 
         const cleanPath = url.replace(/^\/+/, '');
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         if (isLocal) {
             if (cleanPath.startsWith('assets/')) return '../../' + cleanPath;
             if (cleanPath.startsWith('uploads/')) return '../../assets/' + cleanPath;
+            return '../../assets/' + cleanPath;
         }
         if (cleanPath.startsWith('uploads/')) {
-            return API_BASE_URL + '/assets/' + cleanPath;
+            return '/assets/' + cleanPath;
         }
-        return API_BASE_URL + '/' + cleanPath;
-    }
-
-    function renderImageCard(boxId, photoUrl, fallbackIcon, altText) {
-        const box = document.getElementById(boxId);
-        if (!box) return;
-        const src = formatPhotoSrc(photoUrl);
-        if (src) {
-            box.innerHTML = `<a href="${src}" target="_blank" title="Click to view full size"><img src="${src}" class="w-full h-full object-cover rounded-lg hover:opacity-90 transition cursor-pointer" alt="${altText}" onerror="this.parentElement.innerHTML='<div class=\\'text-center p-2 text-slate-400\\'><i class=\\'${fallbackIcon} text-xl mb-1\\'></i><span class=\\'block text-[8px]\\'>Unavailable</span></div>';" /></a>`;
-        } else {
-            box.innerHTML = `<div class="text-center p-2 text-slate-400"><i class="${fallbackIcon} text-xl mb-1"></i><span class="block text-[8px]">Not uploaded</span></div>`;
+        if (cleanPath.startsWith('assets/')) {
+            return '/' + cleanPath;
         }
+        return '/assets/uploads/' + cleanPath;
     }
 
     renderImageCard('drawerIdPhotoBox', app.id_front_photo_url, 'fa-solid fa-id-card', 'Valid ID');

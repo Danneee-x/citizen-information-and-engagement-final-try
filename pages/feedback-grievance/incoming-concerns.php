@@ -707,9 +707,16 @@ function selectConcernRow(rowElement, id) {
         attachContainer.innerHTML = '';
         if (data.photo_evidence_url) {
             let fullImgUrl = data.photo_evidence_url;
-            if (!fullImgUrl.startsWith('http://') && !fullImgUrl.startsWith('https://') && !fullImgUrl.startsWith('data:image/')) {
+            if (fullImgUrl.includes('api-citizen.civentral.tech')) {
+                fullImgUrl = fullImgUrl.replace('api-citizen.civentral.tech', window.location.host);
+            } else if (!fullImgUrl.startsWith('http://') && !fullImgUrl.startsWith('https://') && !fullImgUrl.startsWith('data:image/')) {
                 const clean = fullImgUrl.replace(/^\/+/, '');
-                fullImgUrl = 'https://api-citizen.civentral.tech/' + (clean.startsWith('uploads/') ? 'assets/' + clean : clean);
+                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                if (isLocal) {
+                    fullImgUrl = clean.startsWith('assets/') ? '../../' + clean : '../../assets/' + clean;
+                } else {
+                    fullImgUrl = clean.startsWith('uploads/') ? '/assets/' + clean : '/' + clean;
+                }
             }
             attachContainer.innerHTML = `
                 <a href="${fullImgUrl}" target="_blank" class="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-85 transition relative group shadow-2xs">

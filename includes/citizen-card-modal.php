@@ -864,13 +864,13 @@ function resolveCardAssetUrl(url) {
     url = url.trim();
     if (!url || url.startsWith('blob:')) return null;
 
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image/')) {
-        // Fix any missing assets/ prefix in verification URLs
-        if (url.includes('/uploads/verifications/')) {
-            return url.replace('/uploads/verifications/', '/assets/uploads/verifications/');
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        if (url.includes('api-citizen.civentral.tech')) {
+            url = url.replace('api-citizen.civentral.tech', window.location.host);
         }
         return url;
     }
+    if (url.startsWith('data:image/')) return url;
 
     const cleanPath = url.replace(/^\/+/, '');
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -880,11 +880,13 @@ function resolveCardAssetUrl(url) {
         return '../../assets/' + cleanPath;
     }
 
-    const apiBase = 'https://api-citizen.civentral.tech';
     if (cleanPath.startsWith('uploads/')) {
-        return apiBase + '/assets/' + cleanPath;
+        return '/assets/' + cleanPath;
     }
-    return apiBase + '/' + cleanPath;
+    if (cleanPath.startsWith('assets/')) {
+        return '/' + cleanPath;
+    }
+    return '/assets/uploads/' + cleanPath;
 }
 
 function formatDateDisplay(dateStr) {

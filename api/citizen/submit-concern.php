@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 // Prevent session lock issues
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -309,7 +314,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $countStmt = $pdo->query("SELECT COUNT(*) as total FROM `citizen_concerns`");
         $total = $countStmt->fetchColumn();
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'database' => 'citizen_verification',
             'connected_to' => $conn['target'],
@@ -320,7 +326,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     } catch (\Exception $e) {
         http_response_code(500);
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'error',
             'message' => 'Database error: ' . $e->getMessage()
         ]);
@@ -359,19 +366,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($title)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern title/subject is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern title/subject is required.']);
             exit;
         }
 
         if (empty($description)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern detailed description is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern detailed description is required.']);
             exit;
         }
 
         if (empty($location)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Concern location is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Concern location is required.']);
             exit;
         }
 
@@ -606,7 +616,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $insertedId = $pdo->lastInsertId();
 
         if (ob_get_length()) ob_clean();
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'message' => $isAutoRouted
                 ? "Concern ticket filed and automatically routed to {$assignedDept}."
@@ -639,7 +650,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (\Exception $e) {
         if (ob_get_length()) ob_clean();
         http_response_code(500);
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'error',
             'message' => 'Failed to process concern submission: ' . $e->getMessage()
         ]);

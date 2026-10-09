@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -15,6 +20,7 @@ try {
     $pdo = getCertificateDbConnection();
 } catch (Exception $e) {
     http_response_code(500);
+    if (ob_get_length()) ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Database connection error: ' . $e->getMessage()]);
     exit;
 }
@@ -52,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute($params);
         $rows = $stmt->fetchAll();
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'count' => count($rows),
             'data' => $rows
@@ -60,7 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
 }
@@ -78,12 +86,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($citizenName)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Applicant name is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Applicant name is required.']);
             exit;
         }
         if (empty($certType)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'Certificate type is required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Certificate type is required.']);
             exit;
         }
         if (empty($purpose)) {
@@ -209,7 +219,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         } catch (Exception $eMirror) {}
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'message' => 'Certificate request successfully submitted.',
             'data' => [
@@ -228,7 +239,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to process certificate request: ' . $e->getMessage()]);
+        if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Failed to process certificate request: ' . $e->getMessage()]);
         exit;
     }
 }

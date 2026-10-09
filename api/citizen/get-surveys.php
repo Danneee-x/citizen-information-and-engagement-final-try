@@ -4,7 +4,14 @@
  * Fetches all available citizen public surveys and their questions.
  */
 
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
+
 require_once __DIR__ . '/../../config/cors.php';
+require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../pages/public-consultation/consultation-db-helper.php';
 
 try {
@@ -57,18 +64,19 @@ try {
         ];
     }
 
+    if (ob_get_length()) ob_clean();
     echo json_encode([
         'success' => true,
         'status'  => 'success',
-        'count'   => count($formatted),
         'data'    => $formatted,
+        'count'   => count($formatted)
     ]);
 } catch (Exception $e) {
+    if (ob_get_length()) ob_clean();
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'status'  => 'error',
-        'message' => 'Failed to fetch surveys: ' . $e->getMessage(),
-        'data'    => []
+        'message' => 'Failed to retrieve surveys: ' . $e->getMessage()
     ]);
 }

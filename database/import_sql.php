@@ -114,6 +114,39 @@ try {
 
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
+    // Auto-migrate newly added columns if they don't exist yet in citizen_verifications
+    $verifColumns = [
+        'citizen_id_number' => "VARCHAR(30) NULL",
+        'photo_1x1_url' => "VARCHAR(500) NULL",
+        'signature_photo_url' => "VARCHAR(500) NULL",
+        'qr_code_token' => "VARCHAR(255) NULL",
+        'qr_code_image_url' => "VARCHAR(500) NULL",
+        'admin_action_notes' => "TEXT NULL"
+    ];
+    foreach ($verifColumns as $col => $colDef) {
+        try {
+            $checkCol = $pdo->query("SHOW COLUMNS FROM `citizen_verifications` LIKE '$col'")->fetch();
+            if (!$checkCol) {
+                $pdo->exec("ALTER TABLE `citizen_verifications` ADD COLUMN `$col` $colDef");
+                echo "[MIGRATE] Added column `{$col}` to `citizen_verifications`\n";
+            }
+        } catch (Exception $e) {}
+    }
+
+    // Sync past UTC timestamps to Philippine Standard Time (+8 hours)
+    try {
+        $updated = $pdo->exec("
+            UPDATE `citizen_verifications` 
+            SET `submitted_at` = DATE_ADD(`submitted_at`, INTERVAL 8 HOUR) 
+            WHERE `submitted_at` < '2026-10-10 00:00:00' AND `submitted_at` >= '2026-10-01 00:00:00'
+        ");
+        if ($updated > 0) {
+            echo "[TIMEZONE] Synced {$updated} citizen application timestamps to Philippine Standard Time (UTC+8).\n";
+        }
+    } catch (Exception $e) {
+        echo "[TIMEZONE NOTICE] " . $e->getMessage() . "\n";
+    }
+
     // Verify created tables
     $pdo->exec("USE `citizen_verification`;");
     $tables = $pdo->query("SHOW TABLES;")->fetchAll(PDO::FETCH_COLUMN);

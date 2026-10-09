@@ -1,4 +1,9 @@
 <?php
+error_reporting(0);
+ini_set('display_errors', '0');
+ob_start();
+
+date_default_timezone_set('Asia/Manila');
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -74,6 +79,7 @@ try {
     $pdo = getCertificateDbConnection();
 } catch (Exception $e) {
     http_response_code(500);
+    if (ob_get_length()) ob_clean();
     echo json_encode(['status' => 'error', 'message' => 'Database connection error: ' . $e->getMessage()]);
     exit;
 }
@@ -187,7 +193,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $stmt->execute($params);
         $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'count' => count($records),
             'data' => $records
@@ -195,7 +202,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         exit;
     }
 }
@@ -212,7 +220,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($data)) {
             http_response_code(400);
-            echo json_encode(['status' => 'error', 'message' => 'No application payload received.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'No application payload received.']);
             exit;
         }
 
@@ -282,7 +291,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($firstName) || empty($lastName) || empty($contactNumber)) {
             http_response_code(422);
-            echo json_encode(['status' => 'error', 'message' => 'First name, last name, and contact number are required.']);
+            if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'First name, last name, and contact number are required.']);
             exit;
         }
 
@@ -343,7 +353,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $newId = (int)$pdo->lastInsertId();
 
-        echo json_encode([
+        if (ob_get_length()) ob_clean();
+    echo json_encode([
             'status' => 'success',
             'message' => 'Application filed successfully.',
             'data' => [
@@ -357,10 +368,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } catch (Exception $e) {
         http_response_code(500);
-        echo json_encode(['status' => 'error', 'message' => 'Failed to save application: ' . $e->getMessage()]);
+        if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Failed to save application: ' . $e->getMessage()]);
         exit;
     }
 }
 
 http_response_code(405);
-echo json_encode(['status' => 'error', 'message' => 'Method Not Allowed']);
+if (ob_get_length()) ob_clean();
+    echo json_encode(['status' => 'error', 'message' => 'Method Not Allowed']);

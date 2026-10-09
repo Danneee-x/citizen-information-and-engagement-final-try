@@ -88,8 +88,28 @@ if (!function_exists('saveBase64Image')) {
     }
 }
 
+date_default_timezone_set('Asia/Manila');
+
 try {
     $pdo = getDbConnection();
+
+    // Auto-migrate newly added columns if they don't exist yet
+    $verifColumns = [
+        'citizen_id_number' => "VARCHAR(30) NULL",
+        'photo_1x1_url' => "VARCHAR(500) NULL",
+        'signature_photo_url' => "VARCHAR(500) NULL",
+        'qr_code_token' => "VARCHAR(255) NULL",
+        'qr_code_image_url' => "VARCHAR(500) NULL",
+        'admin_action_notes' => "TEXT NULL"
+    ];
+    foreach ($verifColumns as $col => $colDef) {
+        try {
+            $checkCol = $pdo->query("SHOW COLUMNS FROM `citizen_verifications` LIKE '$col'")->fetch();
+            if (!$checkCol) {
+                $pdo->exec("ALTER TABLE `citizen_verifications` ADD COLUMN `$col` $colDef");
+            }
+        } catch (Exception $e) {}
+    }
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(["status" => "error", "message" => "Database connection failure: " . $e->getMessage()]);
@@ -377,13 +397,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             place_of_birth, birth_date, civil_status, employment_status, occupation,
             educational_attainment, district, barangay, street_address, years_resident,
             valid_id_type, valid_id_number, id_front_photo_url, selfie_photo_url,
-            photo_1x1_url, signature_photo_url, verification_status
+            photo_1x1_url, signature_photo_url, verification_status, submitted_at, updated_at
         ) VALUES (
             :citizen_user_id, :first_name, :middle_name, :last_name, :suffix, :sex,
             :place_of_birth, :birth_date, :civil_status, :employment_status, :occupation,
             :educational_attainment, :district, :barangay, :street_address, :years_resident,
             :valid_id_type, :valid_id_number, :id_front_photo_url, :selfie_photo_url,
-            :photo_1x1_url, :signature_photo_url, 'Pending'
+            :photo_1x1_url, :signature_photo_url, 'Pending', :submitted_at, :submitted_at
         )");
 
         $stmt->execute([
@@ -409,6 +429,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ':selfie_photo_url'        => $selfieSavedPath,
             ':photo_1x1_url'           => $photo1x1SavedPath,
             ':signature_photo_url'     => $signatureSavedPath,
+            ':submitted_at'            => date('Y-m-d H:i:s'),
         ]);
 
         $verificationId = (int)$pdo->lastInsertId();

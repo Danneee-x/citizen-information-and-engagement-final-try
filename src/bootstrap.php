@@ -1,4 +1,6 @@
 <?php
+// Enforce official Philippine Standard Time (PST, UTC+8) for all admin modules
+date_default_timezone_set('Asia/Manila');
 
 if (!ob_get_level()) {
     ob_start();

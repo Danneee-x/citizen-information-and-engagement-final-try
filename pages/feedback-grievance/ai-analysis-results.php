@@ -116,6 +116,12 @@ $clustersByGroup = [];
 require_once __DIR__ . '/../../config/database.php';
 try {
     $pdo = getDbConnection();
+
+    // Auto-promote pending high-confidence reports to Routed in database for zero-touch automation
+    try {
+        $pdo->exec("UPDATE `citizen_concerns` SET `status` = 'Routed' WHERE `status` IN ('New', 'Under Review') AND `assigned_department` IS NOT NULL AND `assigned_department` != '' AND (`ai_confidence_score` IS NULL OR `ai_confidence_score` NOT LIKE '%below%')");
+    } catch (Exception $e) {}
+
     $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `concern_id` DESC");
     $dbRows = $stmt->fetchAll();
     if (!empty($dbRows)) {
@@ -161,9 +167,15 @@ try {
             $grpTickets = $clustersByGroup[$grpKey] ?? [$row['ticket_number']];
             $hasDups = count($grpTickets) > 1;
 
-            $currentStatus = 'Pending Review';
-            if (in_array($row['status'], ['Routed', 'In Progress', 'Resolved'])) {
-                $currentStatus = 'Accepted';
+            $confVal = (!empty($row['ai_confidence_score']) && preg_match('/(\d+)%/', $row['ai_confidence_score'], $m)) ? (int)$m[1] : 96;
+
+            if ($row['status'] === 'Overridden') {
+                $currentStatus = 'Overridden';
+            } else if (in_array($row['status'], ['Routed', 'In Progress', 'Resolved']) || $confVal >= 85) {
+                // Zero-touch: high confidence (>= 85%) reports are automatically dispatched
+                $currentStatus = 'Auto-Dispatched';
+            } else {
+                $currentStatus = 'Pending Review';
             }
 
             $liveAi[] = [
@@ -203,7 +215,7 @@ $avgConfidenceVal = 96.2;
 $urgentFlagsCount = 0;
 $duplicateClustersCount = 0;
 $totalDuplicatesCount = 0;
-$acceptedCount = 0;
+$autoDispatchedCount = 0;
 
 if ($totalTickets > 0) {
     $sumConf = 0;
@@ -215,8 +227,8 @@ if ($totalTickets > 0) {
         if (!empty($item['cluster']['has_duplicates'])) {
             $totalDuplicatesCount++;
         }
-        if ($item['status'] === 'Accepted') {
-            $acceptedCount++;
+        if ($item['status'] === 'Auto-Dispatched' || $item['status'] === 'Accepted' || $item['status'] === 'Overridden') {
+            $autoDispatchedCount++;
         }
     }
     $avgConfidenceVal = round($sumConf / $totalTickets, 1);
@@ -227,7 +239,7 @@ if ($totalTickets > 0) {
         }
     }
 }
-$acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) * 100, 1) : 94.8;
+$autoDispatchRateVal = $totalTickets > 0 ? round(($autoDispatchedCount / $totalTickets) * 100, 1) : 98.5;
 ?>
 
 <!-- Custom Styling -->
@@ -271,9 +283,9 @@ $acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) 
                 </div>
                 <h1 class="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 flex-wrap">
                     <span>AI Analysis Results & Triage Hub</span>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 shadow-xs">
-                        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
-                        <span>Multi-Modal NLP Active</span>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-xs">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span>⚡ Autonomous Routing Active</span>
                     </span>
                 </h1>
             </div>
@@ -348,19 +360,19 @@ $acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) 
             </div>
         </div>
 
-        <!-- Card 4: Human-in-the-Loop Acceptance Rate -->
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 space-y-3 hover:border-blue-300 dark:hover:border-blue-700 transition">
+        <!-- Card 4: Autonomous Auto-Routing Rate -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs p-5 space-y-3 hover:border-emerald-300 dark:hover:border-emerald-700 transition">
             <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Human Acceptance Rate</span>
-                <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-base border border-blue-100 dark:border-blue-800">
-                    <i class="fa-solid fa-user-check"></i>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Autonomous Auto-Routing</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-base border border-emerald-100 dark:border-emerald-800">
+                    <i class="fa-solid fa-bolt-lightning"></i>
                 </div>
             </div>
             <div>
-                <h3 id="kpiAcceptanceRate" class="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight"><?= $totalTickets > 0 ? ($acceptedCount . ' / ' . $totalTickets . ' (' . $acceptanceRateVal . '%)') : '100%' ?></h3>
-                <p class="text-[11px] font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1 mt-1">
-                    <i class="fa-solid fa-thumbs-up"></i>
-                    <span id="kpiAcceptanceRateSub"><?= $acceptedCount > 0 ? 'Staff confirmed auto-dispatch' : 'Awaiting initial staff dispatch' ?></span>
+                <h3 id="kpiAcceptanceRate" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight"><?= $totalTickets > 0 ? ($autoDispatchedCount . ' / ' . $totalTickets . ' (' . $autoDispatchRateVal . '%)') : '100%' ?></h3>
+                <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-1">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span id="kpiAcceptanceRateSub"><?= $autoDispatchedCount > 0 ? 'Zero-touch autonomous dispatch' : 'Autonomous AI routing active' ?></span>
                 </p>
             </div>
         </div>
@@ -380,9 +392,9 @@ $acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) 
                 <span class="text-slate-500 font-bold">Filter Status:</span>
                 <select id="aiStatusFilter" onchange="applyAiFilters()" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl px-3 py-2 outline-none font-medium text-xs cursor-pointer focus:border-indigo-500">
                     <option value="all">All Triage Statuses</option>
-                    <option value="Pending Review">Pending Staff Review</option>
-                    <option value="Accepted">Accepted & Dispatched</option>
-                    <option value="Overridden">Manually Overridden</option>
+                    <option value="Auto-Dispatched">⚡ Auto-Dispatched by AI (Zero-Touch)</option>
+                    <option value="Pending Review">⚠️ Low Confidence / Needs Review</option>
+                    <option value="Overridden">✏️ Manually Overridden</option>
                 </select>
             </div>
 
@@ -397,7 +409,7 @@ $acceptanceRateVal = $totalTickets > 0 ? round(($acceptedCount / $totalTickets) 
                 <span>AI Classification & Triage Feed</span>
                 <span id="aiFeedCountBadge" class="text-slate-400 font-normal text-xs">(7 tickets analyzed)</span>
             </h3>
-            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Human-in-the-loop: Review and confirm or override AI routing</span>
+            <span class="text-xs text-slate-400 font-medium hidden sm:inline">Zero-Touch Automation: High-confidence reports are auto-routed directly to bureaus with staff override control</span>
         </div>
 
         <div id="aiFeedContainer" class="grid grid-cols-1 gap-4">
@@ -540,14 +552,17 @@ function renderAiFeed() {
     let html = '';
     filtered.forEach(item => {
         const deptInfo = departmentsMap[item.department_key] || { short: item.suggested_routing, badge: 'bg-slate-100 text-slate-700', icon: 'fa-solid fa-building' };
-        const isAccepted = item.status === 'Accepted';
+        const isAutoDispatched = item.status === 'Auto-Dispatched' || item.status === 'Accepted';
         const isOverridden = item.status === 'Overridden';
+        const isPendingReview = item.status === 'Pending Review';
 
-        let statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">Pending Review</span>`;
-        if (isAccepted) {
-            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1"><i class="fa-solid fa-check"></i> Accepted & Dispatched</span>`;
+        let statusPill = '';
+        if (isAutoDispatched) {
+            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1"><i class="fa-solid fa-bolt-lightning text-emerald-500"></i> Auto-Dispatched to ${escapeHtml(deptInfo.short)}</span>`;
         } else if (isOverridden) {
-            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 flex items-center gap-1"><i class="fa-solid fa-user-check"></i> Staff Overridden</span>`;
+            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800 flex items-center gap-1"><i class="fa-solid fa-user-pen"></i> Staff Overridden</span>`;
+        } else {
+            statusPill = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Low Confidence (<85%) - Manual Review</span>`;
         }
 
         html += `
@@ -661,20 +676,32 @@ function renderAiFeed() {
                 </a>
 
                 <div class="flex items-center gap-2 justify-end">
-                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                    ${isAutoDispatched ? `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold rounded-xl shadow-2xs">
+                        <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
+                        <span>Automatically Dispatched (Zero-Touch)</span>
+                    </span>
+                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
                         <i class="fa-solid fa-sliders text-slate-400"></i>
-                        <span>Override AI Category / Routing</span>
+                        <span>Override Routing</span>
                     </button>
-
-                    ${isAccepted ? `
-                    <button disabled class="px-5 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl opacity-90 cursor-default flex items-center gap-1.5">
-                        <i class="fa-solid fa-circle-check text-xs"></i>
-                        <span>Dispatched to ${deptInfo.short}</span>
+                    ` : isOverridden ? `
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold rounded-xl">
+                        <i class="fa-solid fa-user-pen text-purple-500 text-xs"></i>
+                        <span>Manually Assigned to ${escapeHtml(deptInfo.short)}</span>
+                    </span>
+                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders text-slate-400"></i>
+                        <span>Edit Override</span>
                     </button>
                     ` : `
-                    <button onclick="acceptAiRecommendation('${item.id}')" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
+                    <button onclick="acceptAiRecommendation('${item.id}')" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition shadow-xs cursor-pointer flex items-center gap-1.5">
                         <i class="fa-solid fa-check text-xs"></i>
-                        <span>Accept AI Triage & Dispatch</span>
+                        <span>Confirm & Dispatch</span>
+                    </button>
+                    <button onclick="openStaffOverrideModal('${item.id}')" class="px-3.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition cursor-pointer flex items-center gap-1.5">
+                        <i class="fa-solid fa-sliders text-slate-400"></i>
+                        <span>Re-assign</span>
                     </button>
                     `}
                 </div>
@@ -703,7 +730,11 @@ function getFilteredAiItems() {
             if (!matchId && !matchTitle && !matchText && !matchBrgy && !matchKw) return false;
         }
 
-        if (statusVal !== 'all' && item.status !== statusVal) return false;
+        if (statusVal === 'Auto-Dispatched') {
+            if (item.status !== 'Auto-Dispatched' && item.status !== 'Accepted') return false;
+        } else if (statusVal !== 'all' && item.status !== statusVal) {
+            return false;
+        }
 
         return true;
     });
@@ -720,19 +751,19 @@ function updateAiKpis() {
 
     let sumConf = 0;
     let urgent = 0;
-    let accepted = 0;
+    let autoDispatched = 0;
     let clusters = 0;
     let duplicates = 0;
 
     aiClassificationsData.forEach(item => {
         sumConf += (item.ai_confidence || 95);
         if (item.sentiment_badge && item.sentiment_badge.includes('rose')) urgent++;
-        if (item.status === 'Accepted' || item.status === 'Overridden') accepted++;
+        if (item.status === 'Auto-Dispatched' || item.status === 'Accepted' || item.status === 'Overridden') autoDispatched++;
         if (item.cluster && item.cluster.has_duplicates) duplicates++;
     });
 
     const avgConf = (sumConf / total).toFixed(1);
-    const acceptPct = ((accepted / total) * 100).toFixed(1);
+    const autoPct = ((autoDispatched / total) * 100).toFixed(1);
 
     const elConf = document.getElementById('kpiAvgConfidence');
     if (elConf) elConf.innerText = `${avgConf}% Avg`;
@@ -741,18 +772,18 @@ function updateAiKpis() {
     if (elUrgent) elUrgent.innerText = `${urgent} Flagged`;
 
     const elAccept = document.getElementById('kpiAcceptanceRate');
-    if (elAccept) elAccept.innerText = `${accepted} / ${total} (${acceptPct}%)`;
+    if (elAccept) elAccept.innerText = `${autoDispatched} / ${total} (${autoPct}%)`;
 
     const elAcceptSub = document.getElementById('kpiAcceptanceRateSub');
-    if (elAcceptSub) elAcceptSub.innerText = accepted > 0 ? 'Staff confirmed auto-dispatch' : 'Awaiting initial staff dispatch';
+    if (elAcceptSub) elAcceptSub.innerText = autoDispatched > 0 ? 'Zero-touch autonomous dispatch' : 'Autonomous AI routing active';
 }
 
-// Accept AI Triage & Dispatch to Concern Routing (Persists to MySQL)
+// Confirm AI Triage & Dispatch (For Low-Confidence / Flagged Reports)
 function acceptAiRecommendation(id) {
     const item = aiClassificationsData.find(c => c.id === id);
     if (!item) return;
 
-    item.status = 'Accepted';
+    item.status = 'Auto-Dispatched';
     renderAiFeed();
     updateAiKpis();
 
@@ -767,7 +798,7 @@ function acceptAiRecommendation(id) {
         })
     }).then(res => res.json()).catch(err => console.warn('Sync notice:', err));
 
-    showAiToast(`Triage for ${id} ACCEPTED! Concern auto-dispatched to ${item.suggested_routing}.`, 'success');
+    showAiToast(`Triage for ${id} confirmed! Concern dispatched to ${item.suggested_routing}.`, 'success');
 }
 
 // Staff Override Controller

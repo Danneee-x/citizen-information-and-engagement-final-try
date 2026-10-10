@@ -569,14 +569,18 @@ function getInitialRelativeTime($datetime) {
 
         <!-- Interactive Month Chips / Footer Toolbar -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
-          <div class="flex items-center gap-1.5 flex-wrap">
+          <div id="monthDrilldownChips" class="flex items-center gap-1.5 flex-wrap">
             <span class="font-bold text-slate-500 dark:text-slate-400">Month Drill-Down:</span>
-            <button onclick="openDrilldownModal('verifications', 'all', 'April 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Apr</button>
-            <button onclick="openDrilldownModal('verifications', 'all', 'May 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer">May</button>
-            <button onclick="openDrilldownModal('verifications', 'all', 'June 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Jun</button>
-            <button onclick="openDrilldownModal('verifications', 'all', 'July 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Jul</button>
-            <button onclick="openDrilldownModal('verifications', 'all', 'August 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer">Aug</button>
-            <button onclick="openDrilldownModal('verifications', 'all', 'September 2026 Audit Logs')" class="px-2 py-0.5 rounded-md bg-blue-100 text-[#0f53d1] dark:bg-blue-950/60 dark:text-blue-300 font-black cursor-pointer">Sep (Current)</button>
+            <?php foreach ($historicalMonths as $hm): 
+              $isCurr = !empty($hm['is_current']);
+              $btnClass = $isCurr 
+                ? 'px-2 py-0.5 rounded-md bg-blue-100 text-[#0f53d1] dark:bg-blue-950/60 dark:text-blue-300 font-black cursor-pointer' 
+                : 'px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer';
+              $labelText = $isCurr ? htmlspecialchars($hm['label']) . ' (Current)' : htmlspecialchars($hm['label']);
+              $titleStr = htmlspecialchars($hm['full_label'] ?? ($hm['label'] . ' ' . $hm['year'] . ' Audit Logs'));
+            ?>
+              <button onclick="openDrilldownModal('verifications', 'all', '<?php echo $titleStr; ?>')" class="<?php echo $btnClass; ?>"><?php echo $labelText; ?></button>
+            <?php endforeach; ?>
           </div>
           <button onclick="openDrilldownModal('verifications', 'all', 'All Citizen Activity Logs')" class="font-extrabold text-[#0f53d1] dark:text-blue-400 hover:underline flex items-center gap-1 shrink-0 cursor-pointer">
             <span>Explore All Records</span>
@@ -616,19 +620,28 @@ function getInitialRelativeTime($datetime) {
               </tr>
             </thead>
             <tbody id="historicalTableBody" class="divide-y divide-slate-100 dark:divide-slate-800">
-              <!-- Loaded via dashboard-analytics.js -->
-              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-850/50">
-                <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100">Sep 2026</td>
-                <td class="py-2.5 px-3 text-right font-medium"><?php echo $totalV; ?></td>
-                <td class="py-2.5 px-3 text-right font-bold text-emerald-600"><?php echo $approvedV; ?></td>
-                <td class="py-2.5 px-3 text-right font-medium"><?php echo $activeC; ?></td>
-                <td class="py-2.5 px-3 text-right font-medium text-emerald-600"><?php echo $resolvedC; ?></td>
-                <td class="py-2.5 px-3 text-right font-medium"><?php echo $totalCerts; ?></td>
-                <td class="py-2.5 px-3 text-right font-black text-[#0f53d1]"><?php echo ($totalV + $activeC + $totalCerts); ?></td>
+              <!-- Loaded dynamically via PHP and kept realtime via dashboard-analytics.js -->
+              <?php foreach (array_reverse($historicalMonths) as $row): 
+                $totalActs = (int)($row['verif'] ?? 0) + (int)($row['concerns'] ?? 0) + (int)($row['certs'] ?? 0);
+                $isCurr = !empty($row['is_current']);
+              ?>
+              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-850/50 transition">
+                <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100"><?php echo htmlspecialchars($row['label'] . ' ' . $row['year']); ?></td>
+                <td class="py-2.5 px-3 text-right font-medium"><?php echo $row['verif']; ?></td>
+                <td class="py-2.5 px-3 text-right font-bold text-emerald-600"><?php echo $row['verified']; ?></td>
+                <td class="py-2.5 px-3 text-right font-medium"><?php echo $row['concerns']; ?></td>
+                <td class="py-2.5 px-3 text-right font-medium text-emerald-600"><?php echo $row['resolved']; ?></td>
+                <td class="py-2.5 px-3 text-right font-medium"><?php echo $row['certs']; ?></td>
+                <td class="py-2.5 px-3 text-right font-black text-[#0f53d1]"><?php echo $totalActs; ?></td>
                 <td class="py-2.5 px-3 text-center">
-                  <span class="inline-block px-2 py-0.5 text-[9px] font-extrabold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Current</span>
+                  <?php if ($isCurr): ?>
+                    <span class="inline-block px-2 py-0.5 text-[9px] font-extrabold rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">Current</span>
+                  <?php else: ?>
+                    <span class="inline-block px-2 py-0.5 text-[9px] font-bold rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">Archived</span>
+                  <?php endif; ?>
                 </td>
               </tr>
+              <?php endforeach; ?>
             </tbody>
           </table>
         </div>
@@ -1035,9 +1048,9 @@ function getInitialRelativeTime($datetime) {
     demographicsLabels: ['Youth (<30)', 'Working Class (30-59)', 'Senior Citizens (60+)', 'Solo Parents'],
     radarLabels: ['Civil Registry & KYC', 'Community Grievances', 'Barangay Certificates', 'Public Consultations', 'Community Broadcasts'],
     radarData: [90, 84, 80, 68, 75],
-    trendsLabels: ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
-    trendsVerified: [0, 0, 0, 0, 0, <?php echo $approvedV; ?>],
-    trendsActions: [6, 9, 12, 15, 18, <?php echo ($totalV + $activeC + $totalCerts); ?>]
+    trendsLabels: <?php echo json_encode($trendLabels); ?>,
+    trendsVerified: <?php echo json_encode($trendVerified); ?>,
+    trendsActions: <?php echo json_encode($trendActions); ?>
   };
 </script>
 

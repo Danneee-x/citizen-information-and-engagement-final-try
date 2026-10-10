@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial render using PHP inline payload
     const initialData = window.dashboardAnalyticsData || {};
     initTrendsChart(
-        initialData.trendsLabels || ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'],
+        initialData.trendsLabels || ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
         initialData.trendsVerified || [0, 0, 0, 0, 0, 0],
         initialData.trendsActions || [6, 9, 12, 15, 18, 25],
         'bar'
@@ -614,8 +614,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Start polling on load
+    // Start polling on load & trigger initial silent live sync immediately
     resetPollingTimer();
+    fetchLiveStats(true);
 
     // -------------------------------------------------------------------------
     // 4. Interactive Filters (Timeframe & District)

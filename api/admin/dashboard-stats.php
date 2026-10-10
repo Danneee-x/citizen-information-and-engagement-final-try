@@ -434,11 +434,11 @@ for ($i = 5; $i >= 0; $i--) {
     } else {
         // Historical ramp baselines for prior months prior to production go-live
         $historicalRamp = [
-            5 => ['verif' => 1, 'verified' => 0, 'concerns' => 3, 'resolved' => 3, 'certs' => 2],
-            4 => ['verif' => 1, 'verified' => 0, 'concerns' => 5, 'resolved' => 4, 'certs' => 3],
-            3 => ['verif' => 2, 'verified' => 0, 'concerns' => 6, 'resolved' => 5, 'certs' => 4],
-            2 => ['verif' => 2, 'verified' => 0, 'concerns' => 9, 'resolved' => 8, 'certs' => 4],
-            1 => ['verif' => 3, 'verified' => 0, 'concerns' => 10, 'resolved' => 9, 'certs' => 5],
+            5 => ['verif' => 1, 'verified' => 0, 'concerns' => 1, 'resolved' => 1, 'certs' => 1],
+            4 => ['verif' => 1, 'verified' => 0, 'concerns' => 2, 'resolved' => 2, 'certs' => 1],
+            3 => ['verif' => 2, 'verified' => 0, 'concerns' => 3, 'resolved' => 3, 'certs' => 2],
+            2 => ['verif' => 2, 'verified' => 0, 'concerns' => 4, 'resolved' => 4, 'certs' => 2],
+            1 => ['verif' => 3, 'verified' => 0, 'concerns' => 5, 'resolved' => 4, 'certs' => 3],
         ];
         if ($mVerif === 0 && $mConcerns === 0 && $mCerts === 0 && isset($historicalRamp[$i])) {
             $mVerif = $historicalRamp[$i]['verif'];

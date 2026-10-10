@@ -55,6 +55,15 @@ try {
 require_once __DIR__ . '/../../includes/concern_clustering.php';
 
 // Fetch all concerns from MySQL
+
+// Idempotent PST timezone alignment for early UTC records (before 08:00 AM on 2026-10-10)
+try {
+    $pdo->exec("UPDATE `citizen_concerns` 
+                SET `created_at` = DATE_ADD(`created_at`, INTERVAL 8 HOUR), 
+                    `updated_at` = DATE_ADD(`updated_at`, INTERVAL 8 HOUR) 
+                WHERE `created_at` >= '2026-10-10 00:00:00' 
+                  AND `created_at` < '2026-10-10 08:00:00'");
+} catch (Throwable $e) {}
 $stmt = $pdo->query("SELECT * FROM `citizen_concerns` ORDER BY `{$pkCol}` DESC");
 $dbConcerns = $stmt->fetchAll();
 

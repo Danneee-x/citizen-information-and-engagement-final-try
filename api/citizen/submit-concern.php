@@ -173,6 +173,16 @@ function getDbConnection() {
                             WHERE `created_at` >= '2026-10-09 12:00:00' AND `created_at` <= '2026-10-09 23:59:59'");
             } catch (\Exception $tzFixEx) {}
 
+            
+            // Self-healing: normalize any UTC-recorded concerns from early hours of 2026-10-10 to PST (+8 hours)
+            try {
+                $pdo->exec("UPDATE `citizen_concerns` 
+                            SET `created_at` = DATE_ADD(`created_at`, INTERVAL 8 HOUR), 
+                                `updated_at` = DATE_ADD(`updated_at`, INTERVAL 8 HOUR) 
+                            WHERE `created_at` >= '2026-10-10 00:00:00' 
+                              AND `created_at` < '2026-10-10 08:00:00'");
+            } catch (\Exception $e) {}
+
             return ['pdo' => $pdo, 'target' => $cand['desc'], 'host' => $cand['host']];
         } catch (\Exception $e) {
             $lastError = $cand['desc'] . ': ' . $e->getMessage();

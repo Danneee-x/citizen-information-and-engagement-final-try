@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Modern Chart Initialization (Radically Elevated Visual Style)
     // -------------------------------------------------------------------------
     let currentTrendType = 'bar';
-    let cachedTrendsLabels = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
+    let cachedTrendsLabels = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
     let cachedVerifiedData = [0, 0, 0, 0, 0, 0];
     let cachedActionsData = [6, 9, 12, 15, 18, 25];
 
@@ -477,16 +477,41 @@ document.addEventListener('DOMContentLoaded', () => {
             radarChart.update('active');
         }
 
-        // 3. Update Historical Table (Checklist Item 4)
+        // 3. Update Peak Velocity and Historical Table (Checklist Item 4: Real-time Monthly Performance)
+        if (payload.peak_velocity) {
+            const elPeak = document.getElementById('kpiPeakVelocity');
+            if (elPeak) {
+                elPeak.innerHTML = `${payload.peak_velocity} <span class="text-[9px] text-emerald-600 font-bold">(High)</span>`;
+            }
+        }
+
+        // Dynamically update Month Drill-Down chips
+        const chipsContainer = document.getElementById('monthDrilldownChips');
+        if (chipsContainer && historical.length > 0) {
+            let chipHtml = '<span class="font-bold text-slate-500 dark:text-slate-400">Month Drill-Down:</span>';
+            historical.forEach(hm => {
+                const isCurr = hm.is_current === true || hm.label === (payload.current_month_label || 'Oct');
+                const labelText = isCurr ? `${hm.label} (Current)` : hm.label;
+                const btnClass = isCurr 
+                    ? 'px-2 py-0.5 rounded-md bg-blue-100 text-[#0f53d1] dark:bg-blue-950/60 dark:text-blue-300 font-black cursor-pointer'
+                    : 'px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-bold text-slate-700 dark:text-slate-300 cursor-pointer';
+                const titleStr = hm.full_label || `${hm.label} ${hm.year || 2026} Audit Logs`;
+                chipHtml += `<button onclick="openDrilldownModal('verifications', 'all', '${titleStr}')" class="${btnClass}">${labelText}</button>`;
+            });
+            chipsContainer.innerHTML = chipHtml;
+        }
+
         const histTbody = document.getElementById('historicalTableBody');
         if (histTbody && historical.length > 0) {
             let html = '';
-            historical.forEach(row => {
+            // Render in reverse order so current month sits on top
+            const reversedRows = [...historical].reverse();
+            reversedRows.forEach(row => {
                 const totalActions = (row.verif || 0) + (row.concerns || 0) + (row.certs || 0);
-                const isCurrent = row.label === 'Sep';
+                const isCurrent = row.is_current === true || row.label === (payload.current_month_label || 'Oct');
                 html += `
                     <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-850/50 transition">
-                        <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100">${row.label} 2026</td>
+                        <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100">${row.label} ${row.year || '2026'}</td>
                         <td class="py-2.5 px-3 text-right font-medium">${row.verif || 0}</td>
                         <td class="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">${row.verified || 0}</td>
                         <td class="py-2.5 px-3 text-right font-medium">${row.concerns || 0}</td>
@@ -839,7 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let csv = "Period,KYC Submissions,Verified Citizens,Grievances Filed,Resolved Concerns,Certificates Issued,Total Engagements\n";
             hist.forEach(h => {
                 const total = (h.verif || 0) + (h.concerns || 0) + (h.certs || 0);
-                csv += `"${h.label} 2026",${h.verif || 0},${h.verified || 0},${h.concerns || 0},${h.resolved || 0},${h.certs || 0},${total}\n`;
+                csv += `"${h.label} ${h.year || 2026}",${h.verif || 0},${h.verified || 0},${h.concerns || 0},${h.resolved || 0},${h.certs || 0},${total}\n`;
             });
 
             downloadBlob(csv, `Caloocan_Civentral_Operational_Data_${getFormattedDate()}.csv`, 'text/csv');

@@ -143,14 +143,43 @@ foreach ($dbConcerns as $row) {
     else if ($prio === 'High') $prioBadge = 'bg-amber-50 text-amber-600 border-amber-200';
     else if ($prio === 'Medium') $prioBadge = 'bg-blue-50 text-[#0f53d1] border-blue-200';
 
-    $attachments = [];
+    if (!function_exists('resolveEvidenceUrl')) {
+        function resolveEvidenceUrl($url) {
+            if (empty($url) || !is_string($url)) return '';
+            $url = trim($url);
+            if (strpos($url, 'data:image/') === 0) return $url;
+            if (strpos($url, 'https://citizenship.civentral.tech/assets/uploads/') === 0) {
+                return str_replace('https://citizenship.civentral.tech', 'https://api-citizen.civentral.tech', $url);
+            }
+            if (strpos($url, 'http://citizenship.civentral.tech/assets/uploads/') === 0) {
+                return str_replace('http://citizenship.civentral.tech', 'https://api-citizen.civentral.tech', $url);
+            }
+            if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) return $url;
+            $clean = ltrim($url, '/');
+            $isLocal = (!empty($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false));
+            if ($isLocal) {
+                return (strpos($clean, 'assets/') === 0) ? '../../' + $clean : '../../assets/' + clean;
+            }
+            $cleanAsset = (strpos($clean, 'assets/') === 0) ? $clean : 'assets/' . $clean;
+            return 'https://api-citizen.civentral.tech/' . $cleanAsset;
+        }
+    }
+
+    $rawAttachments = [];
     if (!empty($row['attachments'])) {
         $dec = json_decode($row['attachments'], true);
-        if (is_array($dec)) $attachments = $dec;
+        if (is_array($dec)) $rawAttachments = $dec;
     }
-    if (empty($attachments) && !empty($row['photo_evidence_url'])) {
-        $attachments = [basename($row['photo_evidence_url'])];
+    if (empty($rawAttachments) && !empty($row['photo_evidence_url'])) {
+        $rawAttachments = [$row['photo_evidence_url']];
     }
+    $resolvedAttachments = [];
+    foreach ($rawAttachments as $att) {
+        if (!empty($att)) {
+            $resolvedAttachments[] = resolveEvidenceUrl($att);
+        }
+    }
+    $resolvedPhotoEvidence = resolveEvidenceUrl($row['photo_evidence_url']);
 
     $concerns[] = [
         'id' => $row['ticket_number'] ?? $row['id'] ?? 1,
@@ -166,8 +195,8 @@ foreach ($dbConcerns as $row) {
         'is_anonymous' => (bool)$row['is_anonymous'],
         'citizen_id' => $row['is_anonymous'] ? 'ANON-' . substr(md5($row['ticket_number']), 0, 4) : ($row['citizen_user_id'] ? 'CTZ-' . str_pad($row['citizen_user_id'], 4, '0', STR_PAD_LEFT) : 'CTZ-APP'),
         'date_filed' => date('M j, Y • h:i A', strtotime($row['created_at'])),
-        'attachments' => $attachments,
-        'photo_evidence_url' => $row['photo_evidence_url'],
+        'attachments' => $resolvedAttachments,
+        'photo_evidence_url' => $resolvedPhotoEvidence,
         'location' => $row['location'] . ($row['barangay'] ? ', ' . $row['barangay'] : ''),
         'barangay' => $row['barangay'],
         'district' => $row['district'] ?? '',
@@ -685,6 +714,36 @@ foreach ($dbConcerns as $row) {
         </div>
     </div>
 </div>
+
+<!-- EVIDENCE PHOTO LIGHTBOX MODAL -->
+<div id="evidenceLightboxModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200" onclick="if(event.target === this) closeEvidenceLightbox()">
+    <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl flex flex-col border border-slate-700 w-full">
+        <!-- Lightbox Header -->
+        <div class="flex items-center justify-between px-4 py-3 bg-slate-800/95 border-b border-slate-700 text-white">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-camera text-blue-400"></i>
+                <span id="evidenceLightboxCaption" class="text-xs sm:text-sm font-bold truncate max-w-xs sm:max-w-md">Attached Evidence</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <a id="evidenceLightboxExternalLink" href="#" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 transition flex items-center gap-1.5" title="Open original in new tab">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[11px]"></i>
+                    <span class="hidden sm:inline">Open in Tab</span>
+                </a>
+                <a id="evidenceLightboxDownloadBtn" href="#" download class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1.5" title="Download Image">
+                    <i class="fa-solid fa-download text-[11px]"></i>
+                    <span class="hidden sm:inline">Download</span>
+                </a>
+                <button type="button" onclick="closeEvidenceLightbox()" class="w-8 h-8 rounded-lg bg-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center ml-1 cursor-pointer">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+        <!-- Lightbox Image Viewport -->
+        <div class="p-2 sm:p-4 flex items-center justify-center bg-black/70 overflow-auto max-h-[calc(90vh-60px)]">
+            <img id="evidenceLightboxImage" src="" alt="Full Evidence" class="max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg select-none" />
+        </div>
+    </div>
+</div>
 <script>
 const concernsData = <?php echo json_encode(array_column($concerns, null, 'id')); ?>;
 let activeConcernId = null;
@@ -811,13 +870,18 @@ function selectConcernRow(rowElement, id) {
             if (!url || typeof url !== 'string') return '';
             url = url.trim();
             if (url.startsWith('data:image/')) return url;
-            if (url.startsWith('http://') || url.startsWith('https://')) return url;
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                // If it points to citizenship.civentral.tech, route to api-citizen.civentral.tech where uploads are stored
+                return url.replace('https://citizenship.civentral.tech/', 'https://api-citizen.civentral.tech/')
+                          .replace('http://citizenship.civentral.tech/', 'https://api-citizen.civentral.tech/');
+            }
             const clean = url.replace(/^\/+/, '');
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             if (isLocal) {
                 return clean.startsWith('assets/') ? '../../' + clean : '../../assets/' + clean;
             }
-            return clean.startsWith('assets/') ? '/' + clean : '/assets/' + clean;
+            const cleanAsset = clean.startsWith('assets/') ? clean : 'assets/' + clean;
+            return 'https://api-citizen.civentral.tech/' + cleanAsset;
         }
 
         if (data.photo_evidence_url) {
@@ -844,29 +908,37 @@ function selectConcernRow(rowElement, id) {
                 const filename = rawPhoto.split('/').pop() || 'evidence.jpg';
                 attachContainer.innerHTML += `
                     <div class="relative group">
-                        <a href="${src}" target="_blank" class="w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-90 transition block relative shadow-xs">
+                        <a href="${src}" target="_blank" rel="noopener noreferrer" onclick="openEvidenceLightbox(this, event); return false;" class="evidence-photo-link w-24 h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center hover:opacity-90 transition block relative shadow-xs cursor-pointer">
                             <img src="${src}" class="w-full h-full object-cover" alt="Evidence" 
                                 data-fallback-attempt="0"
+                                onload="
+                                    const a = this.closest('a');
+                                    if (a && this.currentSrc) a.href = this.currentSrc;
+                                "
                                 onerror="
                                     if (!this.dataset.fallbackAttempt || this.dataset.fallbackAttempt === '0') {
                                         this.dataset.fallbackAttempt = '1';
+                                        let nextSrc = '';
                                         if (this.src.includes('citizenship.civentral.tech')) {
-                                            this.src = this.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
+                                            nextSrc = this.src.replace('citizenship.civentral.tech', 'api-citizen.civentral.tech');
                                         } else if (this.src.includes('api-citizen.civentral.tech')) {
-                                            this.src = this.src.replace('api-citizen.civentral.tech', 'citizenship.civentral.tech');
+                                            nextSrc = this.src.replace('api-citizen.civentral.tech', 'citizenship.civentral.tech');
                                         } else {
-                                            this.src = 'https://citizenship.civentral.tech/assets/uploads/concerns/${filename}';
+                                            nextSrc = 'https://api-citizen.civentral.tech/assets/uploads/concerns/${filename}';
                                         }
+                                        this.src = nextSrc;
+                                        const a = this.closest('a');
+                                        if (a) a.href = nextSrc;
                                     } else {
                                         this.onerror = null;
                                         this.src = '../../assets/images/placeholder-image.png';
                                     }
                                 ">
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition">
-                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
                             </div>
                         </a>
-                        <span class="block text-[9px] text-slate-400 font-semibold truncate max-w-[96px] mt-1 text-center">${filename}</span>
+                        <span class="block text-[9px] text-slate-400 font-semibold truncate max-w-[96px] mt-1 text-center" title="${filename}">${filename}</span>
                     </div>
                 `;
             });
@@ -1089,6 +1161,42 @@ function exportConcernsReport() {
     link.click();
     document.body.removeChild(link);
 }
+
+function openEvidenceLightbox(el, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const img = el.querySelector('img');
+    const src = (img && img.currentSrc) ? img.currentSrc : (img ? img.src : el.href);
+    const filename = el.parentElement ? (el.parentElement.querySelector('span')?.innerText || 'Photo Evidence') : 'Photo Evidence';
+
+    const lightboxModal = document.getElementById('evidenceLightboxModal');
+    const lightboxImg = document.getElementById('evidenceLightboxImage');
+    const lightboxCaption = document.getElementById('evidenceLightboxCaption');
+    const lightboxExternalLink = document.getElementById('evidenceLightboxExternalLink');
+    const lightboxDownloadBtn = document.getElementById('evidenceLightboxDownloadBtn');
+
+    if (lightboxImg) lightboxImg.src = src;
+    if (lightboxCaption) lightboxCaption.innerText = filename;
+    if (lightboxExternalLink) lightboxExternalLink.href = src;
+    if (lightboxDownloadBtn) {
+        lightboxDownloadBtn.href = src;
+        lightboxDownloadBtn.setAttribute('download', filename);
+    }
+    if (lightboxModal) lightboxModal.classList.remove('hidden');
+}
+
+function closeEvidenceLightbox() {
+    const lightboxModal = document.getElementById('evidenceLightboxModal');
+    if (lightboxModal) lightboxModal.classList.add('hidden');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEvidenceLightbox();
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

@@ -288,6 +288,27 @@ try {
             $clusterCount = (int)($row['cluster_count'] ?? 1);
             $isUrgent = ($row['priority'] === 'Urgent');
 
+            if (!function_exists('resolveEvidenceUrl')) {
+    function resolveEvidenceUrl($url) {
+        if (empty($url) || !is_string($url)) return '';
+        $url = trim($url);
+        if (strpos($url, 'data:image/') === 0) return $url;
+        if (strpos($url, 'https://citizenship.civentral.tech/assets/uploads/') === 0) {
+            return str_replace('https://citizenship.civentral.tech', 'https://api-citizen.civentral.tech', $url);
+        }
+        if (strpos($url, 'http://citizenship.civentral.tech/assets/uploads/') === 0) {
+            return str_replace('http://citizenship.civentral.tech', 'https://api-citizen.civentral.tech', $url);
+        }
+        if (strpos($url, 'http://') === 0 || strpos($url, 'https://') === 0) return $url;
+        $clean = ltrim($url, '/');
+        $isLocal = (!empty($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false));
+        if ($isLocal) {
+            return (strpos($clean, 'assets/') === 0) ? '../../' + $clean : '../../assets/' . $clean;
+        }
+        $cleanAsset = (strpos($clean, 'assets/') === 0) ? $clean : 'assets/' . $clean;
+        return 'https://api-citizen.civentral.tech/' . $cleanAsset;
+    }
+}
             $liveConcerns[] = [
                 'id' => $row['ticket_number'],
                 'title' => $row['title'],
@@ -321,7 +342,7 @@ try {
                 'sibling_details' => $row['sibling_details'] ?? [],
                 'is_escalated_urgent' => !empty($row['is_escalated_urgent']),
                 'cluster_reason' => $row['cluster_escalation_reason'] ?? '',
-                'photos' => !empty($row['photo_evidence_url']) ? [$row['photo_evidence_url']] : [],
+                'photos' => !empty($row['photo_evidence_url']) ? [resolveEvidenceUrl($row['photo_evidence_url'])] : [],
                 'resolution_notes' => $row['resolution_notes'] ?: '',
                 'resolution_photos' => [],
                 'activity_log' => (function() use ($row, $st, $isClustered, $clusterCount) {

@@ -504,6 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Process Photos / Attachments
+        $baseUrl = rtrim(getenv('API_BASE_URL') ?: (getenv('APP_URL') ?: 'https://api-citizen.civentral.tech'), '/');
         $targetDirs = [
             __DIR__ . '/../../assets/uploads/concerns/',
             '/var/www/html/assets/uploads/concerns/',

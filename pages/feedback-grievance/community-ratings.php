@@ -16,6 +16,32 @@ $serviceRatings = [];
 try {
     $pdo = getDbConnection();
 
+    // Auto-heal schema if missing on Dokploy
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS `community_ratings` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `feedback_ref` VARCHAR(50) UNIQUE NOT NULL,
+                `citizen_name` VARCHAR(150) NOT NULL,
+                `citizen_email` VARCHAR(150) NULL,
+                `citizen_barangay` VARCHAR(100) NULL,
+                `service_name` VARCHAR(150) NOT NULL,
+                `transaction_ref` VARCHAR(100) NULL,
+                `overall_rating` TINYINT UNSIGNED NOT NULL DEFAULT 5,
+                `quality_rating` TINYINT UNSIGNED NOT NULL DEFAULT 5,
+                `staff_rating` TINYINT UNSIGNED NOT NULL DEFAULT 5,
+                `comments` TEXT NULL,
+                `sentiment` VARCHAR(30) NOT NULL DEFAULT 'Positive',
+                `status` VARCHAR(30) NOT NULL DEFAULT 'Published',
+                `attachment_url` VARCHAR(500) NULL,
+                `admin_notes` TEXT NULL,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        ");
+        $pdo->exec("ALTER TABLE `community_ratings` ADD COLUMN `attachment_url` VARCHAR(500) NULL;");
+    } catch (Exception $e) {}
+
     // 1. Overall Aggregates
     $aggStmt = $pdo->query("
         SELECT 
@@ -360,6 +386,9 @@ include '../../includes/sidebar.php';
                             </p>
                             <?php if (!empty($r['attachment_url'])): 
                                 $attSrc = strpos($r['attachment_url'], 'http') === 0 ? $r['attachment_url'] : ('../../' . ltrim($r['attachment_url'], '/'));
+                                if (strpos($attSrc, 'citizenship.civentral.tech') !== false) {
+                                    $attSrc = str_replace('citizenship.civentral.tech', 'api-citizen.civentral.tech', $attSrc);
+                                }
                             ?>
                             <div class="mt-1">
                                 <a href="<?php echo htmlspecialchars($attSrc); ?>" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 font-bold bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-md">
@@ -395,50 +424,59 @@ include '../../includes/sidebar.php';
 </main>
 
 <script>
+let currentRatingsPage = 1;
+const ratingsPageSize = 10;
+
 function filterReviews() {
-    const searchVal = document.getElementById('searchInput').value.toLowerCase();
-    const ratingVal = document.getElementById('ratingFilter').value;
-    const sentimentVal = document.getElementById('sentimentFilter').value.toLowerCase();
-
-    const rows = document.querySelectorAll('.review-row');
-    rows.forEach(r => {
-        const text = r.innerText.toLowerCase();
-        const rating = r.getAttribute('data-rating');
-        const sentiment = (r.getAttribute('data-sentiment') || '').toLowerCase();
-
-        const matchSearch = !searchVal || text.includes(searchVal);
-        const matchRating = !ratingVal || rating === ratingVal;
-        const matchSentiment = !sentimentVal || sentiment === sentimentVal;
-
-        if (matchSearch && matchRating && matchSentiment) {
-            r.style.display = '';
-        } else {
-            r.style.display = 'none';
-        }
-    });
+    currentRatingsPage = 1;
+    renderRatingsPagination();
 }
 
 function resetFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('ratingFilter').value = '';
     document.getElementById('sentimentFilter').value = '';
-    filterReviews();
+    currentRatingsPage = 1;
+    renderRatingsPagination();
 }
 
-// Client-Side Pagination for Community Ratings
-let currentRatingsPage = 1;
-const ratingsPageSize = 10;
-
+// Client-Side Filtering & Pagination for Community Ratings
 function renderRatingsPagination() {
-    const rows = Array.from(document.querySelectorAll('#reviewsContainer > div')).filter(r => r.style.display !== 'none');
-    const totalItems = rows.length;
+    const searchVal = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const ratingVal = document.getElementById('ratingFilter')?.value || '';
+    const sentimentVal = (document.getElementById('sentimentFilter')?.value || '').toLowerCase();
+
+    const allRows = Array.from(document.querySelectorAll('#reviewsTableBody tr.review-row'));
+    
+    // 1. Filter rows matching criteria
+    const matchingRows = allRows.filter(r => {
+        const text = r.innerText.toLowerCase();
+        const rating = r.getAttribute('data-rating') || '';
+        const sentiment = (r.getAttribute('data-sentiment') || '').toLowerCase();
+
+        const matchSearch = !searchVal || text.includes(searchVal);
+        const matchRating = !ratingVal || rating === ratingVal;
+        const matchSentiment = !sentimentVal || sentiment === sentimentVal;
+
+        return matchSearch && matchRating && matchSentiment;
+    });
+
+    // 2. Hide non-matching rows
+    allRows.forEach(r => {
+        if (!matchingRows.includes(r)) {
+            r.style.display = 'none';
+        }
+    });
+
+    const totalItems = matchingRows.length;
     const totalPages = Math.ceil(totalItems / ratingsPageSize) || 1;
     if (currentRatingsPage > totalPages) currentRatingsPage = totalPages;
+    if (currentRatingsPage < 1) currentRatingsPage = 1;
 
     const startIdx = (currentRatingsPage - 1) * ratingsPageSize;
     const endIdx = startIdx + ratingsPageSize;
 
-    rows.forEach((r, idx) => {
+    matchingRows.forEach((r, idx) => {
         if (idx >= startIdx && idx < endIdx) {
             r.style.display = '';
         } else {
@@ -448,6 +486,11 @@ function renderRatingsPagination() {
 
     const container = document.getElementById('ratingsPaginationControls');
     if (!container) return;
+
+    if (totalItems <= ratingsPageSize) {
+        container.innerHTML = `<span class="text-[11px] text-slate-400 font-semibold">Page 1 of 1 (${totalItems} total)</span>`;
+        return;
+    }
 
     let html = '';
     const prevDisabled = currentRatingsPage === 1 ? 'disabled opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100';
@@ -468,9 +511,6 @@ function renderRatingsPagination() {
 }
 
 function goToRatingsPage(page) {
-    const rows = Array.from(document.querySelectorAll('#reviewsContainer > div')).filter(r => r.style.display !== 'none');
-    const totalPages = Math.ceil(rows.length / ratingsPageSize) || 1;
-    if (page < 1 || page > totalPages) return;
     currentRatingsPage = page;
     renderRatingsPagination();
 }

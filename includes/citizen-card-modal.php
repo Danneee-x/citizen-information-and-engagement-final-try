@@ -143,12 +143,12 @@ if (typeof QRCode === 'undefined') {
                             </div>
                         </div>
 
-                        <!-- THREE-COLUMN CARD BODY -->
-                        <div class="grid grid-cols-12 gap-2.5 items-start flex-1">
-                            
-                            <!-- COLUMN 1: Photo, Signature, Classification (3 cols) -->
-                            <div class="col-span-3 flex flex-col items-center justify-between h-full relative z-20">
-                                <div class="flex flex-col items-center">
+                        <!-- THREE-COLUMN CARD BODY (CENTERED IN THE MIDDLE OF CARD) -->
+                        <div class="flex-1 flex flex-col justify-center my-auto pt-4 sm:pt-5 pb-1">
+                            <div class="grid grid-cols-12 gap-2.5 items-start">
+                                
+                                <!-- COLUMN 1: Photo, Signature, Classification (3 cols) -->
+                                <div class="col-span-3 flex flex-col items-center relative z-20">
                                     <!-- 1x1 Photo Frame -->
                                     <div class="w-[82px] h-[82px] rounded-[4px] border border-[#CBD5E1] bg-slate-50 shadow-sm overflow-hidden flex items-center justify-center p-0.5 relative z-20">
                                         <img 
@@ -181,17 +181,8 @@ if (typeof QRCode === 'undefined') {
                                     </div>
                                 </div>
 
-                                <!-- Timestamp -->
-                                <div class="w-full text-left mt-auto pt-0.5">
-                                    <span id="cardModalTimestamp" class="text-[6px] font-mono text-slate-500 block leading-tight">
-                                        2026/10/10 06:00:00 AM
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- COLUMN 2: Center - Demographics & Address (6 cols) -->
-                            <div class="col-span-6 flex flex-col justify-between h-full space-y-1 pl-0.5 relative z-10">
-                                <div>
+                                <!-- COLUMN 2: Center - Demographics & Address (6 cols) -->
+                                <div class="col-span-6 flex flex-col justify-start space-y-1 pl-0.5 relative z-10">
                                     <!-- ID / Control Number Row -->
                                     <div>
                                         <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
@@ -203,7 +194,7 @@ if (typeof QRCode === 'undefined') {
                                     </div>
 
                                     <!-- Full Name Block -->
-                                    <div class="mt-1">
+                                    <div class="mt-0.5">
                                         <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
                                             Name (Last Name, First Name, M.I.)
                                         </span>
@@ -213,7 +204,7 @@ if (typeof QRCode === 'undefined') {
                                     </div>
 
                                     <!-- Demographics Grid (2 Rows x 3 Columns) -->
-                                    <div class="grid grid-cols-3 gap-x-2 gap-y-1 pt-1.5 border-t border-slate-200 mt-1">
+                                    <div class="grid grid-cols-3 gap-x-2 gap-y-1 pt-1 border-t border-slate-200 mt-0.5">
                                         <div>
                                             <span class="text-[6.5px] font-bold uppercase text-[#64748B] block">Sex</span>
                                             <span id="cardModalSex" class="text-[8.5px] font-black text-[#0F172A] block uppercase">M</span>
@@ -243,7 +234,7 @@ if (typeof QRCode === 'undefined') {
                                     </div>
 
                                     <!-- Registered Address Block (2 Lines uppercase) -->
-                                    <div class="pt-1.5 border-t border-slate-200 mt-1">
+                                    <div class="pt-1 border-t border-slate-200 mt-0.5">
                                         <span class="text-[6.5px] font-bold uppercase tracking-wider text-[#64748B] block">
                                             Registered Address
                                         </span>
@@ -256,18 +247,8 @@ if (typeof QRCode === 'undefined') {
                                     </div>
                                 </div>
 
-                                <!-- Emergency Contact Inline Footer -->
-                                <div class="pt-1 border-t border-slate-200 mt-auto">
-                                    <span class="text-[6.5px] text-[#64748B] block leading-tight">
-                                        <strong class="font-bold text-[#475569]">Emergency Contact:</strong> 
-                                        <span id="cardModalEmergency" class="font-bold text-[#0F172A]">Juan Basco (0917-123-4567)</span>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- COLUMN 3: Right - QR, Barcode, Verified Stamp (3 cols) -->
-                            <div class="col-span-3 flex flex-col items-center justify-between h-full pl-0.5 relative z-20">
-                                <div class="flex flex-col items-center w-full">
+                                <!-- COLUMN 3: Right - QR, Barcode, Verified Stamp (3 cols) -->
+                                <div class="col-span-3 flex flex-col items-center justify-start pl-0.5 relative z-20">
                                     <div class="w-[78px] h-[78px] bg-white border border-slate-200 rounded-[3px] shadow-sm flex items-center justify-center overflow-hidden p-0.5 relative z-20">
                                         <div id="cardModalQrBox" class="w-full h-full flex items-center justify-center p-0 m-0">
                                             <img id="cardModalQr" src="" class="w-full h-full object-contain" alt="QR Matrix" />
@@ -284,11 +265,32 @@ if (typeof QRCode === 'undefined') {
                                     </div>
                                 </div>
 
-                                <div class="w-full text-right mt-auto pt-0.5">
-                                    <span class="text-[7.5px] font-mono font-bold text-slate-600 block leading-tight">00</span>
+                            </div>
+                        </div>
+
+                        <!-- BOTTOM FOOTER BAR -->
+                        <div class="grid grid-cols-12 gap-2.5 items-end pt-1 mt-auto">
+                            <!-- Timestamp (Left) -->
+                            <div class="col-span-3 text-left">
+                                <span id="cardModalTimestamp" class="text-[6px] font-mono text-slate-500 block leading-tight">
+                                    2026/10/10 06:00:00 AM
+                                </span>
+                            </div>
+
+                            <!-- Emergency Contact (Center) -->
+                            <div class="col-span-6 text-left pl-0.5">
+                                <div class="pt-0.5 border-t border-slate-200">
+                                    <span class="text-[6.5px] text-[#64748B] block leading-tight truncate">
+                                        <strong class="font-bold text-[#475569]">Emergency Contact:</strong> 
+                                        <span id="cardModalEmergency" class="font-bold text-[#0F172A]">Juan Basco (0917-123-4567)</span>
+                                    </span>
                                 </div>
                             </div>
 
+                            <!-- Card Code 00 (Right) -->
+                            <div class="col-span-3 text-right">
+                                <span class="text-[7.5px] font-mono font-bold text-slate-600 block leading-tight">00</span>
+                            </div>
                         </div>
 
                     </div>

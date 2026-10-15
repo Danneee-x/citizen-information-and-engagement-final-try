@@ -30,6 +30,9 @@ try {
         `district` VARCHAR(50) DEFAULT 'District 1',
         `resident_since` VARCHAR(50) DEFAULT '2015',
         `issuing_bureau` VARCHAR(200) NOT NULL,
+        `emergency_contact_name` VARCHAR(150) NULL,
+        `emergency_contact_phone` VARCHAR(50) NULL,
+        `emergency_contact_relation` VARCHAR(100) NULL,
         `claim_office` VARCHAR(200) NULL,
         `estimated_turnaround` VARCHAR(100) NULL,
         `card_serial_number` VARCHAR(100) NULL,
@@ -59,8 +62,11 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
-    // Auto-migrate status to VARCHAR(50) to support all status workflows
+    // Auto-migrate status and emergency contact columns to support all status workflows
     $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review'");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_name` VARCHAR(150) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_phone` VARCHAR(50) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_relation` VARCHAR(100) NULL;");
 } catch (Exception $e) {}
 
 $alertMessage = '';

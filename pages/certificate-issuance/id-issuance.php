@@ -30,6 +30,9 @@ try {
         `district` VARCHAR(50) DEFAULT 'District 1',
         `resident_since` VARCHAR(50) DEFAULT '2015',
         `issuing_bureau` VARCHAR(200) NOT NULL,
+        `emergency_contact_name` VARCHAR(150) NULL,
+        `emergency_contact_phone` VARCHAR(50) NULL,
+        `emergency_contact_relation` VARCHAR(100) NULL,
         `primary_doc_name` VARCHAR(150) NULL,
         `primary_doc_url` TEXT NULL,
         `photo_2x2_url` TEXT NULL,
@@ -52,8 +55,11 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     ");
 
-    // Auto-migrate status to VARCHAR(50) to support all status workflows without enum truncation
+    // Auto-migrate status and emergency contact columns if not already existing
     $pdo->exec("ALTER TABLE `id_issuance_applications` MODIFY COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'Pending Review'");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_name` VARCHAR(150) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_phone` VARCHAR(50) NULL;");
+    $pdo->exec("ALTER TABLE `id_issuance_applications` ADD COLUMN IF NOT EXISTS `emergency_contact_relation` VARCHAR(100) NULL;");
 } catch (Exception $e) {}
 
 // Handle POST actions (Update Status, Review, or Manual Walk-in Encoding)
@@ -158,6 +164,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $barangay = trim($_POST['barangay'] ?? '');
         $district = $_POST['district'] ?? 'District 1';
         $residentSince = trim($_POST['resident_since'] ?? '2015');
+        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+        $emergencyContactRelation = trim($_POST['emergency_contact_relation'] ?? 'Next of Kin');
 
         if ($appId > 0 && !empty($firstName) && !empty($lastName) && !empty($contactNumber)) {
             $stmt = $pdo->prepare("
@@ -174,7 +183,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     `street_address` = :street,
                     `barangay` = :brgy,
                     `district` = :dist,
-                    `resident_since` = :res_since
+                    `resident_since` = :res_since,
+                    `emergency_contact_name` = :emg_name,
+                    `emergency_contact_phone` = :emg_phone,
+                    `emergency_contact_relation` = :emg_rel
                 WHERE `id` = :id
             ");
             $stmt->execute([
@@ -191,6 +203,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':brgy' => $barangay,
                 ':dist' => $district,
                 ':res_since' => $residentSince,
+                ':emg_name' => $emergencyContactName ?: null,
+                ':emg_phone' => $emergencyContactPhone ?: null,
+                ':emg_rel' => $emergencyContactRelation ?: null,
                 ':id' => $appId
             ]);
             $alertMessage = "Resident information updated successfully for application #{$appId}.";
@@ -224,6 +239,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $district = $_POST['district'] ?? 'District 1';
         $residentSince = trim($_POST['resident_since'] ?? '2015');
         $primaryDoc = trim($_POST['primary_doc_name'] ?? 'Valid Government ID');
+        $emergencyContactName = trim($_POST['emergency_contact_name'] ?? '');
+        $emergencyContactPhone = trim($_POST['emergency_contact_phone'] ?? '');
+        $emergencyContactRelation = trim($_POST['emergency_contact_relation'] ?? 'Next of Kin');
         $reviewer = !empty($_SESSION['user']['name']) ? $_SESSION['user']['name'] : 'Walk-in Desk Staff';
 
         $idTitles = [
@@ -275,9 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($firstName) && !empty($lastName) && !empty($contactNumber)) {
             $stmt = $pdo->prepare("
                 INSERT INTO `id_issuance_applications` 
-                (`reference_no`, `id_category`, `id_title`, `application_type`, `first_name`, `middle_name`, `last_name`, `suffix`, `gender`, `birthdate`, `civil_status`, `contact_number`, `email`, `street_address`, `barangay`, `district`, `resident_since`, `issuing_bureau`, `primary_doc_name`, `status`, `claim_office`, `estimated_turnaround`, `reviewed_by`, `created_at`)
+                (`reference_no`, `id_category`, `id_title`, `application_type`, `first_name`, `middle_name`, `last_name`, `suffix`, `gender`, `birthdate`, `civil_status`, `contact_number`, `email`, `street_address`, `barangay`, `district`, `resident_since`, `issuing_bureau`, `primary_doc_name`, `status`, `claim_office`, `estimated_turnaround`, `reviewed_by`, `emergency_contact_name`, `emergency_contact_phone`, `emergency_contact_relation`, `created_at`)
                 VALUES
-                (:ref_no, :cat, :title, :app_type, :first, :middle, :last, :suffix, :gender, :bday, :civil, :contact, :email, :street, :brgy, :dist, :res_since, :bureau, :doc_name, 'Under Review', :claim_office, :turnaround, :reviewer, NOW())
+                (:ref_no, :cat, :title, :app_type, :first, :middle, :last, :suffix, :gender, :bday, :civil, :contact, :email, :street, :brgy, :dist, :res_since, :bureau, :doc_name, 'Under Review', :claim_office, :turnaround, :reviewer, :emg_name, :emg_phone, :emg_rel, NOW())
             ");
             $stmt->execute([
                 ':ref_no' => $refNo,
@@ -301,7 +319,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':doc_name' => $primaryDoc,
                 ':claim_office' => $claimOffice,
                 ':turnaround' => $turnaround,
-                ':reviewer' => $reviewer
+                ':reviewer' => $reviewer,
+                ':emg_name' => $emergencyContactName ?: null,
+                ':emg_phone' => $emergencyContactPhone ?: null,
+                ':emg_rel' => $emergencyContactRelation ?: null
             ]);
             $alertMessage = "New walk-in application registered successfully with Reference No: <strong>{$refNo}</strong>.";
             $alertType = 'success';
@@ -834,6 +855,19 @@ include '../../includes/sidebar.php';
                         <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Residential Address</span>
                         <span class="font-semibold text-slate-800 truncate" id="cdmAddress">121 Sampaguita St.</span>
                     </div>
+                    <!-- Emergency Contact Display Banner (I.C.E.) -->
+                    <div class="col-span-1 sm:col-span-2 pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-rose-50/60 rounded-xl p-2.5 border border-rose-200/80">
+                        <div class="space-y-0.5">
+                            <span class="text-[9px] text-rose-700 font-black uppercase tracking-wider block flex items-center gap-1">
+                                <i class="fa-solid fa-phone-volume text-rose-500"></i> Emergency Contact (I.C.E.)
+                            </span>
+                            <span class="font-extrabold text-slate-800 text-xs" id="cdmEmergencyContact">Next of Kin / Family Member</span>
+                        </div>
+                        <div class="text-left sm:text-right">
+                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Emergency Phone</span>
+                            <span class="font-bold text-slate-900 text-xs font-mono" id="cdmEmergencyPhone">(02) 8366-3101</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1223,6 +1257,40 @@ include '../../includes/sidebar.php';
                     <label class="font-bold text-slate-700">Primary Document Presented</label>
                     <input type="text" name="primary_doc_name" value="PhilSys National ID" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500">
                 </div>
+
+                <!-- Emergency Contact Information (Matching App Requirements) -->
+                <div class="col-span-2 pt-2.5 border-t border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center text-[10px] border border-rose-100">
+                            <i class="fa-solid fa-phone"></i>
+                        </div>
+                        <span class="font-bold text-xs text-slate-800">Emergency Contact Information *</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-0.5">Designated contact in medical situations, urgent verification, or card release notices</p>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Emergency Contact Full Name *</label>
+                    <input type="text" name="emergency_contact_name" required placeholder="Full Legal Name (e.g. Maria Santos)" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Relationship to Applicant *</label>
+                    <select name="emergency_contact_relation" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 font-semibold rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500">
+                        <option value="Spouse">Spouse</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Child">Child</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Relative">Relative</option>
+                        <option value="Guardian">Guardian</option>
+                        <option value="Next of Kin" selected>Next of Kin</option>
+                    </select>
+                </div>
+
+                <div class="col-span-2 space-y-1">
+                    <label class="font-bold text-slate-700">Emergency Mobile Phone *</label>
+                    <input type="text" name="emergency_contact_phone" required placeholder="09XXXXXXXXX" maxlength="11" pattern="[0-9]{11}" class="w-full bg-slate-50 border border-slate-200 text-slate-800 rounded-xl p-2.5 text-xs outline-none focus:border-indigo-500">
+                </div>
             </div>
 
             <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
@@ -1323,6 +1391,39 @@ include '../../includes/sidebar.php';
                         <option value="District 3">District 3</option>
                     </select>
                 </div>
+
+                <!-- Emergency Contact Information Edit Section -->
+                <div class="col-span-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <div class="w-5 h-5 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center text-[10px] border border-rose-100">
+                            <i class="fa-solid fa-phone"></i>
+                        </div>
+                        <span class="font-bold text-xs text-slate-800">Emergency Contact Information</span>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Emergency Contact Name</label>
+                    <input type="text" name="emergency_contact_name" id="editEmergencyName" placeholder="Full Legal Name" class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
+
+                <div class="space-y-1">
+                    <label class="font-bold text-slate-700">Relationship</label>
+                    <select name="emergency_contact_relation" id="editEmergencyRelation" class="w-full bg-slate-50 border border-slate-200 text-slate-900 font-semibold rounded-xl p-2.5 outline-none focus:border-amber-500">
+                        <option value="Spouse">Spouse</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Child">Child</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Relative">Relative</option>
+                        <option value="Guardian">Guardian</option>
+                        <option value="Next of Kin">Next of Kin</option>
+                    </select>
+                </div>
+
+                <div class="col-span-2 space-y-1">
+                    <label class="font-bold text-slate-700">Emergency Mobile Phone</label>
+                    <input type="text" name="emergency_contact_phone" id="editEmergencyPhone" placeholder="09XXXXXXXXX" maxlength="11" class="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl p-2.5 outline-none focus:border-amber-500">
+                </div>
             </div>
 
             <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -1399,6 +1500,18 @@ function openCitizenDetailsModal(app) {
     document.getElementById('cdmEmail').innerHTML = `<i class="fa-solid fa-envelope text-indigo-500 text-xs"></i> ${app.email || 'No email'}`;
     document.getElementById('cdmBarangayDistrict').innerHTML = `<i class="fa-solid fa-location-dot text-rose-500 text-xs"></i> ${app.barangay || 'Barangay'} • ${app.district || 'District 1'}`;
     document.getElementById('cdmAddress').innerText = app.street_address || 'Address on file';
+
+    const emgName = app.emergency_contact_name || app.emergency_contact || 'Next of Kin / Family Member';
+    const emgRel = app.emergency_contact_relation ? `(${app.emergency_contact_relation})` : '';
+    const emgPhone = app.emergency_contact_phone || app.contact_number || 'None provided';
+    const emgContactEl = document.getElementById('cdmEmergencyContact');
+    if (emgContactEl) {
+        emgContactEl.innerText = `${emgName} ${emgRel}`.trim();
+    }
+    const emgPhoneEl = document.getElementById('cdmEmergencyPhone');
+    if (emgPhoneEl) {
+        emgPhoneEl.innerText = emgPhone;
+    }
 
     document.getElementById('cdmIdTitle').innerText = app.id_title || 'Resident ID';
     document.getElementById('cdmBureau').innerText = app.issuing_bureau || 'City Registry';
@@ -1556,6 +1669,11 @@ function openEditModal(app) {
     document.getElementById('editAddress').value = app.street_address || '';
     document.getElementById('editBarangay').value = app.barangay || '';
     document.getElementById('editDistrict').value = app.district || 'District 1';
+    if (document.getElementById('editEmergencyName')) {
+        document.getElementById('editEmergencyName').value = app.emergency_contact_name || '';
+        document.getElementById('editEmergencyRelation').value = app.emergency_contact_relation || 'Next of Kin';
+        document.getElementById('editEmergencyPhone').value = app.emergency_contact_phone || '';
+    }
     document.getElementById('editModal').classList.remove('hidden');
 }
 

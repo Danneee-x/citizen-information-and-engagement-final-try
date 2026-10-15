@@ -119,32 +119,32 @@ if (typeof QRCode === 'undefined') {
                     <!-- CARD FRONT CONTENT CONTAINER -->
                     <div class="relative z-10 px-3.5 pt-2 pb-3.5 sm:px-4 sm:pt-2.5 sm:pb-4 flex flex-col justify-between h-full" style="height: 100%;">
                         
-                        <!-- TOP HEADER BLOCK -->
-                        <div class="relative mb-1 -mt-0.5">
-                            <div class="text-center w-full">
-                                <span class="text-[7.5px] font-extrabold uppercase tracking-[2px] text-[#FEE2E2] leading-none block drop-shadow-xs">
+                        <!-- TOP HEADER BLOCK (CENTERED IN HEADER RIBBON) -->
+                        <div class="relative flex items-center justify-between w-full h-[58px] sm:h-[62px] mt-2 sm:mt-2.5">
+                            <!-- Seal on Left -->
+                            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 border-[1.5px] border-amber-400 ml-1">
+                                <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-full h-full object-contain" alt="Civentral Seal" />
+                            </div>
+
+                            <!-- Center Text (All 3 lines) -->
+                            <div class="flex-1 flex flex-col items-center justify-center text-center px-1">
+                                <span class="text-[7px] sm:text-[7.5px] font-extrabold uppercase tracking-[2px] text-[#FEE2E2] leading-none block drop-shadow-xs mb-0.5">
                                     Republic of the Philippines
                                 </span>
+                                <h3 id="cardModalHeaderTitle" class="text-[12px] sm:text-[13px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
+                                    Civentral Citizen Card
+                                </h3>
+                                <p id="cardModalHeaderSubtitle" class="text-[7px] sm:text-[7.5px] font-black text-[#FDE047] uppercase tracking-[0.8px] leading-tight mt-0.5 drop-shadow-xs">
+                                    Kasama Ka Sa Pag-Unlad &bull; City of Caloocan
+                                </p>
                             </div>
 
-                            <div class="flex items-center -mt-0.5 pr-8">
-                                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white p-0.5 shadow-md flex items-center justify-center shrink-0 border-[1.5px] border-amber-400 ml-1 -mt-1">
-                                    <img src="../../assets/images/logo.png" onerror="this.src='../assets/images/logo.png'; this.onerror=null;" class="w-full h-full object-contain" alt="Civentral Seal" />
-                                </div>
-
-                                <div class="flex-1 flex flex-col items-center justify-center text-center">
-                                    <h3 id="cardModalHeaderTitle" class="text-[12.5px] sm:text-[13.5px] font-black uppercase tracking-wider text-[#FFFFFF] drop-shadow-sm leading-tight">
-                                        Civentral Citizen Card
-                                    </h3>
-                                    <p id="cardModalHeaderSubtitle" class="text-[7.5px] sm:text-[8px] font-black text-[#FDE047] uppercase tracking-[0.8px] leading-tight mt-0.5 drop-shadow-xs">
-                                        Kasama Ka Sa Pag-Unlad &bull; City of Caloocan
-                                    </p>
-                                </div>
-                            </div>
+                            <!-- Right Spacer (Mirrors seal width + margin so text is mathematically centered) -->
+                            <div class="w-8 sm:w-9 shrink-0 mr-1 pointer-events-none" aria-hidden="true"></div>
                         </div>
 
                         <!-- THREE-COLUMN CARD BODY (CENTERED IN THE MIDDLE OF CARD) -->
-                        <div class="flex-1 flex flex-col justify-center my-auto pt-4 sm:pt-5 pb-1">
+                        <div class="flex-1 flex flex-col justify-center my-auto pt-2 pb-1">
                             <div class="grid grid-cols-12 gap-2.5 items-start">
                                 
                                 <!-- COLUMN 1: Photo, Signature, Classification (3 cols) -->

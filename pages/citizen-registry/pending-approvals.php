@@ -1919,6 +1919,8 @@ document.addEventListener('keydown', function(e) {
         }
         closePendingDrawer();
     }
+});
+
 // BATCH & SINGLE AUTOMATED e-KYC ENGINE RUNNER
 async function runSingleAutoVerify(id, btn) {
     const origHtml = btn ? btn.innerHTML : '';

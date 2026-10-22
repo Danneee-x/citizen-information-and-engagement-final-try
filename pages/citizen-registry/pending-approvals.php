@@ -1657,6 +1657,8 @@ function openApproveConfirmModal() {
     const modal = document.getElementById('approveConfirmModal');
     if (modal) {
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        modal.style.display = 'flex';
     }
 }
 
@@ -1664,6 +1666,8 @@ function closeApproveConfirmModal() {
     const modal = document.getElementById('approveConfirmModal');
     if (modal) {
         modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
     }
 }
 
@@ -1707,46 +1711,16 @@ async function executeApproveApplication() {
             activeApp.qr_code_image_url = result.qr_code_image_url;
             activeApp.status = 'Approved';
 
-            // Close confirmation modal
+            // Immediately close confirmation modal and drawer
             closeApproveConfirmModal();
-            
-            if (drawerBtn) {
-                drawerBtn.disabled = false;
-                drawerBtn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Approved</span>';
-                drawerBtn.className = 'py-2.5 px-2 bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center justify-center gap-1 cursor-default';
-            }
+            closePendingDrawer();
 
-            // Update drawer status badge if present
-            const statusSpan = document.getElementById('drawerAppStatus');
-            if (statusSpan) {
-                statusSpan.textContent = 'Approved';
-                statusSpan.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-600 border-emerald-200';
-            }
+            showToast('success', `Citizenship verification for ${activeApp.applicant} successfully approved!`);
 
-            // Switch to Approved status panel and lock action controls
-            const actionsBox = document.getElementById('drawerDecisionActionsBox');
-            if (actionsBox) actionsBox.classList.add('hidden');
-
-            const approvedBox = document.getElementById('drawerApprovedNoticeBox');
-            if (approvedBox) {
-                approvedBox.classList.remove('hidden');
-                document.getElementById('drawerApprovedCitizenId').textContent = activeApp.id || ('VER-' + String(activeApp.raw_id).padStart(4, '0'));
-                document.getElementById('drawerApprovedByText').textContent = 'Admin';
-                document.getElementById('drawerApprovedAtText').textContent = result.reviewed_at || 'Just now';
-            }
-
-            // Update table row if present
-            const tableBadge = document.getElementById('badge-' + activeApp.raw_id);
-            if (tableBadge) {
-                tableBadge.textContent = 'Approved';
-                tableBadge.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-600 border-emerald-200';
-            }
-            const row = document.getElementById('row-' + activeApp.raw_id);
-            if (row) {
-                row.setAttribute('data-app', JSON.stringify(activeApp));
-            }
-
-            showToast('success', 'Citizenship verification successfully approved!');
+            // Reload queue so approved applicant moves to Approved tab
+            setTimeout(() => {
+                window.location.reload();
+            }, 600);
         } else {
             showToast('error', 'Error: ' + (result.message || 'Failed to approve application.'));
             if (modalBtn) {
@@ -1820,11 +1794,21 @@ function openDecisionModal(mode) {
         confirmText.textContent = 'Confirm Rejection';
     }
 
-    document.getElementById('decisionModal').classList.remove('hidden');
+    const dModal = document.getElementById('decisionModal');
+    if (dModal) {
+        dModal.classList.remove('hidden');
+        dModal.classList.add('flex');
+        dModal.style.display = 'flex';
+    }
 }
 
 function closeDecisionModal() {
-    document.getElementById('decisionModal').classList.add('hidden');
+    const dModal = document.getElementById('decisionModal');
+    if (dModal) {
+        dModal.classList.add('hidden');
+        dModal.classList.remove('flex');
+        dModal.style.display = 'none';
+    }
 }
 
 function appendModalTag(text) {

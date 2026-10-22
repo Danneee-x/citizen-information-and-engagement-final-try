@@ -507,9 +507,16 @@ include '../../includes/sidebar.php';
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border-b border-slate-100 gap-3">
                 <span id="applicationsFoundText" class="text-xs font-bold text-slate-800"><?php echo count($applications); ?> applications in <?php echo ucfirst($currentTab); ?></span>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-3">
                     <span class="text-xs text-slate-400 font-medium">Viewing queue for:</span>
-                    <span class="text-xs font-bold text-[#0f53d1] uppercase"><?php echo htmlspecialchars($currentTab); ?></span>
+                    <span class="text-xs font-bold text-[#0f53d1] uppercase mr-1"><?php echo htmlspecialchars($currentTab); ?></span>
+                    
+                    <?php if ($currentTab === 'pending'): ?>
+                    <button type="button" id="btnAutoVerifyBatch" onclick="runAutoVerificationBatch()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0f53d1] hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer">
+                        <i class="fa-solid fa-bolt text-amber-300 text-[11px]"></i>
+                        <span>Run Auto-Verify Queue</span>
+                    </button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -595,7 +602,10 @@ include '../../includes/sidebar.php';
                                         </span>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="text-[10px] font-medium text-slate-400 italic">Pre-scan</span>
+                                    <button type="button" onclick="event.stopPropagation(); runSingleAutoVerify(<?php echo $app['raw_id']; ?>, this)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 transition cursor-pointer shadow-2xs" title="Click to execute e-KYC evaluation on this applicant">
+                                        <i class="fa-solid fa-bolt text-[9px]"></i>
+                                        <span>Evaluate</span>
+                                    </button>
                                 <?php endif; ?>
                             </td>
                             <td class="p-3.5">
@@ -1882,7 +1892,36 @@ document.addEventListener('keydown', function(e) {
         }
         closePendingDrawer();
     }
-// BATCH AUTOMATED e-KYC ENGINE RUNNER
+// BATCH & SINGLE AUTOMATED e-KYC ENGINE RUNNER
+async function runSingleAutoVerify(id, btn) {
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[9px]"></i> Scanning...';
+    }
+
+    try {
+        const res = await fetch(`../../api/admin/auto-verify-batch.php?id=${id}`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'success') {
+            alert(`⚡ Caloocan Automated e-KYC Evaluation (App #${id}):\n\n${data.message}`);
+            window.location.reload();
+        } else {
+            alert('Evaluation failed: ' + (data.message || 'Operation could not be completed.'));
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
+        }
+    } catch (e) {
+        alert('Network error connecting to auto-verify engine.');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
 async function runAutoVerificationBatch() {
     const btn = document.getElementById('btnAutoVerifyBatch');
     const origHtml = btn ? btn.innerHTML : '';

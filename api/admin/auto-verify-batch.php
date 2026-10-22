@@ -13,10 +13,17 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     $pdo = getDbConnection();
 
-    // 1. Fetch pending & under review verifications
-    $stmt = $pdo->query("SELECT * FROM `citizen_verifications` 
-        WHERE `verification_status` IN ('Pending', 'Under_Review')
-        ORDER BY `verification_id` ASC");
+    // 1. Fetch pending & under review verifications (single or batch)
+    $singleId = isset($_REQUEST['id']) ? (int)$_REQUEST['id'] : 0;
+    if ($singleId > 0) {
+        $stmt = $pdo->prepare("SELECT * FROM `citizen_verifications` 
+            WHERE `verification_id` = :id AND `verification_status` IN ('Pending', 'Under_Review')");
+        $stmt->execute([':id' => $singleId]);
+    } else {
+        $stmt = $pdo->query("SELECT * FROM `citizen_verifications` 
+            WHERE `verification_status` IN ('Pending', 'Under_Review')
+            ORDER BY `verification_id` ASC");
+    }
     $pendingList = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($pendingList)) {

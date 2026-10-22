@@ -60,7 +60,11 @@ try {
         'duplicate_notes' => 'TEXT NULL',
         'household_id' => 'VARCHAR(50) NULL',
         'citizen_status' => 'VARCHAR(50) DEFAULT "Active"',
-        'is_archived' => 'TINYINT(1) DEFAULT 0'
+        'is_archived' => 'TINYINT(1) DEFAULT 0',
+        'confidence_score' => 'TINYINT UNSIGNED NULL DEFAULT NULL',
+        'verification_method' => "ENUM('Automated', 'Manual', 'Hybrid') NOT NULL DEFAULT 'Manual'",
+        'automated_checks_json' => 'JSON NULL DEFAULT NULL',
+        'processing_seconds' => 'DECIMAL(5,2) NULL DEFAULT NULL'
     ];
     foreach ($needed as $col => $type) {
         if (!in_array($col, $cols)) {
@@ -142,6 +146,10 @@ try {
             'mobile' => '09' . substr(preg_replace('/[^0-9]/', '', $r['valid_id_number'] ?? '123456789'), 0, 9),
             'status' => $status,
             'tags' => $tags,
+            'confidence_score' => isset($r['confidence_score']) && $r['confidence_score'] !== null ? (int)$r['confidence_score'] : null,
+            'verification_method' => $r['verification_method'] ?? 'Manual',
+            'reviewed_by' => !empty($r['reviewed_by']) ? $r['reviewed_by'] : 'Staff Reviewer',
+            'processing_seconds' => !empty($r['processing_seconds']) ? (float)$r['processing_seconds'] : null,
             'date' => $subDate->format('M d, Y'),
             'updated' => $updDate->format('M d, Y'),
             'issued_date' => $updDate->format('M d, Y'),
@@ -1992,9 +2000,11 @@ document.addEventListener('keydown', function(e) {
                 <div class="flex-1 min-w-0">
                     <h4 id="rpmFullName" class="text-base font-black text-slate-900 truncate">Resident Name</h4>
                     <p id="rpmLocation" class="text-xs text-slate-500 font-medium">Barangay 171, District 1</p>
-                    <div class="flex items-center gap-2 mt-1">
+                    <div class="flex items-center gap-2 mt-1 flex-wrap">
                         <span id="rpmStatusBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200">Active</span>
-                        <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-600"></i>Verified Resident</span>
+                        <span id="rpmVerificationBadge" class="px-2 py-0.5 text-[10px] font-bold rounded-md border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1">
+                            <span id="rpmVerificationMethodText"><i class="fa-solid fa-robot text-blue-600 text-[9px]"></i> Automated e-KYC</span>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -2067,6 +2077,23 @@ function openResidentProfileModal(citizen) {
     const badgeEl = document.getElementById('rpmStatusBadge');
     if (badgeEl) {
         badgeEl.textContent = citizen.status || 'Active';
+    }
+
+    const verifBadgeEl = document.getElementById('rpmVerificationBadge');
+    const verifTextEl = document.getElementById('rpmVerificationMethodText');
+    if (verifBadgeEl && verifTextEl) {
+        const method = citizen.verification_method || (citizen.confidence_score !== null ? 'Automated' : 'Manual');
+        const score = (citizen.confidence_score !== null && citizen.confidence_score !== undefined) ? `${citizen.confidence_score}%` : '100%';
+        if (method === 'Automated') {
+            verifBadgeEl.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200 flex items-center gap-1';
+            verifTextEl.innerHTML = `<i class="fa-solid fa-bolt text-emerald-600 text-[9px]"></i> Automated e-KYC (${score})`;
+        } else if (method === 'Hybrid') {
+            verifBadgeEl.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-blue-50 text-blue-700 border-blue-200 flex items-center gap-1';
+            verifTextEl.innerHTML = `<i class="fa-solid fa-robot text-blue-600 text-[9px]"></i> Hybrid Review (${score})`;
+        } else {
+            verifBadgeEl.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border bg-slate-100 text-slate-700 border-slate-200 flex items-center gap-1';
+            verifTextEl.innerHTML = `<i class="fa-solid fa-user-check text-slate-600 text-[9px]"></i> Staff Verified (${citizen.reviewed_by || 'Admin'})`;
+        }
     }
 
     const modal = document.getElementById('residentProfileModal');

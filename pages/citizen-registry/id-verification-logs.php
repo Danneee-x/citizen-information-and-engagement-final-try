@@ -65,7 +65,11 @@ try {
         'photo_1x1_url' => 'VARCHAR(500) NULL',
         'signature_photo_url' => 'VARCHAR(500) NULL',
         'admin_action_notes' => 'TEXT NULL',
-        'citizen_id_number' => 'VARCHAR(50) NULL'
+        'citizen_id_number' => 'VARCHAR(50) NULL',
+        'confidence_score' => 'TINYINT UNSIGNED NULL DEFAULT NULL',
+        'verification_method' => "ENUM('Automated', 'Manual', 'Hybrid') NOT NULL DEFAULT 'Manual'",
+        'automated_checks_json' => 'JSON NULL DEFAULT NULL',
+        'processing_seconds' => 'DECIMAL(5,2) NULL DEFAULT NULL'
     ];
     foreach ($needed as $col => $type) {
         if (!in_array($col, $cols)) {
@@ -227,6 +231,9 @@ try {
             'is_duplicate' => $isDup,
             'duplicate_matched_id' => isset($flaggedMap[$r['verification_id']]) ? ('VER-' . str_pad($flaggedMap[$r['verification_id']], 4, '0', STR_PAD_LEFT)) : '',
             'duplicate_notes' => $r['duplicate_notes'] ?? '',
+            'confidence_score' => isset($r['confidence_score']) && $r['confidence_score'] !== null ? (int)$r['confidence_score'] : null,
+            'verification_method' => $r['verification_method'] ?? 'Manual',
+            'processing_seconds' => !empty($r['processing_seconds']) ? (float)$r['processing_seconds'] : null,
             'avatar' => "https://ui-avatars.com/api/?name=" . urlencode($fullName ?: 'Citizen') . "&background=0f53d1&color=fff"
         ];
     }
@@ -424,7 +431,28 @@ try {
                             <span class="flex items-center gap-1.5"><i class="fa-solid fa-id-card text-[#0f53d1] text-xs"></i> <?php echo htmlspecialchars($log['id_type']); ?></span>
                         </td>
                         <td class="py-3.5 px-3 font-bold text-slate-800">
-                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-user-shield text-slate-400 text-xs"></i> <?php echo htmlspecialchars($log['verifying_staff']); ?></span>
+                            <?php if ($log['verification_method'] === 'Automated' || $log['verifying_staff'] === 'Automated e-KYC Engine'): ?>
+                                <span class="flex items-center gap-1.5 text-blue-700">
+                                    <i class="fa-solid fa-bolt text-amber-500 text-xs"></i> 
+                                    <span>Automated e-KYC</span>
+                                </span>
+                                <span class="block text-[9px] font-mono text-emerald-600 mt-0.5">
+                                    Score: <?php echo $log['confidence_score'] ?? 100; ?>% <?php if (!empty($log['processing_seconds'])): ?>• <?php echo $log['processing_seconds']; ?>s<?php endif; ?>
+                                </span>
+                            <?php elseif ($log['verification_method'] === 'Hybrid'): ?>
+                                <span class="flex items-center gap-1.5 text-slate-800">
+                                    <i class="fa-solid fa-robot text-blue-500 text-xs"></i> 
+                                    <span><?php echo htmlspecialchars($log['verifying_staff']); ?></span>
+                                </span>
+                                <span class="block text-[9px] font-mono text-blue-600 mt-0.5">
+                                    Hybrid (<?php echo $log['confidence_score'] ?? 75; ?>%)
+                                </span>
+                            <?php else: ?>
+                                <span class="flex items-center gap-1.5">
+                                    <i class="fa-solid fa-user-shield text-slate-400 text-xs"></i> 
+                                    <span><?php echo htmlspecialchars($log['verifying_staff']); ?></span>
+                                </span>
+                            <?php endif; ?>
                         </td>
                         <td class="py-3.5 px-3 whitespace-nowrap font-bold text-slate-700 text-[11px]">
                             <?php echo $log['timestamp']; ?>
@@ -1152,7 +1180,11 @@ function openLogDetailModal(index) {
         banner.className = "p-4 rounded-2xl border bg-emerald-50/70 border-emerald-200 text-emerald-950 flex items-start gap-3.5 transition-all";
         iconBox.className = "w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg shrink-0 border border-emerald-200";
         icon.className = "fa-solid fa-circle-check";
-        title.textContent = "Identity Verification Passed & Certified";
+        if (log.verification_method === 'Automated' || log.verifying_staff === 'Automated e-KYC Engine') {
+            title.innerHTML = 'Identity Verification Passed & Certified <span class="ml-2 text-[10px] font-black px-2 py-0.5 rounded-md bg-emerald-200 text-emerald-900 border border-emerald-300"><i class="fa-solid fa-bolt text-emerald-700 mr-1"></i>Automated e-KYC</span>';
+        } else {
+            title.textContent = "Identity Verification Passed & Certified";
+        }
     } else if (log.result === 'Failed') {
         banner.className = "p-4 rounded-2xl border bg-rose-50/70 border-rose-200 text-rose-950 flex items-start gap-3.5 transition-all";
         iconBox.className = "w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center text-lg shrink-0 border border-rose-200";
@@ -1176,7 +1208,9 @@ function openLogDetailModal(index) {
     }
 
     document.getElementById('modalOutcomeRemarks').textContent = log.remarks || 'No remarks provided.';
-    document.getElementById('modalVerifyingOfficer').textContent = log.verifying_staff || 'Admin';
+    document.getElementById('modalVerifyingOfficer').textContent = (log.verification_method === 'Automated' || log.verifying_staff === 'Automated e-KYC Engine')
+        ? `Automated e-KYC Engine (${log.confidence_score || 100}% Confidence)`
+        : (log.verifying_staff || 'Admin');
     document.getElementById('modalReviewedAt').textContent = log.reviewed_at || 'Pending';
     document.getElementById('modalSubmittedAt').textContent = log.submitted_at || 'N/A';
 

@@ -87,6 +87,10 @@ CREATE TABLE `citizen_verifications` (
 
   -- Administration & Review Workflow
   `verification_status` ENUM('Pending', 'Under_Review', 'Returned_For_Correction', 'Approved', 'Rejected', 'Superseded') NOT NULL DEFAULT 'Pending',
+  `confidence_score` TINYINT UNSIGNED NULL DEFAULT NULL,
+  `verification_method` ENUM('Automated', 'Manual', 'Hybrid') NOT NULL DEFAULT 'Manual',
+  `automated_checks_json` JSON NULL DEFAULT NULL,
+  `processing_seconds` DECIMAL(5,2) NULL DEFAULT NULL,
   `rejection_reason` TEXT NULL DEFAULT NULL,
   `admin_action_notes` TEXT NULL DEFAULT NULL,
   `reviewed_by` VARCHAR(100) NULL DEFAULT NULL,

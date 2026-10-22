@@ -121,6 +121,11 @@ try {
 
         $updStmt = $pdo->prepare("UPDATE citizen_verifications SET 
             verification_status = 'Approved',
+            verification_method = CASE 
+                WHEN verification_method = 'Automated' THEN 'Automated'
+                WHEN confidence_score IS NOT NULL THEN 'Hybrid'
+                ELSE 'Manual'
+            END,
             citizen_id_number = :citizen_id_number,
             qr_code_token = :qr_code_token,
             qr_code_image_url = :qr_code_image_url,

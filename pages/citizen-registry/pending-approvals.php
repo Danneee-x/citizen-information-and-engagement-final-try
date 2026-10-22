@@ -615,8 +615,9 @@ include '../../includes/sidebar.php';
                             </td>
                             <td class="p-3.5 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button type="button" onclick="selectPendingApplication(this.closest('tr'))" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#0f53d1] hover:text-white flex items-center justify-center text-slate-500 transition cursor-pointer shadow-2xs" title="Inspect Application in Modal">
-                                        <i class="fa-solid fa-expand text-xs"></i>
+                                    <button type="button" onclick="selectPendingApplication(this.closest('tr'))" class="px-2.5 py-1 text-xs font-bold text-[#0f53d1] bg-blue-50 hover:bg-[#0f53d1] hover:text-white border border-blue-200 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-2xs" title="Inspect Application Details">
+                                        <i class="fa-regular fa-eye text-xs"></i>
+                                        <span>View Info</span>
                                     </button>
                                 </div>
                             </td>
@@ -1231,48 +1232,75 @@ function togglePendingFilterGrid() {
     }
 }
 
-function selectPendingApplication(rowElement) {
-    const rawData = rowElement.getAttribute('data-app');
-    if (!rawData) return;
-    const app = JSON.parse(rawData);
-    const drawer = document.getElementById('pendingDetailDrawer');
+function setSafeText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = (val !== undefined && val !== null && val !== '') ? val : 'N/A';
+}
 
-    if (activeApp && activeApp.raw_id === app.raw_id && !drawer.classList.contains('hidden')) {
-        closePendingDrawer();
+function selectPendingApplication(rowElement) {
+    if (!rowElement) return;
+    const drawer = document.getElementById('pendingDetailDrawer');
+    if (!drawer) {
+        console.error('pendingDetailDrawer not found in DOM');
         return;
     }
 
-    activeApp = app;
-    window.currentSelectedCitizen = app;
-    document.querySelectorAll('.pending-app-row').forEach(r => {
-        r.classList.remove('bg-blue-50/50');
-    });
-    rowElement.classList.add('bg-blue-50/50');
+    try {
+        let app = null;
+        const rawId = rowElement.id ? rowElement.id.replace('row-', '') : null;
+        if (rawId && typeof applications !== 'undefined' && Array.isArray(applications)) {
+            app = applications.find(a => String(a.raw_id) === String(rawId));
+        }
 
-    // Populate drawer elements
-    document.getElementById('drawerAppId').textContent = app.id;
-    document.getElementById('drawerApplicantName').textContent = app.applicant;
-    document.getElementById('drawerApplicantAvatar').src = app.avatar;
-    
-    const statusSpan = document.getElementById('drawerAppStatus');
-    if (statusSpan) {
-        statusSpan.textContent = app.status;
-        statusSpan.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border ' + 
-            (app.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
-             app.status === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200' :
-             app.status === 'Returned for Correction' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-             'bg-amber-50 text-amber-600 border-amber-200/80');
-    }
+        if (!app) {
+            const rawData = rowElement.getAttribute('data-app');
+            if (rawData) {
+                app = JSON.parse(rawData);
+            }
+        }
 
-    document.getElementById('drawerBirthdate').textContent = app.birth_date || 'N/A';
-    document.getElementById('drawerSex').textContent = app.sex || 'N/A';
-    document.getElementById('drawerCivilStatus').textContent = app.civil_status || 'N/A';
-    document.getElementById('drawerYearsResident').textContent = (app.years_resident || 1) + ' year(s)';
-    document.getElementById('drawerBarangayDistrict').textContent = (app.barangay ? app.barangay + ', ' : '') + (app.district || '');
-    document.getElementById('drawerAddress').textContent = app.street_address || 'No street address provided';
-    document.getElementById('drawerValidIdType').textContent = app.valid_id_type || 'Valid ID';
-    document.getElementById('drawerValidIdNumber').textContent = app.valid_id_number || 'N/A';
-    document.getElementById('drawerSubmittedTimestamp').textContent = app.date + ' at ' + app.time;
+        if (!app) {
+            console.error('Could not resolve applicant data for row', rowElement);
+            return;
+        }
+
+        if (activeApp && activeApp.raw_id === app.raw_id && drawer.style.display === 'flex') {
+            closePendingDrawer();
+            return;
+        }
+
+        activeApp = app;
+        window.currentSelectedCitizen = app;
+        document.querySelectorAll('.pending-app-row').forEach(r => {
+            r.classList.remove('bg-blue-50/50');
+        });
+        rowElement.classList.add('bg-blue-50/50');
+
+        // Populate drawer elements safely
+        setSafeText('drawerAppId', app.id);
+        setSafeText('drawerApplicantName', app.applicant);
+        const avatarEl = document.getElementById('drawerApplicantAvatar');
+        if (avatarEl && app.avatar) avatarEl.src = app.avatar;
+        
+        const statusSpan = document.getElementById('drawerAppStatus');
+        if (statusSpan) {
+            statusSpan.textContent = app.status;
+            statusSpan.className = 'px-2 py-0.5 text-[10px] font-bold rounded-md border ' + 
+                (app.status === 'Approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' :
+                 app.status === 'Rejected' ? 'bg-red-50 text-red-600 border-red-200' :
+                 app.status === 'Returned for Correction' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                 'bg-amber-50 text-amber-600 border-amber-200/80');
+        }
+
+        setSafeText('drawerBirthdate', app.birth_date);
+        setSafeText('drawerSex', app.sex);
+        setSafeText('drawerCivilStatus', app.civil_status);
+        setSafeText('drawerYearsResident', (app.years_resident || 1) + ' year(s)');
+        setSafeText('drawerBarangayDistrict', (app.barangay ? app.barangay + ', ' : '') + (app.district || ''));
+        setSafeText('drawerAddress', app.street_address || 'No street address provided');
+        setSafeText('drawerValidIdType', app.valid_id_type || 'Valid ID');
+        setSafeText('drawerValidIdNumber', app.valid_id_number);
+        setSafeText('drawerSubmittedTimestamp', app.date + ' at ' + app.time);
 
     // Helper to format photo paths
     const API_BASE_URL = <?php echo json_encode($apiBase); ?>;
@@ -1561,6 +1589,10 @@ function selectPendingApplication(rowElement) {
 
     drawer.classList.remove('hidden');
     drawer.classList.add('flex');
+    drawer.style.display = 'flex';
+    } catch (err) {
+        console.error('selectPendingApplication error:', err);
+    }
 }
 
 function closePendingDrawer() {
@@ -1572,6 +1604,7 @@ function closePendingDrawer() {
     if (drawer) {
         drawer.classList.add('hidden');
         drawer.classList.remove('flex');
+        drawer.style.display = 'none';
     }
 }
 

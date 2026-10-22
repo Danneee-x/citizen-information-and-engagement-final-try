@@ -218,6 +218,6 @@ require_once __DIR__ . '/../src/bootstrap.php';
       </div>
     </div>
 
-  <script src="<?php echo $basePath ?? '../'; ?>assets/js/app.js"></script>
+  <script src="<?php echo $basePath ?? '../'; ?>assets/js/app.js?v=2.1"></script>
 
   <div class="flex-1 flex relative">

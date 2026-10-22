@@ -547,18 +547,19 @@ include '../../includes/sidebar.php';
                             </td>
                         </tr>
                         <?php else: ?>
-                        <?php foreach ($applications as $app): ?>
-                        <tr onclick="selectPendingApplication(this)" 
+                        <?php foreach ($applications as $app): 
+                            $appJson = htmlspecialchars(json_encode($app), ENT_QUOTES, 'UTF-8');
+                        ?>
+                        <tr onclick="openPendingDrawer(<?php echo $appJson; ?>)" 
                             class="pending-app-row hover:bg-slate-50/80 transition cursor-pointer" 
                             data-district="<?php echo htmlspecialchars($app['district']); ?>"
-                            data-app='<?php echo htmlspecialchars(json_encode($app), ENT_QUOTES, "UTF-8"); ?>'
                             id="row-<?php echo $app['raw_id']; ?>">
                             <td class="p-3.5 text-xs font-bold text-slate-700"><?php echo $app['id']; ?></td>
                             <td class="p-3.5">
                                 <div class="flex items-center gap-2.5">
                                     <img src="<?php echo $app['avatar']; ?>" class="w-7 h-7 rounded-full border border-slate-200 shrink-0" alt="Avatar">
                                     <div>
-                                        <span class="text-xs font-bold text-slate-900 block"><?php echo htmlspecialchars($app['applicant']); ?></span>
+                                        <span class="text-xs font-bold text-slate-900 hover:text-[#0f53d1] block transition"><?php echo htmlspecialchars($app['applicant']); ?></span>
                                         <span class="text-[10px] text-slate-400"><?php echo htmlspecialchars($app['valid_id_type']); ?></span>
                                     </div>
                                 </div>
@@ -615,7 +616,7 @@ include '../../includes/sidebar.php';
                             </td>
                             <td class="p-3.5 text-center">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button type="button" onclick="selectPendingApplication(this.closest('tr'))" class="px-2.5 py-1 text-xs font-bold text-[#0f53d1] bg-blue-50 hover:bg-[#0f53d1] hover:text-white border border-blue-200 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-2xs" title="Inspect Application Details">
+                                    <button type="button" onclick="event.stopPropagation(); openPendingDrawer(<?php echo $appJson; ?>)" class="px-3 py-1.5 text-xs font-bold text-white bg-[#0f53d1] hover:bg-blue-700 border border-blue-600 rounded-lg transition cursor-pointer flex items-center gap-1.5 shadow-sm" title="Inspect Application Details">
                                         <i class="fa-regular fa-eye text-xs"></i>
                                         <span>View Info</span>
                                     </button>
@@ -1237,8 +1238,22 @@ function setSafeText(id, val) {
     if (el) el.textContent = (val !== undefined && val !== null && val !== '') ? val : 'N/A';
 }
 
-function selectPendingApplication(rowElement) {
-    if (!rowElement) return;
+function selectPendingApplication(rowOrApp) {
+    if (!rowOrApp) return;
+    if (typeof rowOrApp === 'object' && rowOrApp.raw_id) {
+        openPendingDrawer(rowOrApp);
+        return;
+    }
+    const rawId = rowOrApp.id ? rowOrApp.id.replace('row-', '') : null;
+    let app = null;
+    if (rawId && typeof applications !== 'undefined' && Array.isArray(applications)) {
+        app = applications.find(a => String(a.raw_id) === String(rawId));
+    }
+    if (app) openPendingDrawer(app);
+}
+
+function openPendingDrawer(app) {
+    if (!app) return;
     const drawer = document.getElementById('pendingDetailDrawer');
     if (!drawer) {
         console.error('pendingDetailDrawer not found in DOM');
@@ -1246,41 +1261,20 @@ function selectPendingApplication(rowElement) {
     }
 
     try {
-        let app = null;
-        const rawId = rowElement.id ? rowElement.id.replace('row-', '') : null;
-        if (rawId && typeof applications !== 'undefined' && Array.isArray(applications)) {
-            app = applications.find(a => String(a.raw_id) === String(rawId));
-        }
-
-        if (!app) {
-            const rawData = rowElement.getAttribute('data-app');
-            if (rawData) {
-                app = JSON.parse(rawData);
-            }
-        }
-
-        if (!app) {
-            console.error('Could not resolve applicant data for row', rowElement);
-            return;
-        }
-
-        if (activeApp && activeApp.raw_id === app.raw_id && drawer.style.display === 'flex') {
-            closePendingDrawer();
-            return;
-        }
-
         activeApp = app;
         window.currentSelectedCitizen = app;
+
         document.querySelectorAll('.pending-app-row').forEach(r => {
             r.classList.remove('bg-blue-50/50');
         });
-        rowElement.classList.add('bg-blue-50/50');
+        const activeRow = document.getElementById('row-' + app.raw_id);
+        if (activeRow) activeRow.classList.add('bg-blue-50/50');
 
         // Populate drawer elements safely
-        setSafeText('drawerAppId', app.id);
-        setSafeText('drawerApplicantName', app.applicant);
+        setSafeText('drawerAppId', app.id || ('VER-' + String(app.raw_id).padStart(4, '0')));
+        setSafeText('drawerApplicantName', app.applicant || 'Applicant');
         const avatarEl = document.getElementById('drawerApplicantAvatar');
-        if (avatarEl && app.avatar) avatarEl.src = app.avatar;
+        if (avatarEl) avatarEl.src = app.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.applicant || 'Citizen')}&background=0f53d1&color=fff`;
         
         const statusSpan = document.getElementById('drawerAppStatus');
         if (statusSpan) {
@@ -1300,7 +1294,7 @@ function selectPendingApplication(rowElement) {
         setSafeText('drawerAddress', app.street_address || 'No street address provided');
         setSafeText('drawerValidIdType', app.valid_id_type || 'Valid ID');
         setSafeText('drawerValidIdNumber', app.valid_id_number);
-        setSafeText('drawerSubmittedTimestamp', app.date + ' at ' + app.time);
+        setSafeText('drawerSubmittedTimestamp', app.date ? (app.date + ' at ' + app.time) : 'Mobile Submission');
 
     // Helper to format photo paths
     const API_BASE_URL = <?php echo json_encode($apiBase); ?>;
